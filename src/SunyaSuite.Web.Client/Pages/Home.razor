@@ -1,0 +1,277 @@
+@page "/"
+@attribute [Authorize]
+@inject IDashboardService DashboardService
+@inject IFiscalYearService FiscalYearService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageHeader Title="Dashboard" />
+
+<div class="d-flex align-center mb-4">
+    <MudSelect T="Guid?" Label="Fiscal Year"
+               ValueChanged="@(async (Guid? v) => { _fiscalYearId = v; await LoadData(); })"
+               Value="@_fiscalYearId"
+               Clearable="true" Variant="Variant.Outlined"
+               Class="mud-select-small mud-select-min-width">
+        @foreach (var fy in _fiscalYears)
+        {
+            <MudSelectItem T="Guid?" Value="@fy.Id" @key="fy.Id">
+                @fy.YearName @(fy.IsCurrent ? "(Current)" : fy.IsOpen ? "" : "(Closed)")
+            </MudSelectItem>
+        }
+    </MudSelect>
+</div>
+
+<ErrorAlert Message="@_errorMessage" />
+
+@if (_loading)
+{
+    <MudGrid>
+        <MudItem xs="12" sm="6" md="3">
+            <LoadingSkeleton Variant="SkeletonVariant.Card" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <LoadingSkeleton Variant="SkeletonVariant.Card" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <LoadingSkeleton Variant="SkeletonVariant.Card" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <LoadingSkeleton Variant="SkeletonVariant.Card" />
+        </MudItem>
+    </MudGrid>
+    <MudGrid Class="mt-6">
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6">
+                <MudSkeleton Width="50%" Height="20px" Class="mb-4" />
+                <MudSkeleton Width="100%" Height="16px" Class="mb-2" />
+                <MudSkeleton Width="100%" Height="8px" Class="mb-3" />
+                <MudSkeleton Width="100%" Height="16px" Class="mb-2" />
+                <MudSkeleton Width="100%" Height="8px" Class="mb-3" />
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6">
+                <MudSkeleton Width="50%" Height="20px" Class="mb-4" />
+                <MudSkeleton Width="100%" Height="16px" Class="mb-2" />
+                <MudSkeleton Width="100%" Height="8px" Class="mb-3" />
+                <MudSkeleton Width="100%" Height="16px" Class="mb-2" />
+                <MudSkeleton Width="100%" Height="8px" Class="mb-3" />
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+    <MudPaper Elevation="0" Outlined="true" Class="pa-6 mt-6">
+        <MudSkeleton Width="30%" Height="20px" Class="mb-4" />
+        <MudSkeleton Width="100%" Height="300px" />
+    </MudPaper>
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="0" Outlined="true" Class="pa-4 stat-card stat-card-default">
+                <MudText Typo="Typo.subtitle2" Class="text-secondary mb-1">Total Clients</MudText>
+                <MudText Typo="Typo.h3">@_stats.TotalClients</MudText>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="0" Outlined="true" Class="pa-4 stat-card stat-card-warning">
+                <MudText Typo="Typo.subtitle2" Class="text-secondary mb-1">Active Projects</MudText>
+                <MudText Typo="Typo.h3">@_stats.ActiveProjects</MudText>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="0" Outlined="true" Class="pa-4 stat-card stat-card-error">
+                <MudText Typo="Typo.subtitle2" Class="text-secondary mb-1">Overdue Invoices</MudText>
+                <MudText Typo="Typo.h3" Color="@(_stats.OverdueInvoices > 0 ? Color.Error : Color.Default)">
+                    @_stats.OverdueInvoices
+                </MudText>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="0" Outlined="true" Class="pa-4 stat-card stat-card-success">
+                <MudText Typo="Typo.subtitle2" Class="text-secondary mb-1">Revenue This Month</MudText>
+                <MudText Typo="Typo.h3">@_stats.RevenueThisMonth.ToString("C0")</MudText>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+
+    <MudGrid Class="mt-6">
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6">
+                <MudText Typo="Typo.subtitle2" Class="mb-4">Client Status Distribution</MudText>
+                @foreach (var item in _stats.ClientStatusBreakdown)
+                {
+                    var pct = _stats.TotalClients > 0 ? (int)Math.Round((double)item.Count / _stats.TotalClients * 100) : 0;
+                    <MudText @key="item.Status" Typo="Typo.body2" Class="mb-1">@item.Status � @item.Count (@pct%)</MudText>
+                    <MudProgressLinear Value="@pct" Class="mb-3 rounded"
+                                      Color="@(item.Status switch { "Green" => Color.Success, "Yellow" => Color.Warning, "Red" => Color.Error, _ => Color.Default })" />
+                }
+                @if (_stats.ClientStatusBreakdown.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Class="text-disabled">No clients yet.</MudText>
+                }
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6">
+                <MudText Typo="Typo.subtitle2" Class="mb-4">Project Status Distribution</MudText>
+                @foreach (var item in _stats.ProjectStatusBreakdown)
+                {
+                    var total = _stats.ProjectStatusBreakdown.Sum(s => s.Count);
+                    var pct = total > 0 ? (int)Math.Round((double)item.Count / total * 100) : 0;
+                    <MudText @key="item.Status" Typo="Typo.body2" Class="mb-1">@item.Status � @item.Count (@pct%)</MudText>
+                    <MudProgressLinear @key="item.Status" Value="@pct" Class="mb-3 rounded"
+                                      Color="@(item.Status switch { "Completed" => Color.Success, "InProgress" => Color.Warning, "OnHold" => Color.Error, _ => Color.Default })" />
+                }
+                @if (_stats.ProjectStatusBreakdown.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Class="text-disabled">No projects yet.</MudText>
+                }
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <MudGrid Class="mt-6">
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6">
+                <MudText Typo="Typo.subtitle2" Class="mb-4">Invoice Status Distribution</MudText>
+                @if (_stats.InvoiceStatusBreakdown.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Class="text-disabled">No invoices yet.</MudText>
+                }
+                else
+                {
+                    <MudChart ChartType="ChartType.Donut"
+                              ChartSeries="@_invoiceChartSeries"
+                              ChartLabels="@_invoiceChartLabels"
+                              Width="100%" Height="300px" />
+                }
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6">
+                <MudText Typo="Typo.subtitle2" Class="mb-4">Monthly Revenue (Last 6 Months)</MudText>
+                @if (_stats.MonthlyRevenue.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Class="text-disabled">No revenue data yet.</MudText>
+                }
+                else
+                {
+                    <MudChart ChartType="ChartType.Bar"
+                              ChartSeries="@_revenueChartSeries"
+                              ChartLabels="@_revenueChartLabels"
+                              Width="100%" Height="300px" />
+                }
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <MudPaper Elevation="0" Outlined="true" Class="pa-6 mt-6">
+        <MudText Typo="Typo.subtitle2" Class="mb-4">Recent Invoices</MudText>
+        @if (_recentInvoices.Count == 0)
+        {
+            <MudText Typo="Typo.body2" Class="text-disabled">No invoices yet.</MudText>
+        }
+        else
+        {
+            <MudTable T="RecentInvoiceDto" Items="@_recentInvoices" Dense="true" Hover="true"
+                      Outlined="false" Elevation="0">
+                <HeaderContent>
+                    <MudTh>Invoice #</MudTh>
+                    <MudTh>Client</MudTh>
+                    <MudTh>Total</MudTh>
+                    <MudTh>Due Date</MudTh>
+                    <MudTh>Status</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>
+                        <MudLink Href="@($"/invoices/{context.Id}")">@context.InvoiceNumber</MudLink>
+                    </MudTd>
+                    <MudTd>@context.ClientName</MudTd>
+                    <MudTd>@context.Total.ToString("C")</MudTd>
+                    <MudTd>@context.DueDate.ToString("MMM dd")</MudTd>
+                    <MudTd>
+                        <StatusChip Status="@context.Status">@context.Status</StatusChip>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudPaper>
+}
+
+@code {
+    private bool _loading = true;
+    private string? _errorMessage;
+    private Guid? _fiscalYearId;
+    private List<FiscalYearListItemDto> _fiscalYears = [];
+    private DashboardStats _stats = new();
+    private List<RecentInvoiceDto> _recentInvoices = [];
+    private List<ChartSeries<double>> _invoiceChartSeries = [];
+    private string[] _invoiceChartLabels = [];
+    private List<ChartSeries<double>> _revenueChartSeries = [];
+    private string[] _revenueChartLabels = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.IsInRole(RoleNames.SystemAdmin))
+        {
+            Navigation.NavigateTo("/users");
+            return;
+        }
+
+        try
+        {
+            _fiscalYears = await FiscalYearService.GetAllAsync();
+            var current = _fiscalYears.FirstOrDefault(f => f.IsCurrent);
+            if (current is not null)
+                _fiscalYearId = current.Id;
+
+            await LoadData();
+        }
+        catch
+        {
+            _errorMessage = "Failed to load data.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task LoadData()
+    {
+        _stats = await DashboardService.GetStatsAsync(_fiscalYearId);
+        _recentInvoices = await DashboardService.GetRecentInvoicesAsync(5);
+
+        _invoiceChartSeries =
+        [
+            new()
+            {
+                Data = _stats.InvoiceStatusBreakdown
+                    .Select(s => (double)s.Count)
+                    .ToList()
+            }
+        ];
+        _invoiceChartLabels = _stats.InvoiceStatusBreakdown
+            .Select(s => s.Status)
+            .ToArray();
+
+        _revenueChartSeries =
+        [
+            new()
+            {
+                Name = "Revenue",
+                Data = _stats.MonthlyRevenue
+                    .Select(m => (double)m.Amount)
+                    .ToList()
+            }
+        ];
+        _revenueChartLabels = _stats.MonthlyRevenue
+            .Select(m => m.Month)
+            .ToArray();
+    }
+}

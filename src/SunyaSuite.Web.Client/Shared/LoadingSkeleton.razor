@@ -1,0 +1,63 @@
+@if (Variant == SkeletonVariant.Form)
+{
+    <MudPaper Elevation="0" Outlined="true" Class="pa-8">
+        <MudGrid>
+            <MudItem xs="12" sm="6"><MudSkeleton Width="100%" Height="56px" /></MudItem>
+            <MudItem xs="12" sm="6"><MudSkeleton Width="100%" Height="56px" /></MudItem>
+            <MudItem xs="12" sm="6"><MudSkeleton Width="100%" Height="56px" /></MudItem>
+            <MudItem xs="12" sm="6"><MudSkeleton Width="100%" Height="56px" /></MudItem>
+        </MudGrid>
+        <MudSkeleton Width="30%" Height="20px" Class="my-4" />
+        <MudSkeleton Width="100%" Height="150px" />
+        <div class="d-flex justify-end mt-4 gap-4">
+            <MudSkeleton Width="100px" Height="36px" Style="margin-right: 8px;" />
+            <MudSkeleton Width="120px" Height="36px" />
+        </div>
+    </MudPaper>
+}
+else if (Variant == SkeletonVariant.Card)
+{
+    <MudCard Elevation="0" Outlined="true" Class="pa-4">
+        <MudSkeleton Width="60%" Height="16px" />
+        <MudSkeleton Width="40%" Height="36px" Class="mt-4" />
+    </MudCard>
+}
+else if (Variant == SkeletonVariant.Table)
+{
+    @for (int i = 0; i < Lines; i++)
+    {
+        <MudSkeleton Width="@(i == Lines - 1 ? "60%" : "100%")" Height="40px" Class="mb-2" />
+    }
+}
+else if (Variant == SkeletonVariant.DetailCard)
+{
+    <MudSkeleton Width="@HeaderWidth" Height="32px" Class="mb-4" />
+    <MudPaper Elevation="0" Outlined="true" Class="pa-6">
+        <MudSkeleton Width="30%" Height="20px" Class="mb-4" />
+        <MudSkeleton Width="100%" Height="16px" Class="mb-2" />
+        <MudSkeleton Width="100%" Height="16px" Class="mb-2" />
+        <MudSkeleton Width="60%" Height="16px" Class="mb-2" />
+        <MudSkeleton Width="80%" Height="16px" />
+    </MudPaper>
+}
+else if (Variant == SkeletonVariant.NotificationSettings)
+{
+    <MudPaper Elevation="0" Outlined="true" Class="pa-8" Style="max-width: 600px;">
+        <MudSkeleton Width="60%" Height="16px" Class="mb-6" />
+        <MudSkeleton Width="100%" Height="24px" Class="mb-2" />
+        <MudDivider />
+        <MudSkeleton Width="100%" Height="24px" Class="my-3" />
+        <MudDivider />
+        <MudSkeleton Width="100%" Height="24px" Class="my-3" />
+        <MudDivider />
+        <MudSkeleton Width="100%" Height="24px" Class="my-3" />
+        <MudDivider />
+        <MudSkeleton Width="60%" Height="24px" Class="mt-3" />
+    </MudPaper>
+}
+
+@code {
+    [Parameter] public SkeletonVariant Variant { get; set; } = SkeletonVariant.Form;
+    [Parameter] public int Lines { get; set; } = 3;
+    [Parameter] public string? HeaderWidth { get; set; } = "40%";
+}

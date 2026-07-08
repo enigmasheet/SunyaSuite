@@ -1,0 +1,128 @@
+@page "/admin/branches/{Id:guid}"
+@attribute [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
+@inject IBranchService BranchService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject NavigationManager Navigation
+
+<PageHeader Title="@(_branch is null ? "Branch" : _branch.Name)" />
+
+<ErrorAlert Message="@_errorMessage"
+            OnDismiss="@(() => _errorMessage = null)" />
+
+@if (_loading)
+{
+    <LoadingSkeleton Variant="SkeletonVariant.DetailCard" />
+}
+else if (_branch is null)
+{
+    <MudAlert Severity="Severity.Warning" Class="mt-4">Branch not found.</MudAlert>
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12" md="8">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6 mb-4">
+                <div class="d-flex justify-space-between align-center mb-4">
+                    <MudText Typo="Typo.h6">Branch Information</MudText>
+                    <div class="d-flex gap-2">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Edit"
+                                   Href="@($"/admin/branches/edit/{Id}")">
+                            Edit
+                        </MudButton>
+                    </div>
+                </div>
+                <MudGrid>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Name</MudText>
+                        <MudText Typo="Typo.body1">@_branch.Name</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Company</MudText>
+                        <MudText Typo="Typo.body1">@_branch.CompanyName</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Slug</MudText>
+                        <MudText Typo="Typo.body1">@_branch.Slug</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Phone</MudText>
+                        <MudText Typo="Typo.body1">@(!string.IsNullOrEmpty(_branch.Phone) ? _branch.Phone : "—")</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Status</MudText>
+                        <MudChip T="string" Size="Size.Small" Color="@(_branch.IsActive ? Color.Success : Color.Error)">
+                            @(_branch.IsActive ? "Active" : "Inactive")
+                        </MudChip>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Address</MudText>
+                        <MudText Typo="Typo.body1">@(!string.IsNullOrEmpty(_branch.Address) ? _branch.Address : "—")</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Created</MudText>
+                        <MudText Typo="Typo.body1">@_branch.CreatedAt.ToString("MMM dd, yyyy")</MudText>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+
+            <MudButton Variant="Variant.Filled" Color="Color.Error"
+                       StartIcon="@Icons.Material.Filled.Delete"
+                       OnClick="@PromptDelete">
+                Delete Branch
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private bool _loading = true;
+    private string? _errorMessage;
+    private BranchDto? _branch;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _branch = await BranchService.GetByIdAsync(Id);
+        }
+        catch
+        {
+            _errorMessage = "Failed to load branch data.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task PromptDelete()
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+            "Delete Branch",
+            new DialogParameters
+            {
+                { "Message", $"Delete \"{_branch!.Name}\"? It can be restored later from Trash." },
+                { "ConfirmText", "Delete" }
+            },
+            new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            try
+            {
+                await BranchService.SoftDeleteAsync(Id);
+                Snackbar.Add("Branch deleted.", Severity.Success);
+                Navigation.NavigateTo("/admin/branches");
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to delete: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}

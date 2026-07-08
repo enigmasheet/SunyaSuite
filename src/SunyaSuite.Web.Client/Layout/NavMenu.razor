@@ -1,0 +1,150 @@
+﻿@using SunyaSuite.Application.DTOs.Config
+@using SunyaSuite.Web.Client.Services
+@implements IDisposable
+@inject IMenuService MenuService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="sidebar-nav">
+    <MudNavMenu>
+        @if (_loading)
+        {
+            <MudSkeleton Width="90%" Height="40px" Class="mb-2 mx-auto" />
+            <MudSkeleton Width="90%" Height="40px" Class="mb-2 mx-auto" />
+            <MudSkeleton Width="90%" Height="40px" Class="mb-2 mx-auto" />
+        }
+        else if (_menuError)
+        {
+            <MudText Typo="Typo.caption" Class="px-4 py-2 text-secondary">Unable to load menu.</MudText>
+            <MudDivider Class="sidebar-divider" />
+            <div class="sidebar-section-label">Account</div>
+            <MudNavLink Href="/account/notifications" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Notifications">
+                Notifications
+            </MudNavLink>
+            <MudNavLink Href="/settings/business-profile" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Business">
+                Business Profile
+            </MudNavLink>
+            <MudNavLink Href="/Account/Manage" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Settings">
+                Settings
+            </MudNavLink>
+            <MudDivider Class="sidebar-divider" />
+            <MudNavLink Href="/Account/Logout" Icon="@Icons.Material.Filled.Logout" Class="sidebar-logout" ForceLoad="true">
+                Logout
+            </MudNavLink>
+        }
+        else if (_menuSections is { Count: > 0 })
+        {
+            @for (int i = 0; i < _menuSections.Count; i++)
+            {
+                var section = _menuSections[i];
+                @if (section.Items.Count == 0) continue;
+
+                @if (i > 0)
+                {
+                    <MudDivider Class="sidebar-divider" />
+                }
+                <div class="sidebar-section-label">@section.SectionTitle</div>
+
+                @foreach (var item in section.Items)
+                {
+                    <MudNavLink Href="@item.Href"
+                                Match="@GetMatch(item.Href)"
+                                Icon="@GetIcon(item.Icon)">
+                        @item.Label
+                    </MudNavLink>
+                }
+            }
+
+            <MudDivider Class="sidebar-divider" />
+            <MudNavLink Href="/Account/Logout" Icon="@Icons.Material.Filled.Logout" Class="sidebar-logout" ForceLoad="true">
+                Logout
+            </MudNavLink>
+        }
+    </MudNavMenu>
+</div>
+
+@code {
+    private List<MenuSectionDto>? _menuSections;
+    private bool _loading = true;
+    private bool _menuError;
+    private bool _isAuthenticated;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        _isAuthenticated = authState.User.Identity?.IsAuthenticated == true;
+
+        if (_isAuthenticated)
+            await LoadMenuAsync();
+
+        _loading = false;
+        AuthStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+    }
+
+    private async void OnAuthenticationStateChanged(Task<AuthenticationState> task)
+    {
+        var authState = await task;
+        _isAuthenticated = authState.User.Identity?.IsAuthenticated == true;
+
+        if (_isAuthenticated)
+        {
+            MenuService.InvalidateCache();
+            await LoadMenuAsync();
+        }
+        else
+        {
+            _menuSections = null;
+            _menuError = false;
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadMenuAsync()
+    {
+        _loading = true;
+        _menuError = false;
+        try
+        {
+            _menuSections = await MenuService.GetMenuAsync();
+        }
+        catch
+        {
+            _menuError = true;
+            _menuSections = null;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private static NavLinkMatch GetMatch(string href)
+    {
+        return href == "/" ? NavLinkMatch.All : NavLinkMatch.Prefix;
+    }
+
+    private static string GetIcon(string key) => key switch
+    {
+        "Dashboard" => Icons.Material.Filled.Dashboard,
+        "People" => Icons.Material.Filled.People,
+        "WorkHistory" => Icons.Material.Filled.WorkHistory,
+        "Receipt" => Icons.Material.Filled.Receipt,
+        "ReceiptLong" => Icons.Material.Filled.ReceiptLong,
+        "Business" => Icons.Material.Filled.Business,
+        "AccountTree" => Icons.Material.Filled.AccountTree,
+        "CalendarMonth" => Icons.Material.Filled.CalendarMonth,
+        "History" => Icons.Material.Filled.History,
+        "Assessment" => Icons.Material.Filled.Assessment,
+        "Person" => Icons.Material.Filled.Person,
+        "DeleteSweep" => Icons.Material.Filled.DeleteSweep,
+        "Badge" => Icons.Material.Filled.Badge,
+        "Notifications" => Icons.Material.Filled.Notifications,
+        "Settings" => Icons.Material.Filled.Settings,
+        _ => Icons.Material.Filled.HelpOutline,
+    };
+
+    public void Dispose()
+    {
+        AuthStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+    }
+}

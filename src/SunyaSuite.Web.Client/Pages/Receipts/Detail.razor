@@ -1,0 +1,254 @@
+@page "/receipts/{Id:guid}"
+@attribute [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
+@inject IMoneyReceiptService MoneyReceiptService
+@inject IReceiptPdfService ReceiptPdfService
+@inject IEmailService EmailService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@inject IJSRuntime JsRuntime
+@inject IDialogService DialogService
+
+<PageHeader Title="@($"Receipt {_receiptNumber}")" />
+
+<ErrorAlert Message="@_errorMessage" />
+
+@if (_loading)
+{
+    <LoadingSkeleton Variant="SkeletonVariant.DetailCard" HeaderWidth="50%" />
+}
+else if (_receipt is null)
+{
+    <MudAlert Severity="Severity.Warning" Class="mt-4">Receipt not found.</MudAlert>
+}
+else
+{
+    <div class="d-flex align-center justify-space-between mb-4">
+        <MudText Typo="Typo.h4" Class="mb-0">
+            Receipt @_receipt.ReceiptNumber
+            <MudText Typo="Typo.caption" Class="text-secondary">FY @_receipt.FiscalYear</MudText>
+        </MudText>
+    </div>
+
+    <MudGrid>
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6 mb-4">
+                <MudText Typo="Typo.subtitle2" Class="mb-4">Receipt Details</MudText>
+                <MudGrid>
+                    <MudItem xs="6"><MudText Typo="Typo.body2">Receipt Number:</MudText></MudItem>
+                    <MudItem xs="6"><MudText Typo="Typo.body2" Class="font-weight-bold">@_receipt.ReceiptNumber</MudText></MudItem>
+                    <MudItem xs="6"><MudText Typo="Typo.body2">Date (AD):</MudText></MudItem>
+                    <MudItem xs="6"><MudText Typo="Typo.body2">@_receipt.DateAD.ToString("MMM dd, yyyy")</MudText></MudItem>
+                    <MudItem xs="6"><MudText Typo="Typo.body2">Date (BS):</MudText></MudItem>
+                    <MudItem xs="6"><MudText Typo="Typo.body2">@_receipt.DateBS</MudText></MudItem>
+                    <MudItem xs="6"><MudText Typo="Typo.body2">Payment Method:</MudText></MudItem>
+                    <MudItem xs="6"><MudText Typo="Typo.body2">@_receipt.PaymentMethod</MudText></MudItem>
+                    @if (!string.IsNullOrEmpty(_receipt.ReferenceNo))
+                    {
+                        <MudItem xs="6"><MudText Typo="Typo.body2">Reference No:</MudText></MudItem>
+                        <MudItem xs="6"><MudText Typo="Typo.body2">@_receipt.ReferenceNo</MudText></MudItem>
+                    }
+                    <MudItem xs="6"><MudText Typo="Typo.body2">Received By:</MudText></MudItem>
+                    <MudItem xs="6"><MudText Typo="Typo.body2">@_receipt.ReceivedBy</MudText></MudItem>
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6 mb-4">
+                <MudText Typo="Typo.subtitle2" Class="mb-4">Payer Information</MudText>
+                <MudGrid>
+                    <MudItem xs="6"><MudText Typo="Typo.body2">Received From:</MudText></MudItem>
+                    <MudItem xs="6"><MudText Typo="Typo.body2" Class="font-weight-bold">@_receipt.ReceivedFromName</MudText></MudItem>
+                    @if (!string.IsNullOrEmpty(_receipt.ReceivedFromPan))
+                    {
+                        <MudItem xs="6"><MudText Typo="Typo.body2">PAN:</MudText></MudItem>
+                        <MudItem xs="6"><MudText Typo="Typo.body2">@_receipt.ReceivedFromPan</MudText></MudItem>
+                    }
+                    @if (!string.IsNullOrEmpty(_receipt.ReceivedFromAddress))
+                    {
+                        <MudItem xs="6"><MudText Typo="Typo.body2">Address:</MudText></MudItem>
+                        <MudItem xs="6"><MudText Typo="Typo.body2">@_receipt.ReceivedFromAddress</MudText></MudItem>
+                    }
+                </MudGrid>
+            </MudPaper>
+
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6 mb-4">
+                <MudText Typo="Typo.subtitle2" Class="mb-4">Amount</MudText>
+                <MudText Typo="Typo.h5" Color="Color.Primary" Class="font-weight-bold">
+                    @_receipt.AmountReceived.ToString("N2")
+                </MudText>
+                <MudText Typo="Typo.caption" Class="text-secondary">
+                    @_receipt.AmountInWords
+                </MudText>
+            </MudPaper>
+
+            <MudSelect T="CopyType" @bind-Value="_copyType" Label="Copy Type"
+                       Variant="Variant.Outlined" Class="mb-4" FullWidth="true">
+                @foreach (var ct in Enum.GetValues<CopyType>())
+                {
+                    <MudSelectItem Value="@ct" @key="ct">@ct.ToString()</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudButton Variant="Variant.Filled" Color="Color.Info"
+                       FullWidth="true" StartIcon="@Icons.Material.Filled.Download"
+                       Class="mb-2"
+                       OnClick="@(async () => await DownloadPdf())">
+                Download PDF (@_copyType)
+            </MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       FullWidth="true" StartIcon="@Icons.Material.Filled.Email"
+                       Disabled="@_sendingEmail"
+                       OnClick="@(async () => await SendReceiptEmail())">
+                Send Email
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+
+    @if (_receipt.Allocations is { Count: > 0 })
+    {
+        <MudPaper Elevation="0" Outlined="true" Class="pa-6 mb-4">
+            <MudText Typo="Typo.subtitle2" Class="mb-4">Allocated Invoices</MudText>
+            <MudTable T="ReceiptAllocationDto" Items="@_receipt.Allocations"
+                      Dense="true" Hover="true" Outlined="false" Elevation="0">
+                <HeaderContent>
+                    <MudTh>Invoice #</MudTh>
+                    <MudTh>FY</MudTh>
+                    <MudTh>Allocated Amount</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>
+                        <MudLink Href="@($"/invoices/{context.InvoiceId}")">@context.InvoiceNumber</MudLink>
+                    </MudTd>
+                    <MudTd>@context.ReceiptFiscalYear</MudTd>
+                    <MudTd>@context.AllocatedAmount.ToString("N2")</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudPaper>
+    }
+
+    @if (!_receipt.IsDeleted)
+    {
+        <MudButton Variant="Variant.Outlined" Color="Color.Error"
+                   StartIcon="@Icons.Material.Filled.Delete"
+                   OnClick="@PromptDelete">
+            Delete Receipt
+        </MudButton>
+    }
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private bool _loading = true;
+    private bool _sendingEmail;
+    private string? _errorMessage;
+    private MoneyReceiptDetailDto? _receipt;
+    private string _receiptNumber = string.Empty;
+    private CopyType _copyType = CopyType.Original;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _receipt = await MoneyReceiptService.GetByIdAsync(Id);
+            _receiptNumber = _receipt?.ReceiptNumber ?? string.Empty;
+        }
+        catch
+        {
+            _errorMessage = "Failed to load receipt.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task DownloadPdf()
+    {
+        if (_receipt is null) return;
+        try
+        {
+            var pdfBytes = await ReceiptPdfService.GeneratePdfAsync(_receipt, _copyType);
+            var base64 = Convert.ToBase64String(pdfBytes);
+            await JsRuntime.InvokeVoidAsync("downloadFile", $"Receipt_{_receipt.ReceiptNumber}_{_copyType}.pdf", base64);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to generate PDF: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task SendReceiptEmail()
+    {
+        if (_receipt is null) return;
+
+        if (!EmailService.IsConfigured)
+        {
+            Snackbar.Add("Email is not configured (SMTP settings missing).", Severity.Warning);
+            return;
+        }
+
+        var dialog = await DialogService.ShowAsync<PromptDialog>(
+            "Send Receipt",
+            new DialogParameters
+            {
+                { "Message", "Enter recipient email address:" },
+                { "ConfirmText", "Send" }
+            },
+            new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            var email = result.Data?.ToString();
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                Snackbar.Add("Email address is required.", Severity.Warning);
+                return;
+            }
+
+            _sendingEmail = true;
+            try
+            {
+                var pdfBytes = await ReceiptPdfService.GeneratePdfAsync(_receipt, _copyType);
+                var htmlBody = $@"<html><body style='font-family:sans-serif;'><h2>Receipt {_receipt.ReceiptNumber}</h2><p>Dear {_receipt.ReceivedFromName},</p><p>Thank you for your payment. Please find your receipt attached.</p><table border='1' cellpadding='8' style='border-collapse:collapse;'><tr><th>Receipt #</th><th>Amount</th><th>Date</th></tr><tr><td>{_receipt.ReceiptNumber}</td><td>{_receipt.AmountReceived:C}</td><td>{_receipt.DateAD:MMM dd, yyyy}</td></tr></table><p>Thank you for your business.</p></body></html>";
+                await EmailService.SendWithAttachmentAsync(email, $"Receipt {_receipt.ReceiptNumber} from SunyaSuite", htmlBody, $"Receipt_{_receipt.ReceiptNumber}.pdf", pdfBytes);
+                Snackbar.Add($"Receipt sent to {email}.", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to send email: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                _sendingEmail = false;
+            }
+        }
+    }
+
+    private async Task PromptDelete()
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+            "Delete Receipt",
+            new DialogParameters
+            {
+                { "Message", $"Delete receipt {_receiptNumber}? It will be moved to trash." }
+            },
+            new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            try
+            {
+                await MoneyReceiptService.DeleteAsync(Id);
+                _receipt = await MoneyReceiptService.GetByIdAsync(Id);
+                Snackbar.Add("Receipt deleted.", Severity.Success);
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to delete receipt: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}

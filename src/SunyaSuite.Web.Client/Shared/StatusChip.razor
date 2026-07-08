@@ -1,0 +1,27 @@
+<MudChip T="string" Size="@Size" Color="@ResolvedColor" Class="@Class">
+    @Symbol @ChildContent
+</MudChip>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public Size Size { get; set; } = Size.Small;
+    [Parameter] public string? Status { get; set; }
+
+    private string Symbol => Status switch
+    {
+        "Green" or "Paid" or "Completed" => "\u2713 ",
+        "Yellow" or "Sent" or "InProgress" => "\u2192 ",
+        "Red" or "Overdue" or "OnHold" => "\u26a0 ",
+        _ => "\u25cb "
+    };
+
+    private Color ResolvedColor => Status switch
+    {
+        "Green" or "Paid" or "Completed" => Color.Success,
+        "Yellow" or "OnHold" => Color.Warning,
+        "Red" or "Overdue" => Color.Error,
+        "Sent" or "InProgress" => Color.Info,
+        _ => Color.Default
+    };
+}

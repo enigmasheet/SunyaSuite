@@ -1,0 +1,138 @@
+@page "/admin/roles"
+@attribute [Authorize(Policy = PolicyNames.SystemAdminOnly)]
+@inject IUserService UserService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageHeader Title="System Roles" />
+
+<ErrorAlert Message="@_errorMessage"
+            OnDismiss="@(() => _errorMessage = null)" />
+
+<MudButton Variant="Variant.Filled" Color="Color.Primary"
+           StartIcon="@Icons.Material.Filled.Add"
+           OnClick="@PromptCreate" Class="mb-4">
+    Create Role
+</MudButton>
+
+@if (_loading)
+{
+    <LoadingSkeleton Variant="SkeletonVariant.Table" />
+}
+else
+{
+    <MudTable T="string" Items="_roles"
+              Dense="true" Hover="true" Striped="true"
+              Outlined="true" Elevation="0">
+        <HeaderContent>
+            <MudTh>Role Name</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Role Name">
+                <MudText Typo="Typo.body1" Class="font-weight-bold">@context</MudText>
+            </MudTd>
+            <MudTd DataLabel="Actions">
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                               Color="Color.Error"
+                               aria-label="Delete role"
+                               Disabled="@IsProtectedRole(context)"
+                               OnClick="@(() => PromptDelete(context))" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <EmptyState Icon="@Icons.Material.Filled.Badge" Title="No roles defined." />
+        </NoRecordsContent>
+    </MudTable>
+}
+
+@code {
+    private bool _loading = true;
+    private string? _errorMessage;
+    private List<string> _roles = [];
+
+    private static readonly HashSet<string> ProtectedRoles = ["SystemAdmin", "OrgAdmin", "Owner", "Member"];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRoles();
+    }
+
+    private async Task LoadRoles()
+    {
+        try
+        {
+            _errorMessage = null;
+            _roles = await UserService.GetAllRolesAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to load roles: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private static bool IsProtectedRole(string role) => ProtectedRoles.Contains(role);
+
+    private async Task PromptCreate()
+    {
+        var parameters = new DialogParameters
+        {
+            { "Title", "Create Role" },
+            { "Message", "Enter the name for the new role." },
+            { "Label", "Role Name" }
+        };
+
+        var dialog = await DialogService.ShowAsync<PromptDialog>(
+            "Create Role",
+            parameters,
+            new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: string roleName } && !string.IsNullOrWhiteSpace(roleName))
+        {
+            try
+            {
+                _errorMessage = null;
+                await UserService.CreateRoleAsync(roleName.Trim());
+                Snackbar.Add($"Role '{roleName.Trim()}' created.", Severity.Success);
+                await LoadRoles();
+            }
+            catch (Exception ex)
+            {
+                _errorMessage = $"Failed to create role: {ex.Message}";
+            }
+        }
+    }
+
+    private async Task PromptDelete(string roleName)
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+            "Delete Role",
+            new DialogParameters
+            {
+                { "Message", $"Delete role \"{roleName}\"? Users with this role will lose associated permissions." },
+                { "ConfirmText", "Delete" }
+            },
+            new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            try
+            {
+                _errorMessage = null;
+                await UserService.DeleteRoleAsync(roleName);
+                Snackbar.Add("Role deleted.", Severity.Success);
+                await LoadRoles();
+            }
+            catch (Exception ex)
+            {
+                _errorMessage = $"Failed to delete role: {ex.Message}";
+            }
+        }
+    }
+}

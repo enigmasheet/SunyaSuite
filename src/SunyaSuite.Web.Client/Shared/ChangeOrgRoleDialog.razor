@@ -1,0 +1,43 @@
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.subtitle2">Change Organization Role</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mb-4">Current role: <strong>@CurrentRole</strong></MudText>
+        <MudSelect @bind-Value="_newRole"
+                   Label="New Role"
+                   Required="true"
+                   RequiredError="Please select a role">
+            @foreach (var role in OrgRoles)
+            {
+                <MudSelectItem Value="@role" @key="role">@role</MudSelectItem>
+            }
+        </MudSelect>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   Disabled="string.IsNullOrEmpty(_newRole)"
+                   OnClick="Confirm">
+            Save
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter] public string CurrentRole { get; set; } = string.Empty;
+    [Parameter] public List<string> OrgRoles { get; set; } = [];
+
+    private string _newRole = string.Empty;
+
+    protected override void OnParametersSet()
+    {
+        _newRole = CurrentRole;
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Confirm() => MudDialog.Close(DialogResult.Ok(_newRole));
+}

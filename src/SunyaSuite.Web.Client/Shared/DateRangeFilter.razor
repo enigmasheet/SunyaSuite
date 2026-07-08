@@ -1,0 +1,18 @@
+<MudText Typo="Typo.subtitle2" Class="mb-2 mt-4">@Label</MudText>
+<MudGrid>
+    <MudItem xs="12" sm="6">
+        <MudDatePicker @bind-Date="@From" Label="From" AutoClose="true" />
+    </MudItem>
+    <MudItem xs="12" sm="6">
+        <MudDatePicker @bind-Date="@To" Label="To" AutoClose="true"
+                       Validation="@((DateTime? v) => v.HasValue && From.HasValue && v.Value < From.Value ? "To date must be on or after From date" : null)" />
+    </MudItem>
+</MudGrid>
+
+@code {
+    [Parameter] public string Label { get; set; } = "Date Range";
+    [Parameter] public DateTime? From { get; set; }
+    [Parameter] public EventCallback<DateTime?> FromChanged { get; set; }
+    [Parameter] public DateTime? To { get; set; }
+    [Parameter] public EventCallback<DateTime?> ToChanged { get; set; }
+}

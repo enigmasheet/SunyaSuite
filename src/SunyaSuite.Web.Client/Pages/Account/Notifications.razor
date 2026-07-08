@@ -1,0 +1,96 @@
+@page "/account/notifications"
+@using SunyaSuite.Domain.Entities.Tenant
+@attribute [Authorize]
+@inject INotificationPreferenceService NotificationService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject ISnackbar Snackbar
+
+<PageHeader Title="Notifications" Subtitle="Notification Preferences" />
+
+<ErrorAlert Message="@_errorMessage" />
+
+@if (_loading)
+{
+    <LoadingSkeleton Variant="SkeletonVariant.NotificationSettings" />
+}
+else
+{
+    <FormCard MaxWidth="600px">
+        <MudText Typo="Typo.body2" Class="text-secondary mb-6">
+            Choose which notifications you'd like to receive via email.
+        </MudText>
+
+        @foreach (var pref in _preferences)
+        {
+            var p = pref;
+            <div class="d-flex align-center justify-space-between py-3" @key="pref.Type">
+                <div>
+                    <MudText Typo="Typo.subtitle2">@FormatType(pref.Type)</MudText>
+                    <MudText Typo="Typo.caption" Class="text-secondary">@GetDescription(pref.Type)</MudText>
+                </div>
+                <MudSwitch @bind-Value="p.EmailEnabled"
+                           Color="Color.Primary"
+                           Disabled="@_saving"
+                           @bind-Value:after="@(async () => await Toggle(p.Type, p.EmailEnabled))" />
+            </div>
+            <MudDivider />
+        }
+    </FormCard>
+}
+
+@code {
+    private bool _loading = true;
+    private bool _saving;
+    private string? _errorMessage;
+    private List<NotificationPreference> _preferences = [];
+    private string _userId = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var state = await AuthStateProvider.GetAuthenticationStateAsync();
+            _userId = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+
+            await NotificationService.SeedDefaultsAsync(_userId);
+            _preferences = await NotificationService.GetForUserAsync(_userId);
+        }
+        catch
+        {
+            _errorMessage = "Failed to load data.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task Toggle(string type, bool enabled)
+    {
+        _saving = true;
+        try
+        {
+            await NotificationService.ToggleAsync(_userId, type, enabled);
+            Snackbar.Add($"{(enabled ? "Enabled" : "Disabled")} {FormatType(type)} notifications.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to update: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private static string FormatType(string type) =>
+        string.Join(" ", System.Text.RegularExpressions.Regex.Split(type, @"(?<=[a-z])(?=[A-Z])"));
+
+    private static string GetDescription(string type) => type switch
+    {
+        "InvoiceOverdue" => "When an invoice becomes overdue",
+        "InvoicePaid" => "When an invoice is marked as paid",
+        "NewUserRegistered" => "When a new user registers in the system",
+        _ => ""
+    };
+}

@@ -1,0 +1,30 @@
+@typeparam TEnum where TEnum : struct, Enum
+
+<MudText Typo="Typo.subtitle2" Class="mb-2">@Label</MudText>
+<MudStack Row="true" Class="mb-4">
+    @foreach (var status in Enum.GetValues<TEnum>())
+    {
+        var isSelected = SelectedValues.Contains(status);
+        <MudButton @key="status" Variant="@(isSelected ? Variant.Filled : Variant.Outlined)"
+                   Color="@(isSelected ? Color.Primary : Color.Default)"
+                   Size="Size.Small"
+                   OnClick="@(() => Toggle(status))">
+            @status.ToString()
+        </MudButton>
+    }
+</MudStack>
+
+@code {
+    [Parameter] public string Label { get; set; } = "Status";
+    [Parameter] public HashSet<TEnum> SelectedValues { get; set; } = [];
+    [Parameter] public EventCallback<HashSet<TEnum>> SelectedValuesChanged { get; set; }
+
+    private void Toggle(TEnum status)
+    {
+        var updated = new HashSet<TEnum>(SelectedValues);
+        if (!updated.Remove(status))
+            updated.Add(status);
+        SelectedValues = updated;
+        SelectedValuesChanged.InvokeAsync(updated);
+    }
+}

@@ -1,0 +1,137 @@
+@page "/users/edit/{Id}"
+@attribute [Authorize(Policy = PolicyNames.SystemAdminOnly)]
+@inject IUserService UserService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageHeader Title="@(_user is null ? "Edit User" : $"Edit: {_user.FirstName} {_user.LastName}")" />
+
+<ErrorAlert Message="@_errorMessage" />
+
+@if (_loading)
+{
+    <LoadingSkeleton Variant="SkeletonVariant.Form" />
+}
+else if (_user is null)
+{
+    <MudAlert Severity="Severity.Warning" Class="mt-4">User not found.</MudAlert>
+}
+else
+{
+    <FormCard MaxWidth="600px">
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_firstName" Label="First Name" Required="true" RequiredError="First name is required" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_lastName" Label="Last Name" Required="true" RequiredError="Last name is required" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_email" Label="Email" Required="true" RequiredError="Email is required"
+                                  Validation="@(new Func<string, string?>(v => string.IsNullOrWhiteSpace(v) || v.Contains('@') ? null : "Enter a valid email"))" />
+                </MudItem>
+                <MudItem xs="12" Class="mt-4">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Roles</MudText>
+                    @if (_allRoles.Count == 0)
+                    {
+                        <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+                    }
+                    else
+                    {
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach (var role in _allRoles)
+                            {
+                                var r = role;
+                                var selected = _selectedRoles.Contains(r);
+                                <MudButton @key="role" Variant="@(selected ? Variant.Filled : Variant.Outlined)"
+                                           Color="@(selected ? Color.Primary : Color.Default)"
+                                           OnClick="@(() => ToggleRole(r))">
+                                    @r
+                                </MudButton>
+                            }
+                        </div>
+                    }
+                </MudItem>
+            </MudGrid>
+
+            <FormActions SaveLabel="Save Changes"
+                         SavingText="Saving..."
+                         CancelHref="/users"
+                         Disabled="@(!_isValid)"
+                         Saving="@_saving"
+                         OnSave="@(async () => await Save())" />
+        </MudForm>
+    </FormCard>
+}
+
+@code {
+    [Parameter] public string Id { get; set; } = string.Empty;
+
+    private bool _loading = true;
+    private bool _saving;
+    private string? _errorMessage;
+    private bool _isValid;
+    private MudForm _form = null!;
+    private UserDto? _user;
+    private List<string> _allRoles = [];
+    private HashSet<string> _selectedRoles = [];
+
+    private string _firstName = string.Empty;
+    private string _lastName = string.Empty;
+    private string _email = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _user = await UserService.GetByIdAsync(Id);
+            if (_user is not null)
+            {
+                _firstName = _user.FirstName;
+                _lastName = _user.LastName;
+                _email = _user.Email;
+                _selectedRoles = [.. _user.Roles];
+            }
+            _allRoles = await UserService.GetAllRolesAsync();
+        }
+        catch
+        {
+            _errorMessage = "Failed to load data.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void ToggleRole(string role)
+    {
+        if (!_selectedRoles.Remove(role))
+            _selectedRoles.Add(role);
+    }
+
+    private async Task Save()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid) return;
+
+        _saving = true;
+        try
+        {
+            await UserService.UpdateAsync(Id, _email, _firstName, _lastName);
+            var roles = _allRoles.Where(r => _selectedRoles.Contains(r)).ToList();
+            await UserService.AssignRolesAsync(Id, roles);
+            Snackbar.Add("User updated.", Severity.Success);
+            Navigation.NavigateTo("/users");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to update user: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

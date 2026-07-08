@@ -1,0 +1,22 @@
+@if (!string.IsNullOrEmpty(Message))
+{
+    <MudAlert Severity="@Severity" Class="@GetClass()" Dense="true"
+              role="alert" @onclick="@OnDismiss">
+        @Message
+    </MudAlert>
+}
+
+@code {
+    [Parameter] public string? Message { get; set; }
+    [Parameter] public Severity Severity { get; set; } = Severity.Error;
+    [Parameter] public EventCallback<MouseEventArgs> OnDismiss { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private string GetClass()
+    {
+        var cls = "mb-4";
+        if (!string.IsNullOrEmpty(Class))
+            cls += " " + Class;
+        return cls;
+    }
+}

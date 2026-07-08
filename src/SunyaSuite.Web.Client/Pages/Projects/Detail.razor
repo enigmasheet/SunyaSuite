@@ -1,0 +1,242 @@
+@page "/projects/{Id:guid}"
+@attribute [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
+@inject IProjectService ProjectService
+@inject IInvoiceService InvoiceService
+
+<PageHeader Title="@(_project?.Name ?? "Project Details")" />
+
+<ErrorAlert Message="@_errorMessage" />
+
+@if (_loading)
+{
+    <LoadingSkeleton Variant="SkeletonVariant.DetailCard" />
+}
+else if (_project is null)
+{
+    <MudAlert Severity="Severity.Warning" Class="mt-4">Project not found.</MudAlert>
+}
+else
+{
+    <MudText Typo="Typo.h4" Class="mb-4">
+        @_project.Name
+        <StatusChip Status="@_project.Status">@_project.Status</StatusChip>
+    </MudText>
+
+    <MudGrid>
+        <MudItem xs="12" md="5">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6">
+                <MudText Typo="Typo.subtitle2" Class="mb-4">Project Details</MudText>
+                <MudList T="string" Dense="true">
+                    <MudListItem T="string">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Client</MudText>
+                        <MudLink Href="@($"/clients/{_project.ClientId}")">
+                            <MudText Typo="Typo.body1">@_project.ClientName</MudText>
+                        </MudLink>
+                    </MudListItem>
+                    <MudListItem T="string">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Status</MudText>
+                        <MudText Typo="Typo.body1">@_project.Status</MudText>
+                    </MudListItem>
+                    <MudListItem T="string">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Deadline</MudText>
+                        <MudText Typo="Typo.body1">@_project.Deadline.ToString("MMM dd, yyyy")</MudText>
+                    </MudListItem>
+                    <MudListItem T="string">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Progress</MudText>
+                        <MudProgressLinear Value="@_project.ProgressPercent" Class="rounded mt-1" />
+                        <MudText Typo="Typo.body1">@_project.ProgressPercent%</MudText>
+                    </MudListItem>
+                </MudList>
+
+                <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">Description</MudText>
+                @if (string.IsNullOrEmpty(_project.Description))
+                {
+                    <MudText Typo="Typo.body2" Class="text-disabled">No description provided.</MudText>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body1">@_project.Description</MudText>
+                }
+
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Edit" Class="mt-6"
+                           Href="@($"/projects/edit/{_project.Id}")">
+                    Edit Project
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" md="7">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6">
+                <MudText Typo="Typo.subtitle2" Class="mb-4">
+                    <MudIcon Icon="@Icons.Material.Filled.AccountCircle" Class="mr-2" />
+                    Client Information
+                </MudText>
+                <MudList T="string" Dense="true">
+                    <MudListItem T="string">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Client</MudText>
+                        <MudLink Href="@($"/clients/{_project.ClientId}")">
+                            <MudText Typo="Typo.body1">@_project.ClientName</MudText>
+                        </MudLink>
+                    </MudListItem>
+                    <MudListItem T="string">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Email</MudText>
+                        <MudText Typo="Typo.body1">@_project.ClientEmail</MudText>
+                    </MudListItem>
+                    <MudListItem T="string">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Phone</MudText>
+                        <MudText Typo="Typo.body1">@_project.ClientPhone</MudText>
+                    </MudListItem>
+                </MudList>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <MudPaper Elevation="0" Outlined="true" Class="pa-6 mt-6">
+        <MudText Typo="Typo.subtitle2" Class="mb-4">
+            <MudIcon Icon="@Icons.Material.Filled.Timeline" Class="mr-2" />
+            Status Timeline
+        </MudText>
+        @{
+            var currentIndex = GetStatusIndex(_project.Status);
+        }
+        <div class="d-flex align-center flex-wrap status-timeline">
+            @foreach (var (status, i) in _statusSteps.Select((s, i) => (s, i)))
+            {
+                var passed = i <= currentIndex;
+                <div class="d-flex align-center" @key="status.Label">
+                    <MudAvatar Size="Size.Small"
+                               Color="@(passed ? Color.Primary : Color.Default)"
+                               Variant="@(passed ? Variant.Filled : Variant.Outlined)">
+                        @if (i < currentIndex)
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" />
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2">@(i + 1)</MudText>
+                        }
+                    </MudAvatar>
+                    <MudText Class="ml-2" Typo="Typo.body2"
+                             Color="@(passed ? Color.Primary : Color.Default)">
+                        @status.Label
+                    </MudText>
+                </div>
+                @if (i < _statusSteps.Count - 1)
+                {
+                    <div class="status-timeline-connector"></div>
+                }
+            }
+        </div>
+    </MudPaper>
+
+    <MudPaper Elevation="0" Outlined="true" Class="pa-6 mt-6">
+        <MudText Typo="Typo.subtitle2" Class="mb-4">
+            <MudIcon Icon="@Icons.Material.Filled.Receipt" Class="mr-2" />
+            Invoices
+        </MudText>
+        @if (_invoicesLoading)
+        {
+            <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mt-4" />
+        }
+        else if (_invoicesError is not null)
+        {
+            <MudAlert Severity="Severity.Error" Dense="true">@_invoicesError</MudAlert>
+        }
+        else if (_invoices.Count == 0)
+        {
+            <MudText Typo="Typo.body2" Class="text-disabled">No invoices for this client.</MudText>
+        }
+        else
+        {
+            <MudTable T="InvoiceListItemDto" Items="@_invoices" Dense="true" Hover="true" Striped="true" Outlined="false" Elevation="0">
+                <ColGroup>
+                    <col style="width: 28%;" />
+                    <col style="width: 24%;" />
+                    <col style="width: 24%;" />
+                    <col style="width: 24%;" />
+                </ColGroup>
+                <HeaderContent>
+                    <MudTh>Invoice #</MudTh>
+                    <MudTh>Status</MudTh>
+                    <MudTh>Amount</MudTh>
+                    <MudTh>Issue Date</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Invoice #">
+                        <MudLink Href="@($"/invoices/{context.Id}")">@context.InvoiceNumber</MudLink>
+                    </MudTd>
+                    <MudTd DataLabel="Status">
+                        <StatusChip Status="@context.Status">@context.Status</StatusChip>
+                    </MudTd>
+                    <MudTd DataLabel="Amount">@context.Total.ToString("C")</MudTd>
+                    <MudTd DataLabel="Issue Date">@context.IssueDate.ToString("MMM dd, yyyy")</MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudPaper>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private bool _loading = true;
+    private bool _invoicesLoading;
+    private string? _errorMessage;
+    private string? _invoicesError;
+    private ProjectDetailDto? _project;
+    private List<InvoiceListItemDto> _invoices = [];
+
+    private readonly List<(ProjectStatus Status, string Label)> _statusSteps =
+    [
+        (ProjectStatus.NotStarted, "Not Started"),
+        (ProjectStatus.InProgress, "In Progress"),
+        (ProjectStatus.Completed, "Completed"),
+        (ProjectStatus.OnHold, "On Hold"),
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _project = await ProjectService.GetByIdAsync(Id);
+            if (_project is not null)
+                await LoadInvoicesAsync();
+        }
+        catch
+        {
+            _errorMessage = "Failed to load data.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task LoadInvoicesAsync()
+    {
+        _invoicesLoading = true;
+        try
+        {
+            var filter = new InvoiceFilterDto { ClientId = _project!.ClientId };
+            var result = await InvoiceService.GetPagedAsync(1, 100, null, null, null, filter);
+            _invoices = result.Items;
+        }
+        catch
+        {
+            _invoicesError = "Failed to load invoices.";
+        }
+        finally
+        {
+            _invoicesLoading = false;
+        }
+    }
+
+    private static int GetStatusIndex(string status) => status switch
+    {
+        "NotStarted" => 0,
+        "InProgress" => 1,
+        "Completed" => 2,
+        "OnHold" => 3,
+        _ => -1
+    };
+}

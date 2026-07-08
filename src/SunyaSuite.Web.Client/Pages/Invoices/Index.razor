@@ -1,0 +1,353 @@
+@page "/invoices"
+@attribute [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
+@inject IInvoiceService InvoiceService
+@inject IClientService ClientService
+@inject IFiscalYearService FiscalYearService
+@inject IExportService ExportService
+@inject IInvoicePdfService PdfService
+@inject IEmailService EmailService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+@inject IDialogService DialogService
+
+<PageHeader Title="Invoices" />
+
+<IndexToolbar @bind-SearchTerm="_searchTerm"
+              OnSearch="@(async (v) => { _searchTerm = v; await _table.ReloadServerData(); })"
+              SearchPlaceholder="Search by invoice # or client..."
+              ShowExport="true"
+              Exporting="_exporting"
+              OnExport="@ExportInvoices"
+              ShowFilter="true"
+              OnToggleFilter="@ToggleFilterPanel"
+              AddHref="/invoices/create"
+              AddLabel="Create Invoice" />
+
+<FilterPanel Visible="_showFilters"
+             OnApply="@ApplyFilters"
+             OnClear="@ClearFilters">
+    <StatusFilterGroup TEnum="InvoiceStatus"
+                       Label="Status"
+                       SelectedValues="_selectedStatuses"
+                       SelectedValuesChanged="@(v => _selectedStatuses = v)" />
+
+    <DateRangeFilter Label="Issue Date"
+                     @bind-From="_issueDateFrom"
+                     @bind-To="_issueDateTo" />
+    <DateRangeFilter Label="Due Date"
+                     @bind-From="_dueDateFrom"
+                     @bind-To="_dueDateTo" />
+
+    <MudText Typo="Typo.subtitle2" Class="mb-2 mt-4">Client</MudText>
+    <MudSelect T="Guid?" Label="Select client" @bind-Value="_clientId"
+               Clearable="true" AnchorOrigin="Origin.BottomCenter">
+        @foreach (var client in _allClients)
+        {
+            <MudSelectItem T="Guid?" Value="@client.Id" @key="client.Id">@client.Name</MudSelectItem>
+        }
+    </MudSelect>
+
+    <MudText Typo="Typo.subtitle2" Class="mb-2 mt-4">Fiscal Year</MudText>
+    <MudSelect T="Guid?" Label="Select FY" @bind-Value="_fiscalYearId"
+               Clearable="true" AnchorOrigin="Origin.BottomCenter">
+        @foreach (var fy in _fiscalYears)
+        {
+            <MudSelectItem T="Guid?" Value="@fy.Id" @key="fy.Id">
+                @fy.YearName @(fy.IsCurrent ? "(Current)" : fy.IsOpen ? "" : "(Closed)")
+            </MudSelectItem>
+        }
+    </MudSelect>
+</FilterPanel>
+
+<MudTable T="InvoiceListItemDto" ServerData="@(async (state, ct) => await ServerReload(state, ct))"
+          Dense="true" Hover="true" Striped="true"
+          Outlined="true" Elevation="0" Class="mt-4"
+          @ref="_table">
+
+    <ColGroup>
+        <col style="width: 12%;" />
+        <col style="width: 8%;" />
+        <col style="width: 8%;" />
+        <col style="width: 14%;" />
+        <col style="width: 10%;" />
+        <col style="width: 12%;" />
+        <col style="width: 12%;" />
+        <col style="width: 10%;" />
+        <col style="width: 14%;" />
+    </ColGroup>
+
+    <HeaderContent>
+        <MudTh><MudTableSortLabel T="InvoiceListItemDto" SortLabel="invoicenumber">Invoice #</MudTableSortLabel></MudTh>
+        <MudTh>FY</MudTh>
+        <MudTh>Type</MudTh>
+        <MudTh><MudTableSortLabel T="InvoiceListItemDto" SortLabel="client">Client</MudTableSortLabel></MudTh>
+        <MudTh>Project</MudTh>
+        <MudTh><MudTableSortLabel T="InvoiceListItemDto" SortLabel="total">Total</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="InvoiceListItemDto" SortLabel="duedate">Due Date</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="InvoiceListItemDto" SortLabel="status">Status</MudTableSortLabel></MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+
+    <RowTemplate>
+        <MudTd DataLabel="Invoice #">
+            <MudLink Href="@($"/invoices/{context.Id}")">@context.InvoiceNumber</MudLink>
+        </MudTd>
+        <MudTd DataLabel="FY">
+            <MudText Typo="Typo.caption">@context.FiscalYear</MudText>
+        </MudTd>
+        <MudTd DataLabel="Type">
+            <MudChip T="string" Size="Size.Small"
+                     Color="@(context.BillType == Domain.Enums.BillType.VatBill ? Color.Primary : Color.Secondary)">
+                @(context.BillType == Domain.Enums.BillType.VatBill ? "VAT" : "PAN")
+            </MudChip>
+        </MudTd>
+        <MudTd DataLabel="Client">
+            <MudLink Href="@($"/clients/{context.ClientId}")">@context.ClientName</MudLink>
+        </MudTd>
+        <MudTd DataLabel="Project">
+            @if (!string.IsNullOrEmpty(context.ProjectName))
+            {
+                <MudText Typo="Typo.body2">@context.ProjectName</MudText>
+            }
+            else
+            {
+                <MudText Typo="Typo.body2" Class="text-secondary">-</MudText>
+            }
+        </MudTd>
+        <MudTd DataLabel="Total">@context.Total.ToString("C")</MudTd>
+        <MudTd DataLabel="Due Date">@context.DueDate.ToString("MMM dd, yyyy")</MudTd>
+        <MudTd DataLabel="Status">
+            <StatusChip Status="@context.Status">@context.Status</StatusChip>
+        </MudTd>
+        <MudTd DataLabel="Actions">
+            <MudTooltip Text="Download PDF">
+                <MudIconButton Icon="@Icons.Material.Filled.Download" Size="Size.Small" Color="Color.Info"
+                               aria-label="Download PDF"
+                               OnClick="@(() => DownloadPdf(context.Id, context.InvoiceNumber))" />
+            </MudTooltip>
+            <MudTooltip Text="Send Email">
+                <MudIconButton Icon="@Icons.Material.Filled.Email" Size="Size.Small" Color="Color.Primary"
+                               Disabled="_sendingEmail"
+                               aria-label="Send invoice email"
+                               OnClick="@(() => SendInvoiceEmail(context.Id, context.InvoiceNumber, context.ClientName))" />
+            </MudTooltip>
+            <ActionButtons ViewHref="@($"/invoices/{context.Id}")"
+                           EditHref="@(context.Status == "Draft" ? $"/invoices/edit/{context.Id}" : null)"
+                           ShowEdit="@(context.Status == "Draft")"
+                           OnDelete="@(() => PromptDelete(context.Id, context.InvoiceNumber))"
+                           ShowDelete="@(context.Status == "Draft")" />
+        </MudTd>
+    </RowTemplate>
+
+    <PagerContent>
+        <MudTablePager PageSizeOptions="@([10, 25, 50])" />
+    </PagerContent>
+    <NoRecordsContent>
+        <EmptyState Icon="@Icons.Material.Filled.Receipt" Title="No invoices found." />
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    private string? _searchTerm;
+    private bool _exporting;
+    private bool _sendingEmail;
+    private MudTable<InvoiceListItemDto> _table = null!;
+
+    private bool _showFilters;
+    private HashSet<InvoiceStatus> _selectedStatuses = [];
+    private DateTime? _issueDateFrom;
+    private DateTime? _issueDateTo;
+    private DateTime? _dueDateFrom;
+    private DateTime? _dueDateTo;
+    private Guid? _clientId;
+    private Guid? _fiscalYearId;
+    private List<ClientOptionDto> _allClients = [];
+    private List<FiscalYearListItemDto> _fiscalYears = [];
+
+    private void ToggleFilterPanel()
+    {
+        _showFilters = !_showFilters;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _allClients = await ClientService.GetClientOptionsAsync();
+        _fiscalYears = await FiscalYearService.GetAllAsync();
+        var current = _fiscalYears.FirstOrDefault(f => f.IsCurrent);
+        if (current is not null)
+            _fiscalYearId = current.Id;
+    }
+
+    private async Task<TableData<InvoiceListItemDto>> ServerReload(TableState state, CancellationToken ct)
+    {
+        try
+        {
+            var sortDirection = state.SortDirection switch
+            {
+                SortDirection.Ascending => "asc",
+                SortDirection.Descending => "desc",
+                _ => null
+            };
+
+            var filter = _showFilters ? new InvoiceFilterDto
+            {
+                Statuses = _selectedStatuses.Count > 0 ? [.. _selectedStatuses] : null,
+                IssueDateFrom = _issueDateFrom is not null ? DateOnly.FromDateTime(_issueDateFrom.Value) : null,
+                IssueDateTo = _issueDateTo is not null ? DateOnly.FromDateTime(_issueDateTo.Value) : null,
+                DueDateFrom = _dueDateFrom is not null ? DateOnly.FromDateTime(_dueDateFrom.Value) : null,
+                DueDateTo = _dueDateTo is not null ? DateOnly.FromDateTime(_dueDateTo.Value) : null,
+                ClientId = _clientId,
+                FiscalYearId = _fiscalYearId,
+            } : new InvoiceFilterDto { FiscalYearId = _fiscalYearId };
+
+            var result = await InvoiceService.GetPagedAsync(
+                state.Page + 1,
+                state.PageSize,
+                state.SortLabel,
+                sortDirection,
+                _searchTerm,
+                filter,
+                ct);
+
+            return new TableData<InvoiceListItemDto> { Items = result.Items, TotalItems = result.Total };
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load invoices: {ex.Message}", Severity.Error);
+            return new TableData<InvoiceListItemDto> { Items = [], TotalItems = 0 };
+        }
+    }
+
+    private async Task ApplyFilters()
+    {
+        await _table.ReloadServerData();
+    }
+
+    private async Task ClearFilters()
+    {
+        _selectedStatuses.Clear();
+        _issueDateFrom = null;
+        _issueDateTo = null;
+        _dueDateFrom = null;
+        _dueDateTo = null;
+        _clientId = null;
+        var current = _fiscalYears.FirstOrDefault(f => f.IsCurrent);
+        _fiscalYearId = current?.Id;
+        await _table.ReloadServerData();
+    }
+
+    private async Task ExportInvoices()
+    {
+        _exporting = true;
+        try
+        {
+            var bytes = await ExportService.ExportInvoicesAsync();
+            var b64 = Convert.ToBase64String(bytes);
+            await JsRuntime.InvokeVoidAsync("downloadFile", "invoices.xlsx", b64, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            Snackbar.Add("Invoices exported.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Export failed: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _exporting = false;
+        }
+    }
+
+    private async Task DownloadPdf(Guid id, string invoiceNumber)
+    {
+        try
+        {
+            var invoice = await InvoiceService.GetByIdAsync(id);
+            if (invoice is null) return;
+            var pdfBytes = await PdfService.GeneratePdfAsync(invoice);
+            var base64 = Convert.ToBase64String(pdfBytes);
+            await JsRuntime.InvokeVoidAsync("downloadFile", $"Invoice_{invoiceNumber}.pdf", base64);
+            Snackbar.Add("PDF downloaded.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Download failed: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task SendInvoiceEmail(Guid id, string invoiceNumber, string clientName)
+    {
+        if (string.IsNullOrWhiteSpace(clientName))
+        {
+            Snackbar.Add("Client information not available.", Severity.Warning);
+            return;
+        }
+
+        if (!EmailService.IsConfigured)
+        {
+            Snackbar.Add("Email is not configured (SMTP settings missing).", Severity.Warning);
+            return;
+        }
+
+        _sendingEmail = true;
+        try
+        {
+            var invoice = await InvoiceService.GetByIdAsync(id);
+            if (invoice is null) return;
+
+            if (string.IsNullOrWhiteSpace(invoice.ClientEmail))
+            {
+                Snackbar.Add("Client has no email address on file.", Severity.Warning);
+                return;
+            }
+
+            var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+                "Send Invoice",
+                new DialogParameters
+                {
+                    { "Message", $"Send invoice {invoiceNumber} to {invoice.ClientEmail}?" },
+                    { "ConfirmText", "Send Email" }
+                },
+                new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+            var result = await dialog.Result;
+            if (result is { Canceled: false })
+            {
+                var pdfBytes = await PdfService.GeneratePdfAsync(invoice);
+                var htmlBody = $@"<html><body style='font-family:sans-serif;'><h2>Invoice {invoiceNumber}</h2><p>Dear {clientName},</p><p>Please find your invoice attached.</p><table border='1' cellpadding='8' style='border-collapse:collapse;'><tr><th>Invoice #</th><th>Amount</th><th>Date</th></tr><tr><td>{invoiceNumber}</td><td>{invoice.Total:C}</td><td>{invoice.IssueDate:MMM dd, yyyy}</td></tr></table><p>Thank you for your business.</p></body></html>";
+                await EmailService.SendWithAttachmentAsync(invoice.ClientEmail, $"Invoice {invoiceNumber} from SunyaSuite", htmlBody, $"Invoice_{invoiceNumber}.pdf", pdfBytes);
+                Snackbar.Add($"Invoice sent to {invoice.ClientEmail}.", Severity.Success);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to send email: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _sendingEmail = false;
+        }
+    }
+
+    private async Task PromptDelete(Guid id, string number)
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+            "Delete Invoice",
+            new DialogParameters
+            {
+                { "Message", $"Delete invoice {number}? It will be moved to trash." }
+            },
+            new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            try
+            {
+                await InvoiceService.DeleteAsync(id);
+                Snackbar.Add("Invoice moved to trash.", Severity.Success);
+                await _table.ReloadServerData();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to delete invoice: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}

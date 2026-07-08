@@ -1,0 +1,145 @@
+﻿@using SunyaSuite.Application.DTOs.Config
+@inherits LayoutComponentBase
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@inject Auth.OrgManager OrgManager
+@inject IMenuService MenuService
+@using SunyaSuite.Web.Client.Services
+
+<a href="#main-content" class="skip-to-content">Skip to content</a>
+
+<MudThemeProvider Theme="VercelTheme.Instance" IsDarkMode="_isDarkMode" />
+<MudDialogProvider />
+<MudSnackbarProvider />
+<MudPopoverProvider />
+<MudLayout>
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="@(_isNavigating ? "" : "d-none")" />
+    <MudAppBar Elevation="0" Class="appbar">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" OnClick="@ToggleDrawer" aria-label="Toggle navigation menu" Class="appbar-menu-btn" />
+        <MudText Typo="Typo.subtitle1" Class="appbar-title">SunyaSuite</MudText>
+        <MudSpacer />
+        <AuthorizeView>
+            <Authorized>
+                @if (_orgs.Count > 1)
+                {
+                    <MudSelect T="string" Value="@_activeOrgSlug" ValueChanged="@OnOrgChanged"
+                               Variant="Variant.Text" Class="org-selector" AnchorOrigin="Origin.BottomCenter"
+                               Immediate="true" ToStringFunc="@((string s) => _orgs.FirstOrDefault(o => o.Slug == s)?.Name ?? s)">
+                        @foreach (var org in _orgs)
+                        {
+                            <MudSelectItem Value="@org.Slug" @key="org.Id">@org.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                }
+                <MudText Typo="Typo.body2" Class="appbar-user d-none d-sm-flex">@context.User.Identity?.Name</MudText>
+            </Authorized>
+        </AuthorizeView>
+        <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)" Color="Color.Inherit" OnClick="@ToggleDarkModeAsync" aria-label="Toggle dark mode" />
+    </MudAppBar>
+
+    <MudDrawer Open="_drawerOpen" OpenChanged="OnDrawerOpenChanged" Variant="DrawerVariant.Responsive" Breakpoint="Breakpoint.Lg" Elevation="1" Class="sidebar-drawer">
+        <div class="sidebar-brand">
+            <MudIcon Icon="@Icons.Material.Filled.Square" Color="Color.Primary" Size="Size.Small" Class="sidebar-brand-icon" />
+            <MudText Typo="Typo.subtitle1" Class="sidebar-brand-text">SunyaSuite</MudText>
+        </div>
+        <NavMenu />
+    </MudDrawer>
+
+    <MudMainContent Class="main-content">
+        <MudContainer id="main-content" MaxWidth="MaxWidth.ExtraExtraLarge" Class="container-responsive">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="" class="reload">Reload</a>
+    <span class="dismiss">Dismiss</span>
+</div>
+
+@code {
+    private bool _drawerOpen;
+    private bool _isLargeScreen;
+    private bool _isDarkMode;
+    private bool _isNavigating;
+    private List<OrganizationDto> _orgs = [];
+    private string? _activeOrgSlug;
+
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged += (_, _) =>
+        {
+            _isNavigating = true;
+            StateHasChanged();
+        };
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (_isNavigating)
+        {
+            _isNavigating = false;
+            StateHasChanged();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _orgs = await OrgManager.GetOrganizationsAsync();
+        _activeOrgSlug = await OrgManager.GetActiveSlugAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                var stored = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "sunya-dark-mode");
+                if (bool.TryParse(stored, out var dark))
+                    _isDarkMode = dark;
+                _isLargeScreen = await JSRuntime.InvokeAsync<bool>("eval", "window.matchMedia('(min-width: 1280px)').matches");
+                _drawerOpen = _isLargeScreen;
+                StateHasChanged();
+            }
+            catch
+            {
+            }
+        }
+    }
+
+    private void ToggleDrawer()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    private void OnDrawerOpenChanged(bool open)
+    {
+        if (!open && _isLargeScreen)
+        {
+            _drawerOpen = true;
+            StateHasChanged();
+        }
+        else
+        {
+            _drawerOpen = open;
+        }
+    }
+
+    private async Task ToggleDarkModeAsync()
+    {
+        _isDarkMode = !_isDarkMode;
+        await JSRuntime.InvokeVoidAsync("localStorage.setItem", "sunya-dark-mode", _isDarkMode.ToString());
+    }
+
+    private async Task OnOrgChanged(string slug)
+    {
+        if (slug == _activeOrgSlug) return;
+
+        await OrgManager.SetActiveSlugAsync(slug);
+        _activeOrgSlug = slug;
+        MenuService.InvalidateCache();
+        Navigation.NavigateTo("/", forceLoad: true);
+    }
+}

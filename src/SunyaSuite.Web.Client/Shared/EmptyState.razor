@@ -1,0 +1,14 @@
+<MudContainer Class="d-flex flex-column align-center py-8">
+    <MudIcon Icon="@Icon" Size="@Size.Large" Color="@Color.Tertiary" Class="mb-2" />
+    <MudText Typo="Typo.body1" Color="@Color.Tertiary">@Title</MudText>
+    @if (!string.IsNullOrEmpty(Description))
+    {
+        <MudText Typo="Typo.body2" Color="@Color.Tertiary" Class="mt-1">@Description</MudText>
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public string Icon { get; set; } = Icons.Material.Filled.Inbox;
+    [Parameter] public string Title { get; set; } = "No items found.";
+    [Parameter] public string? Description { get; set; }
+}

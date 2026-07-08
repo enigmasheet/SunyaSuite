@@ -1,0 +1,214 @@
+@page "/users/{Id}"
+@attribute [Authorize(Policy = PolicyNames.SystemAdminOnly)]
+@inject IUserService UserService
+@inject IOrganizationService OrganizationService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject NavigationManager Navigation
+
+<PageHeader Title="@(_user is null ? "User" : $"{_user.FirstName} {_user.LastName}")" />
+
+<ErrorAlert Message="@_errorMessage"
+            OnDismiss="@(() => _errorMessage = null)" />
+
+@if (_loading)
+{
+    <LoadingSkeleton Variant="SkeletonVariant.DetailCard" />
+}
+else if (_user is null)
+{
+    <MudAlert Severity="Severity.Warning" Class="mt-4">User not found.</MudAlert>
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12" md="8">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6 mb-4">
+                <div class="d-flex justify-space-between align-center mb-4">
+                    <MudText Typo="Typo.h6">User Information</MudText>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                               Href="@($"/users/edit/{Id}")" StartIcon="@Icons.Material.Filled.Edit">
+                        Edit
+                    </MudButton>
+                </div>
+                <MudGrid>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Email</MudText>
+                        <MudText Typo="Typo.body1">@_user.Email</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Username</MudText>
+                        <MudText Typo="Typo.body1">@_user.UserName</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.body2" Class="text-secondary">First Name</MudText>
+                        <MudText Typo="Typo.body1">@_user.FirstName</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Last Name</MudText>
+                        <MudText Typo="Typo.body1">@_user.LastName</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Created</MudText>
+                        <MudText Typo="Typo.body1">@_user.CreatedAt.ToString("g")</MudText>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.body2" Class="text-secondary mb-2">System Roles</MudText>
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach (var role in _user.Roles)
+                            {
+                                <MudChip T="string" @key="role" Size="Size.Small" Color="Color.Info">@role</MudChip>
+                            }
+                            @if (_user.Roles.Count == 0)
+                            {
+                                <MudText Typo="Typo.body2" Class="text-secondary">No roles assigned.</MudText>
+                            }
+                        </div>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6">
+                <div class="d-flex justify-space-between align-center mb-4">
+                    <MudText Typo="Typo.h6">Organizations</MudText>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Add"
+                               OnClick="@OpenAssignDialog">
+                        Assign
+                    </MudButton>
+                </div>
+                @if (_orgMemberships.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Class="text-secondary">Not a member of any organization.</MudText>
+                }
+                else
+                {
+                    <MudTable T="OrganizationUserDto" Items="_orgMemberships"
+                              Dense="true" Hover="true" Striped="true"
+                              Outlined="true" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>Organization</MudTh>
+                            <MudTh>Role</MudTh>
+                            <MudTh>Joined</MudTh>
+                            <MudTh>Default Company</MudTh>
+                            <MudTh>Default Branch</MudTh>
+                            <MudTh>Actions</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Organization">
+                                <MudText Typo="Typo.body1" Class="font-weight-bold">@context.OrganizationName</MudText>
+                                <MudText Typo="Typo.body2" Class="text-secondary">@context.OrganizationSlug</MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Role">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Primary">@context.Role</MudChip>
+                            </MudTd>
+                            <MudTd DataLabel="Joined">@context.JoinedAt.ToString("g")</MudTd>
+                            <MudTd DataLabel="Default Company">
+                                <MudText Typo="Typo.body2">@(context.DefaultCompanyId?.ToString("N")[..8] ?? "—")</MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Default Branch">
+                                <MudText Typo="Typo.body2">@(context.DefaultBranchId?.ToString("N")[..8] ?? "—")</MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Actions">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                               Color="Color.Error"
+                                               OnClick="@(() => PromptRemove(context.OrganizationId, context.OrganizationName))" />
+                            </MudTd>
+                        </RowTemplate>
+                        <NoRecordsContent>
+                            <MudText Typo="Typo.body2" Class="text-secondary">No organizations.</MudText>
+                        </NoRecordsContent>
+                    </MudTable>
+                }
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter] public string Id { get; set; } = string.Empty;
+
+    private bool _loading = true;
+    private string? _errorMessage;
+    private UserDto? _user;
+    private List<OrganizationUserDto> _orgMemberships = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _user = await UserService.GetByIdAsync(Id);
+            if (_user is not null)
+            {
+                _orgMemberships = await OrganizationService.GetUserOrganizationsAsync(Id);
+            }
+        }
+        catch
+        {
+            _errorMessage = "Failed to load user data.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OpenAssignDialog()
+    {
+        var allOrgs = await OrganizationService.GetAllAsync();
+        var orgRoles = await UserService.GetOrgRolesAsync();
+
+        var parameters = new DialogParameters
+        {
+            { "Organizations", allOrgs.Where(o => o.IsActive && !_orgMemberships.Any(m => m.OrganizationId == o.Id)).ToList() },
+            { "OrgRoles", orgRoles }
+        };
+
+        var dialog = await DialogService.ShowAsync<AssignOrgDialog>(
+            "Assign Organization",
+            parameters,
+            new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: AssignOrgResult data })
+        {
+            try
+            {
+                await OrganizationService.AssignToOrganizationAsync(Id, data.OrganizationId, data.Role);
+                Snackbar.Add("User assigned to organization.", Severity.Success);
+                _orgMemberships = await OrganizationService.GetUserOrganizationsAsync(Id);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to assign: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task PromptRemove(Guid orgId, string orgName)
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+            "Remove from Organization",
+            new DialogParameters
+            {
+                { "Message", $"Remove this user from \"{orgName}\"?" },
+                { "ConfirmText", "Remove" }
+            },
+            new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            try
+            {
+                await OrganizationService.RemoveFromOrganizationAsync(Id, orgId);
+                Snackbar.Add("User removed from organization.", Severity.Success);
+                _orgMemberships = await OrganizationService.GetUserOrganizationsAsync(Id);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to remove: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}

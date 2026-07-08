@@ -1,0 +1,147 @@
+@page "/Account/Register"
+@layout AuthLayout
+@using System.Text.Json
+@inject NavigationManager Navigation
+@inject IHttpClientFactory HttpClientFactory
+
+<PageTitle>Register — SunyaSuite</PageTitle>
+
+<MudCard Class="auth-card" Elevation="0">
+    <MudCardContent>
+        <MudText Typo="Typo.h5" Align="Align.Center" Class="mb-8">Create Account</MudText>
+
+        <ErrorAlert Message="@_errorMessage" />
+
+        @if (!_hasInviteCode)
+        {
+            <MudAlert Severity="Severity.Warning" Class="mb-4">
+                Registration is currently invite-only. You need a valid invite link to create an account.
+            </MudAlert>
+
+            <MudText Typo="Typo.body2" Align="Align.Center">
+                <a href="/login@(!string.IsNullOrEmpty(_returnUrl) ? $"?returnUrl={Uri.EscapeDataString(_returnUrl)}" : "")">Already have an account? Sign in</a>
+            </MudText>
+        }
+        else if (_success)
+        {
+            <MudAlert Severity="Severity.Success" Class="mb-4">
+                Account created! Redirecting to sign in...
+            </MudAlert>
+        }
+        else
+        {
+            <MudForm @ref="_form" @bind-IsValid="@_isValid" @bind-Errors="@_errors">
+
+                @if (!string.IsNullOrEmpty(_inviteRole))
+                {
+                    <MudAlert Severity="Severity.Info" Class="mb-4">
+                        You are registering as <strong>@_inviteRole</strong>.
+                    </MudAlert>
+                }
+
+                <MudTextField @bind-Value="_email" Label="Email" Variant="Variant.Outlined" Class="mb-4" Required="true"
+                              For="@(() => _email)" Validation="@((string? v) => v?.Contains('@') == true ? null : "Enter a valid email address")" />
+                <MudTextField @bind-Value="_name" Label="Name" Variant="Variant.Outlined" Class="mb-4" />
+                <MudTextField @bind-Value="_password" Label="Password" Variant="Variant.Outlined" InputType="InputType.Password" Class="mb-4" Required="true"
+                              For="@(() => _password)" Validation="@((string? v) => string.IsNullOrEmpty(v) ? "Password is required" : null)" />
+                <MudTextField @bind-Value="_confirmPassword" Label="Confirm Password" Variant="Variant.Outlined" InputType="InputType.Password" Class="mb-4" Required="true"
+                              Validation="@((string? v) => v != _password ? "Passwords do not match" : null)" />
+
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="@HandleRegister" Disabled="@(_loading || !_isValid)" Class="mb-4">
+                    @if (_loading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Class="ms-2" />
+                    }
+                    Register
+                </MudButton>
+            </MudForm>
+
+            <MudText Typo="Typo.body2" Align="Align.Center">
+                <a href="/login@(!string.IsNullOrEmpty(_returnUrl) ? $"?returnUrl={Uri.EscapeDataString(_returnUrl)}" : "")">Already have an account? Sign in</a>
+            </MudText>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private MudForm? _form;
+    private string _email = "";
+    private string _name = "";
+    private string _password = "";
+    private string _confirmPassword = "";
+    private bool _loading;
+    private bool _isValid = true;
+    private string[] _errors = [];
+    private string _errorMessage = "";
+    private bool _success;
+    private string? _returnUrl;
+    private string? _inviteCode;
+    private string? _inviteRole;
+    private bool _hasInviteCode;
+
+    protected override void OnInitialized()
+    {
+        var uri = new Uri(Navigation.Uri);
+        var query = uri.Query.TrimStart('?');
+        foreach (var part in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var kv = part.Split('=', 2);
+            if (kv.Length == 2)
+            {
+                if (kv[0].Equals("returnUrl", StringComparison.OrdinalIgnoreCase))
+                    _returnUrl = Uri.UnescapeDataString(kv[1]);
+                else if (kv[0].Equals("code", StringComparison.OrdinalIgnoreCase))
+                    _inviteCode = Uri.UnescapeDataString(kv[1]);
+                else if (kv[0].Equals("role", StringComparison.OrdinalIgnoreCase))
+                    _inviteRole = Uri.UnescapeDataString(kv[1]);
+            }
+        }
+
+        _hasInviteCode = !string.IsNullOrEmpty(_inviteCode);
+    }
+
+    private async Task HandleRegister()
+    {
+        _loading = true;
+        _errorMessage = "";
+
+        try
+        {
+            var http = HttpClientFactory.CreateClient("Api");
+            var response = await http.PostAsJsonAsync("api/auth/register", new
+            {
+                email = _email,
+                password = _password,
+                name = _name,
+                inviteCode = _inviteCode
+            });
+
+            if (response.IsSuccessStatusCode)
+            {
+                _success = true;
+                await Task.Delay(1500);
+                Navigation.NavigateTo("/login" + (!string.IsNullOrEmpty(_returnUrl) ? $"?returnUrl={Uri.EscapeDataString(_returnUrl)}" : ""));
+            }
+            else
+            {
+                try
+                {
+                    var problem = await response.Content.ReadFromJsonAsync<Dictionary<string, JsonElement>>();
+                    _errorMessage = problem?.GetValueOrDefault("message").GetString() ?? "Registration failed.";
+                }
+                catch
+                {
+                    _errorMessage = "Registration failed.";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Connection error: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

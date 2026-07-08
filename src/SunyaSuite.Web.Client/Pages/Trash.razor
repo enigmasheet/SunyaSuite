@@ -1,0 +1,377 @@
+@page "/trash"
+@attribute [Authorize(Policy = PolicyNames.SystemAdminOnly)]
+@inject IClientService ClientService
+@inject IProjectService ProjectService
+@inject IInvoiceService InvoiceService
+@inject ICompanyService CompanyService
+@inject IBranchService BranchService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageHeader Title="Trash" />
+
+<MudTabs Elevation="0" Outlined="true" Class="mt-4" @bind-ActivePanelIndex="_activeTab">
+    <MudTabPanel Text="Clients" Icon="@Icons.Material.Filled.People">
+        @if (_loadingClients)
+        {
+            <MudProgressCircular Indeterminate="true" Class="mt-4" />
+        }
+        else
+        {
+            <MudTable T="DeletedClientDto" Items="@_deletedClients" Dense="true" Hover="true" Bordered="true"
+                      Outlined="false" Elevation="0" Class="mt-4">
+                <HeaderContent>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Company</MudTh>
+                    <MudTh>Deleted At</MudTh>
+                    <MudTh>Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.Name</MudTd>
+                    <MudTd>@context.Company</MudTd>
+                    <MudTd>@(context.DeletedAt?.ToLocalTime().ToString("MMM dd, yyyy HH:mm") ?? "-")</MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Restore" Size="Size.Small"
+                                       Color="Color.Primary" aria-label="Restore"
+                                       OnClick="@(() => RestoreClient(context.Id))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.DeleteForever" Size="Size.Small"
+                                       Color="Color.Error" aria-label="Delete permanently"
+                                       OnClick="@(() => PermanentDeleteClient(context.Id, context.Name))" />
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="@([10, 25, 50])" />
+                </PagerContent>
+                <NoRecordsContent>
+                    <EmptyState Icon="@Icons.Material.Filled.DeleteOutline" Title="No deleted clients." />
+                </NoRecordsContent>
+            </MudTable>
+        }
+    </MudTabPanel>
+    <MudTabPanel Text="Projects" Icon="@Icons.Material.Filled.WorkHistory">
+        @if (_loadingProjects)
+        {
+            <MudProgressCircular Indeterminate="true" Class="mt-4" />
+        }
+        else
+        {
+            <MudTable T="DeletedProjectDto" Items="@_deletedProjects" Dense="true" Hover="true" Bordered="true"
+                      Outlined="false" Elevation="0" Class="mt-4">
+                <HeaderContent>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Deleted At</MudTh>
+                    <MudTh>Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.Name</MudTd>
+                    <MudTd>@(context.DeletedAt?.ToLocalTime().ToString("MMM dd, yyyy HH:mm") ?? "-")</MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Restore" Size="Size.Small"
+                                       Color="Color.Primary" aria-label="Restore"
+                                       OnClick="@(() => RestoreProject(context.Id))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.DeleteForever" Size="Size.Small"
+                                       Color="Color.Error" aria-label="Delete permanently"
+                                       OnClick="@(() => PermanentDeleteProject(context.Id, context.Name))" />
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="@([10, 25, 50])" />
+                </PagerContent>
+                <NoRecordsContent>
+                    <EmptyState Icon="@Icons.Material.Filled.DeleteOutline" Title="No deleted projects." />
+                </NoRecordsContent>
+            </MudTable>
+        }
+    </MudTabPanel>
+    <MudTabPanel Text="Invoices" Icon="@Icons.Material.Filled.Receipt">
+        @if (_loadingInvoices)
+        {
+            <MudProgressCircular Indeterminate="true" Class="mt-4" />
+        }
+        else
+        {
+            <MudTable T="DeletedInvoiceDto" Items="@_deletedInvoices" Dense="true" Hover="true" Bordered="true"
+                      Outlined="false" Elevation="0" Class="mt-4">
+                <HeaderContent>
+                    <MudTh>Invoice #</MudTh>
+                    <MudTh>Total</MudTh>
+                    <MudTh>Deleted At</MudTh>
+                    <MudTh>Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.InvoiceNumber</MudTd>
+                    <MudTd>@context.Total.ToString("C")</MudTd>
+                    <MudTd>@(context.DeletedAt?.ToLocalTime().ToString("MMM dd, yyyy HH:mm") ?? "-")</MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Restore" Size="Size.Small"
+                                       Color="Color.Primary" aria-label="Restore"
+                                       OnClick="@(() => RestoreInvoice(context.Id))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.DeleteForever" Size="Size.Small"
+                                       Color="Color.Error" aria-label="Delete permanently"
+                                       OnClick="@(() => PermanentDeleteInvoice(context.Id, context.InvoiceNumber))" />
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="@([10, 25, 50])" />
+                </PagerContent>
+                <NoRecordsContent>
+                    <EmptyState Icon="@Icons.Material.Filled.DeleteOutline" Title="No deleted invoices." />
+                </NoRecordsContent>
+            </MudTable>
+        }
+    </MudTabPanel>
+    <MudTabPanel Text="Companies" Icon="@Icons.Material.Filled.Business">
+        @if (_loadingCompanies)
+        {
+            <MudProgressCircular Indeterminate="true" Class="mt-4" />
+        }
+        else
+        {
+            <MudTable T="CompanyDto" Items="@_deletedCompanies" Dense="true" Hover="true" Bordered="true"
+                      Outlined="false" Elevation="0" Class="mt-4">
+                <HeaderContent>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Slug</MudTh>
+                    <MudTh>Deleted At</MudTh>
+                    <MudTh>Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.Name</MudTd>
+                    <MudTd>@context.Slug</MudTd>
+                    <MudTd>@(context.DeletedAt?.ToLocalTime().ToString("MMM dd, yyyy HH:mm") ?? "-")</MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Restore" Size="Size.Small"
+                                       Color="Color.Primary" aria-label="Restore"
+                                       OnClick="@(() => RestoreCompany(context.Id))" />
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <EmptyState Icon="@Icons.Material.Filled.DeleteOutline" Title="No deleted companies." />
+                </NoRecordsContent>
+            </MudTable>
+        }
+    </MudTabPanel>
+    <MudTabPanel Text="Branches" Icon="@Icons.Material.Filled.AccountTree">
+        @if (_loadingBranches)
+        {
+            <MudProgressCircular Indeterminate="true" Class="mt-4" />
+        }
+        else
+        {
+            <MudTable T="BranchDto" Items="@_deletedBranches" Dense="true" Hover="true" Bordered="true"
+                      Outlined="false" Elevation="0" Class="mt-4">
+                <HeaderContent>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Company</MudTh>
+                    <MudTh>Deleted At</MudTh>
+                    <MudTh>Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.Name</MudTd>
+                    <MudTd>@context.CompanyName</MudTd>
+                    <MudTd>@(context.DeletedAt?.ToLocalTime().ToString("MMM dd, yyyy HH:mm") ?? "-")</MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Restore" Size="Size.Small"
+                                       Color="Color.Primary" aria-label="Restore"
+                                       OnClick="@(() => RestoreBranch(context.Id))" />
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <EmptyState Icon="@Icons.Material.Filled.DeleteOutline" Title="No deleted branches." />
+                </NoRecordsContent>
+            </MudTable>
+        }
+    </MudTabPanel>
+</MudTabs>
+
+@code {
+    private int _activeTab;
+    private bool _loadingClients = true;
+    private bool _loadingProjects = true;
+    private bool _loadingInvoices = true;
+    private bool _loadingCompanies = true;
+    private bool _loadingBranches = true;
+
+    private List<DeletedClientDto> _deletedClients = [];
+    private List<DeletedProjectDto> _deletedProjects = [];
+    private List<DeletedInvoiceDto> _deletedInvoices = [];
+    private List<CompanyDto> _deletedCompanies = [];
+    private List<BranchDto> _deletedBranches = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await ClientService.GetDeletedPagedAsync(1, 100);
+        _deletedClients = result.Items;
+        _loadingClients = false;
+
+        var resultProjects = await ProjectService.GetDeletedPagedAsync(1, 100);
+        _deletedProjects = resultProjects.Items;
+        _loadingProjects = false;
+
+        var resultInvoices = await InvoiceService.GetDeletedPagedAsync(1, 100);
+        _deletedInvoices = resultInvoices.Items;
+        _loadingInvoices = false;
+
+        _deletedCompanies = await CompanyService.GetDeletedAsync();
+        _loadingCompanies = false;
+
+        _deletedBranches = await BranchService.GetDeletedAsync();
+        _loadingBranches = false;
+    }
+
+    private async Task RestoreClient(Guid id)
+    {
+        try
+        {
+            await ClientService.RestoreAsync(id);
+            _deletedClients.RemoveAll(c => c.Id == id);
+            Snackbar.Add("Client restored.", Severity.Success);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to restore: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task PermanentDeleteClient(Guid id, string name)
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+            "Permanently Delete Client",
+            new DialogParameters
+            {
+                { "Message", $"Permanently delete \"{name}\"? This cannot be undone." },
+                { "ConfirmText", "Delete Forever" }
+            },
+            new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            try
+            {
+                await ClientService.PermanentDeleteAsync(id);
+                _deletedClients.RemoveAll(c => c.Id == id);
+                Snackbar.Add("Client permanently deleted.", Severity.Success);
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to delete: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task RestoreProject(Guid id)
+    {
+        try
+        {
+            await ProjectService.RestoreAsync(id);
+            _deletedProjects.RemoveAll(p => p.Id == id);
+            Snackbar.Add("Project restored.", Severity.Success);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to restore: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task PermanentDeleteProject(Guid id, string name)
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+            "Permanently Delete Project",
+            new DialogParameters
+            {
+                { "Message", $"Permanently delete project \"{name}\"? This cannot be undone." },
+                { "ConfirmText", "Delete Forever" }
+            },
+            new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            try
+            {
+                await ProjectService.PermanentDeleteAsync(id);
+                _deletedProjects.RemoveAll(p => p.Id == id);
+                Snackbar.Add("Project permanently deleted.", Severity.Success);
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to delete: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task RestoreInvoice(Guid id)
+    {
+        try
+        {
+            await InvoiceService.RestoreAsync(id);
+            _deletedInvoices.RemoveAll(i => i.Id == id);
+            Snackbar.Add("Invoice restored.", Severity.Success);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to restore: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task RestoreCompany(Guid id)
+    {
+        try
+        {
+            await CompanyService.RestoreAsync(id);
+            _deletedCompanies.RemoveAll(c => c.Id == id);
+            Snackbar.Add("Company restored.", Severity.Success);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to restore: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task RestoreBranch(Guid id)
+    {
+        try
+        {
+            await BranchService.RestoreAsync(id);
+            _deletedBranches.RemoveAll(b => b.Id == id);
+            Snackbar.Add("Branch restored.", Severity.Success);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to restore: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task PermanentDeleteInvoice(Guid id, string number)
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+            "Permanently Delete Invoice",
+            new DialogParameters
+            {
+                { "Message", $"Permanently delete invoice \"{number}\"? This cannot be undone." },
+                { "ConfirmText", "Delete Forever" }
+            },
+            new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            try
+            {
+                await InvoiceService.PermanentDeleteAsync(id);
+                _deletedInvoices.RemoveAll(i => i.Id == id);
+                Snackbar.Add("Invoice permanently deleted.", Severity.Success);
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to delete: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}

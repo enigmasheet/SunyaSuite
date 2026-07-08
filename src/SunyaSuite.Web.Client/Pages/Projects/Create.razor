@@ -1,0 +1,112 @@
+@page "/projects/create"
+@attribute [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
+@inject IProjectService ProjectService
+@inject IClientService ClientService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageHeader Title="Create Project" />
+
+<ErrorAlert Message="@_errorMessage" />
+
+@if (_loading)
+{
+    <LoadingSkeleton Variant="SkeletonVariant.Form" />
+}
+else
+{
+    <FormCard>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudSelect @bind-Value="_selectedClientId"
+                               Label="Client"
+                               Required="true"
+                               RequiredError="Client is required"
+                               For="@(() => _selectedClientId)">
+                        @foreach (var client in _clients)
+                        {
+                            <MudSelectItem Value="@client.Id" @key="client.Id">@client.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_name"
+                                  Label="Project Name"
+                                  Required="true"
+                                  RequiredError="Project name is required"
+                                  For="@(() => _name)" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_description"
+                                  Label="Description"
+                                  Lines="3"
+                                  For="@(() => _description)" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudDatePicker @bind-Date="_deadline"
+                                   Label="Deadline"
+                                   Required="true"
+                                   RequiredError="Deadline is required" />
+                </MudItem>
+            </MudGrid>
+
+            <FormActions SaveLabel="Create Project"
+                         CancelHref="/projects"
+                         Disabled="@(!_isValid)"
+                         OnSave="@(async () => await SaveAsync())" />
+        </MudForm>
+    </FormCard>
+}
+
+@code {
+    private MudForm _form = null!;
+    private bool _isValid;
+    private bool _loading = true;
+    private string? _errorMessage;
+
+    private List<ClientOptionDto> _clients = [];
+    private Guid _selectedClientId;
+    private string _name = string.Empty;
+    private string _description = string.Empty;
+    private DateTime? _deadline;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _clients = await ClientService.GetClientOptionsAsync();
+        }
+        catch
+        {
+            _errorMessage = "Failed to load data.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid || _deadline is null) return;
+
+        var request = new CreateProjectRequest(
+            _selectedClientId,
+            _name.Trim(),
+            _description.Trim(),
+            DateOnly.FromDateTime(_deadline.Value));
+
+        try
+        {
+            await ProjectService.CreateAsync(request);
+            Snackbar.Add("Project created successfully.", Severity.Success);
+            Navigation.NavigateTo("/projects");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to create project: {ex.Message}", Severity.Error);
+        }
+    }
+}

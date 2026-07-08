@@ -1,0 +1,29 @@
+<PageTitle>@Title — SunyaSuite</PageTitle>
+
+<MudText Typo="Typo.h4" Class="@GetClass()">
+    @if (!string.IsNullOrEmpty(Icon))
+    {
+        <MudIcon Icon="@Icon" Size="Size.Medium" Class="mr-2 page-header-icon" />
+    }
+    @Title
+</MudText>
+
+@if (!string.IsNullOrEmpty(Subtitle))
+{
+    <MudText Typo="Typo.body2" Class="text-secondary mb-4 mt-n2">@Subtitle</MudText>
+}
+
+@code {
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? Subtitle { get; set; }
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private string GetClass()
+    {
+        var cls = "mb-4";
+        if (!string.IsNullOrEmpty(Class))
+            cls += " " + Class;
+        return cls;
+    }
+}

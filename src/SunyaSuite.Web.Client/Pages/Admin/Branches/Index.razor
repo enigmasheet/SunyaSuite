@@ -1,0 +1,161 @@
+@page "/admin/branches"
+@attribute [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
+@inject IBranchService BranchService
+@inject ICompanyService CompanyService
+@inject ISnackbar Snackbar
+
+<PageHeader Title="Branches" />
+
+<ErrorAlert Message="@_errorMessage" />
+
+<MudGrid>
+    <MudItem xs="12" sm="6" md="4">
+        <MudSelect @bind-Value="SelectedCompanyId"
+                   Label="Filter by Company"
+                   Clearable="true"
+                   For="@(() => SelectedCompanyId)">
+            @foreach (var company in _companies)
+            {
+                <MudSelectItem Value="@(new Guid?(company.Id))" @key="company.Id">@company.Name</MudSelectItem>
+            }
+        </MudSelect>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="4" Class="d-flex align-center">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   Href="/admin/branches/create">
+            Create Branch
+        </MudButton>
+    </MudItem>
+</MudGrid>
+
+@if (_loading)
+{
+    <LoadingSkeleton Variant="SkeletonVariant.Table" />
+}
+else
+{
+    <MudTable T="BranchDto" Items="_branches"
+              Dense="true" Hover="true" Striped="true"
+              Outlined="true" Elevation="0" Class="mt-4">
+        <HeaderContent>
+            <MudTh>Name</MudTh>
+            <MudTh>Company</MudTh>
+            <MudTh>Slug</MudTh>
+            <MudTh>Phone</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">
+                <MudText Typo="Typo.body1" Class="font-weight-bold">@context.Name</MudText>
+            </MudTd>
+            <MudTd DataLabel="Company">@context.CompanyName</MudTd>
+            <MudTd DataLabel="Slug">@context.Slug</MudTd>
+            <MudTd DataLabel="Phone">@context.Phone</MudTd>
+            <MudTd DataLabel="Status">
+                <MudChip T="string" Size="Size.Small"
+                         Color="@(context.IsActive ? Color.Success : Color.Error)">
+                    @(context.IsActive ? "Active" : "Inactive")
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Actions">
+                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small"
+                               aria-label="View branch"
+                               Href="@($"/admin/branches/{context.Id}")" />
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                               aria-label="Edit branch"
+                               Href="@($"/admin/branches/edit/{context.Id}")" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                               Color="Color.Error"
+                               aria-label="Delete branch"
+                               OnClick="@(() => PromptDelete(context.Id, context.Name))" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <EmptyState Icon="@Icons.Material.Filled.AccountTree" Title="No branches found." />
+        </NoRecordsContent>
+    </MudTable>
+}
+
+@code {
+    [Inject] private IDialogService DialogService { get; set; } = null!;
+
+    private bool _loading = true;
+    private string? _errorMessage;
+    private List<BranchDto> _branches = [];
+    private List<CompanyDto> _companies = [];
+    private Guid? _selectedCompanyId;
+    private Guid? SelectedCompanyId
+    {
+        get => _selectedCompanyId;
+        set
+        {
+            if (_selectedCompanyId != value)
+            {
+                _selectedCompanyId = value;
+                _ = InvokeAsync(LoadBranches);
+            }
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _companies = await CompanyService.GetActiveAsync();
+            await LoadBranches();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to load data: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task LoadBranches()
+    {
+        try
+        {
+            if (_selectedCompanyId.HasValue)
+                _branches = await BranchService.GetByCompanyIdAsync(_selectedCompanyId.Value);
+            else
+                _branches = await BranchService.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to load branches: {ex.Message}";
+        }
+    }
+
+    private async Task PromptDelete(Guid id, string name)
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+            "Delete Branch",
+            new DialogParameters
+            {
+                { "Message", $"Delete \"{name}\"? It can be restored later from Trash." },
+                { "ConfirmText", "Delete" }
+            },
+            new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            try
+            {
+                await BranchService.SoftDeleteAsync(id);
+                Snackbar.Add("Branch deleted.", Severity.Success);
+                await LoadBranches();
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to delete: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}

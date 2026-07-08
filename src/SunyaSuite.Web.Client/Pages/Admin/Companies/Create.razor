@@ -1,0 +1,90 @@
+@page "/admin/companies/create"
+@attribute [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
+@inject ICompanyService CompanyService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageHeader Title="Create Company" />
+
+<ErrorAlert Message="@_errorMessage" />
+
+<FormCard>
+    <MudForm @ref="_form" @bind-IsValid="_isValid">
+        <MudGrid>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="_name"
+                              Label="Company Name"
+                              Required="true"
+                              RequiredError="Company name is required"
+                              For="@(() => _name)" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="_slug"
+                              Label="Slug"
+                              Required="true"
+                              RequiredError="Slug is required"
+                              HelperText="Lowercase letters, numbers, and hyphens"
+                              For="@(() => _slug)" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="_email"
+                              Label="Email Address"
+                              For="@(() => _email)" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="_phone" Label="Phone" For="@(() => _phone)" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="_panNumber" Label="PAN Number" For="@(() => _panNumber)" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_address" Label="Address" Lines="3"
+                              For="@(() => _address)" />
+            </MudItem>
+        </MudGrid>
+
+        <FormActions SaveLabel="Create Company"
+                     CancelHref="/admin/companies"
+                     Disabled="@(!_isValid)"
+                     OnSave="@(async () => await SaveAsync())" />
+    </MudForm>
+</FormCard>
+
+@code {
+    private MudForm _form = null!;
+    private bool _isValid;
+    private string? _errorMessage;
+
+    private string _name = string.Empty;
+    private string _slug = string.Empty;
+    private string _email = string.Empty;
+    private string _phone = string.Empty;
+    private string _address = string.Empty;
+    private string? _panNumber;
+
+    private async Task SaveAsync()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid) return;
+
+        var request = new CreateCompanyRequest(
+            _name.Trim(),
+            _slug.Trim().ToLowerInvariant(),
+            _email.Trim(),
+            _address.Trim(),
+            _phone.Trim(),
+            _panNumber?.Trim());
+
+        try
+        {
+            _errorMessage = null;
+            await CompanyService.CreateAsync(request);
+            Snackbar.Add("Company created successfully.", Severity.Success);
+            Navigation.NavigateTo("/admin/companies");
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to create company: {ex.Message}";
+        }
+    }
+}

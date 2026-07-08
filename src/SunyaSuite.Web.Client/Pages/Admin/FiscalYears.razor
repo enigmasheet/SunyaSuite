@@ -1,0 +1,175 @@
+@page "/admin/fiscal-years"
+@attribute [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
+@inject IFiscalYearService FiscalYearService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageHeader Title="Fiscal Years" />
+
+<ErrorAlert Message="@_errorMessage" />
+
+<MudButton Variant="Variant.Filled" Color="Color.Primary"
+           StartIcon="@Icons.Material.Filled.Add"
+           OnClick="@OpenCreateDialog" Class="mb-4">
+    Create Fiscal Year
+</MudButton>
+
+@if (_loading)
+{
+    <LoadingSkeleton Variant="SkeletonVariant.Table" />
+}
+else
+{
+    <MudTable T="FiscalYearListItemDto" Items="@_fiscalYears"
+              Dense="true" Hover="true" Striped="true"
+              Outlined="true" Elevation="0">
+        <HeaderContent>
+            <MudTh>Year Name</MudTh>
+            <MudTh>Start (BS)</MudTh>
+            <MudTh>End (BS)</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh>Current</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Year">
+                <MudText Typo="Typo.body1" Class="font-weight-bold">@context.YearName</MudText>
+            </MudTd>
+            <MudTd DataLabel="Start">@context.StartDateBS</MudTd>
+            <MudTd DataLabel="End">@context.EndDateBS</MudTd>
+            <MudTd DataLabel="Status">
+                <MudChip T="string" Size="Size.Small"
+                         Color="@(context.IsOpen ? Color.Success : Color.Error)">
+                    @(context.IsOpen ? "Open" : "Closed")
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Current">
+                <MudChip T="string" Size="Size.Small"
+                         Color="@(context.IsCurrent ? Color.Primary : Color.Default)">
+                    @(context.IsCurrent ? "Current" : "")
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Actions">
+                @if (!context.IsCurrent)
+                {
+                    <MudButton Variant="Variant.Text" Color="Color.Info" Size="Size.Small"
+                               OnClick="@(() => SetCurrentWithConfirm(context.Id, context.YearName))" Class="mr-1">
+                        Set Current
+                    </MudButton>
+                }
+                <MudButton Variant="Variant.Text"
+                           Color="@(context.IsOpen ? Color.Warning : Color.Success)"
+                           Size="Size.Small"
+                           OnClick="@(() => ToggleOpenWithConfirm(context.Id, context.YearName))">
+                    @(context.IsOpen ? "Close" : "Open")
+                </MudButton>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <EmptyState Icon="@Icons.Material.Filled.CalendarMonth" Title="No fiscal years configured." />
+        </NoRecordsContent>
+    </MudTable>
+}
+
+@code {
+    private bool _loading = true;
+    private string? _errorMessage;
+    private List<FiscalYearListItemDto> _fiscalYears = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _fiscalYears = await FiscalYearService.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to load fiscal years: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var dialog = await DialogService.ShowAsync<CreateFiscalYearDialog>("Create Fiscal Year",
+            new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: CreateFiscalYearRequest request })
+        {
+            try
+            {
+                await FiscalYearService.CreateAsync(request);
+                _fiscalYears = await FiscalYearService.GetAllAsync();
+                Snackbar.Add($"Fiscal year {request.YearName} created.", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to create: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task ToggleOpenWithConfirm(Guid id, string yearName)
+    {
+        var isOpen = _fiscalYears.FirstOrDefault(f => f.Id == id)?.IsOpen ?? false;
+        var action = isOpen ? "Close" : "Open";
+        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+            $"{action} Fiscal Year",
+            new DialogParameters
+            {
+                { "Message", $"{action} fiscal year {yearName}?" },
+                { "ConfirmText", action }
+            },
+            new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+            await ToggleOpen(id, yearName);
+    }
+
+    private async Task ToggleOpen(Guid id, string yearName)
+    {
+        try
+        {
+            await FiscalYearService.ToggleOpenAsync(id);
+            _fiscalYears = await FiscalYearService.GetAllAsync();
+            Snackbar.Add($"Fiscal year {yearName} status toggled.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to toggle: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task SetCurrentWithConfirm(Guid id, string yearName)
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+            "Set Current Fiscal Year",
+            new DialogParameters
+            {
+                { "Message", $"Set {yearName} as the current fiscal year?" },
+                { "ConfirmText", "Set Current" }
+            },
+            new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+            await SetCurrent(id);
+    }
+
+    private async Task SetCurrent(Guid id)
+    {
+        try
+        {
+            await FiscalYearService.SetCurrentAsync(id);
+            _fiscalYears = await FiscalYearService.GetAllAsync();
+            Snackbar.Add("Current fiscal year updated.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to set current: {ex.Message}", Severity.Error);
+        }
+    }
+}

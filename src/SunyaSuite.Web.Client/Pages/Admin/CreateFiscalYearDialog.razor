@@ -1,0 +1,62 @@
+@using MudBlazor
+
+<MudDialog>
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudTextField T="string"
+                              Label="Year Name *"
+                              Variant="Variant.Outlined"
+                              @bind-Value="_model.YearName"
+                              Placeholder="e.g. 2082/83"
+                              Required="true"
+                              RequiredError="Year name is required"
+                              FullWidth="true" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField T="string"
+                              Label="Start Date (BS) *"
+                              Variant="Variant.Outlined"
+                              @bind-Value="_model.StartDateBS"
+                              Placeholder="2082/04/01"
+                              Required="true"
+                              RequiredError="Start date is required"
+                              FullWidth="true" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField T="string"
+                              Label="End Date (BS) *"
+                              Variant="Variant.Outlined"
+                              @bind-Value="_model.EndDateBS"
+                              Placeholder="2083/03/30"
+                              Required="true"
+                              RequiredError="End date is required"
+                              FullWidth="true" />
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   Disabled="@(string.IsNullOrWhiteSpace(_model.YearName) || string.IsNullOrWhiteSpace(_model.StartDateBS) || string.IsNullOrWhiteSpace(_model.EndDateBS))"
+                   OnClick="Submit">Create</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private CreateFiscalYearModel _model = new();
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Submit() => MudDialog.Close(DialogResult.Ok(
+        new CreateFiscalYearRequest(_model.YearName, _model.StartDateBS, _model.EndDateBS)));
+
+    private class CreateFiscalYearModel
+    {
+        public string YearName { get; set; } = string.Empty;
+        public string StartDateBS { get; set; } = string.Empty;
+        public string EndDateBS { get; set; } = string.Empty;
+    }
+}

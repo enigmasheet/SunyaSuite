@@ -1,0 +1,170 @@
+@page "/receipts"
+@attribute [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
+@inject IMoneyReceiptService MoneyReceiptService
+@inject IFiscalYearService FiscalYearService
+@inject IReceiptPdfService ReceiptPdfService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+@inject IDialogService DialogService
+
+<PageHeader Title="Receipts" />
+
+<div class="d-flex align-center mb-4">
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Add"
+               Href="/receipts/create" Class="mr-4">
+        Create Receipt
+    </MudButton>
+    <MudSelect T="Guid?" Label="Fiscal Year"
+               Clearable="true" Variant="Variant.Outlined"
+               ValueChanged="@(async (Guid? v) => { _fiscalYearId = v; await _table.ReloadServerData(); })"
+               Value="@_fiscalYearId"
+               Class="mud-select-small mud-select-min-width">
+        @foreach (var fy in _fiscalYears)
+        {
+            <MudSelectItem T="Guid?" Value="@fy.Id" @key="fy.Id">
+                @fy.YearName @(fy.IsCurrent ? "(Current)" : "")
+            </MudSelectItem>
+        }
+    </MudSelect>
+</div>
+
+<MudTable T="MoneyReceiptListItemDto" ServerData="@(async (state, ct) => await ServerReload(state, ct))"
+          Dense="true" Hover="true" Striped="true"
+          Outlined="true" Elevation="0"
+          @ref="_table">
+
+    <ColGroup>
+        <col style="width: 15%;" />
+        <col style="width: 20%;" />
+        <col style="width: 12%;" />
+        <col style="width: 12%;" />
+        <col style="width: 12%;" />
+        <col style="width: 14%;" />
+        <col style="width: 15%;" />
+    </ColGroup>
+
+    <HeaderContent>
+        <MudTh><MudTableSortLabel T="MoneyReceiptListItemDto" SortLabel="receiptnumber">Receipt #</MudTableSortLabel></MudTh>
+        <MudTh>Received From</MudTh>
+        <MudTh><MudTableSortLabel T="MoneyReceiptListItemDto" SortLabel="amount">Amount</MudTableSortLabel></MudTh>
+        <MudTh>In Words</MudTh>
+        <MudTh>Method</MudTh>
+        <MudTh><MudTableSortLabel T="MoneyReceiptListItemDto" SortLabel="date">Date</MudTableSortLabel></MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+
+    <RowTemplate>
+        <MudTd DataLabel="Receipt #">
+            <MudLink Href="@($"/receipts/{context.Id}")">@context.ReceiptNumber</MudLink>
+        </MudTd>
+        <MudTd DataLabel="Received From">@context.ReceivedFromName</MudTd>
+        <MudTd DataLabel="Amount">@context.AmountReceived.ToString("C")</MudTd>
+        <MudTd DataLabel="In Words">
+            <MudText Typo="Typo.caption">@context.AmountInWords</MudText>
+        </MudTd>
+        <MudTd DataLabel="Method">@context.PaymentMethod</MudTd>
+        <MudTd DataLabel="Date">@context.DateAD.ToString("MMM dd, yyyy")</MudTd>
+        <MudTd DataLabel="Actions">
+            <MudTooltip Text="Download PDF">
+                <MudIconButton Icon="@Icons.Material.Filled.Download" Size="Size.Small" Color="Color.Info"
+                               aria-label="Download PDF"
+                               OnClick="@(() => DownloadPdf(context.Id, context.ReceiptNumber))" />
+            </MudTooltip>
+            <ActionButtons ViewHref="@($"/receipts/{context.Id}")"
+                           OnDelete="@(() => PromptDelete(context.Id, context.ReceiptNumber))" />
+        </MudTd>
+    </RowTemplate>
+
+    <PagerContent>
+        <MudTablePager PageSizeOptions="@([10, 25, 50])" />
+    </PagerContent>
+    <NoRecordsContent>
+        <EmptyState Icon="@Icons.Material.Filled.ReceiptLong" Title="No receipts found." />
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    private MudTable<MoneyReceiptListItemDto> _table = null!;
+    private Guid? _fiscalYearId;
+    private List<FiscalYearListItemDto> _fiscalYears = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _fiscalYears = await FiscalYearService.GetAllAsync();
+        var current = _fiscalYears.FirstOrDefault(f => f.IsCurrent);
+        if (current is not null)
+            _fiscalYearId = current.Id;
+    }
+
+    private async Task<TableData<MoneyReceiptListItemDto>> ServerReload(TableState state, CancellationToken ct)
+    {
+        try
+        {
+            var sortDirection = state.SortDirection switch
+            {
+                SortDirection.Ascending => "asc",
+                SortDirection.Descending => "desc",
+                _ => null
+            };
+
+            var result = await MoneyReceiptService.GetPagedAsync(
+                state.Page + 1,
+                state.PageSize,
+                null,
+                state.SortLabel,
+                sortDirection,
+                _fiscalYearId,
+                ct);
+
+            return new TableData<MoneyReceiptListItemDto> { Items = result.Items, TotalItems = result.Total };
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load receipts: {ex.Message}", Severity.Error);
+            return new TableData<MoneyReceiptListItemDto> { Items = [], TotalItems = 0 };
+        }
+    }
+
+    private async Task DownloadPdf(Guid id, string receiptNumber)
+    {
+        try
+        {
+            var receipt = await MoneyReceiptService.GetByIdAsync(id);
+            if (receipt is null) return;
+            var pdfBytes = await ReceiptPdfService.GeneratePdfAsync(receipt);
+            var base64 = Convert.ToBase64String(pdfBytes);
+            await JsRuntime.InvokeVoidAsync("downloadFile", $"Receipt_{receiptNumber}.pdf", base64);
+            Snackbar.Add("PDF downloaded.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Download failed: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task PromptDelete(Guid id, string number)
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+            "Delete Receipt",
+            new DialogParameters
+            {
+                { "Message", $"Delete receipt {number}? It will be moved to trash." }
+            },
+            new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            try
+            {
+                await MoneyReceiptService.DeleteAsync(id);
+                Snackbar.Add("Receipt moved to trash.", Severity.Success);
+                await _table.ReloadServerData();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to delete receipt: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}

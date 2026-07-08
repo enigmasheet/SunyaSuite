@@ -1,0 +1,125 @@
+@page "/clients/{Id:guid}"
+@attribute [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
+@inject IClientService ClientService
+
+<PageHeader Title="@(_client?.Name ?? "Client Details")" />
+
+<ErrorAlert Message="@_errorMessage" />
+
+@if (_loading)
+{
+    <LoadingSkeleton Variant="SkeletonVariant.DetailCard" />
+}
+else if (_client is null)
+{
+    <MudAlert Severity="Severity.Warning" Class="mt-4">Client not found.</MudAlert>
+}
+else
+{
+    <MudText Typo="Typo.h4" Class="mb-4">
+        @_client.Name
+        <StatusChip Status="@_client.Status">@_client.Status</StatusChip>
+    </MudText>
+
+    <MudGrid>
+        <MudItem xs="12" md="4">
+            <DetailInfoCard Title="Client Details"
+                            Fields="@(new List<DetailField>
+                            {
+                                new() { Label = "Email", Value = _client.Email },
+                                new() { Label = "Phone", Value = !string.IsNullOrEmpty(_client.Phone) ? _client.Phone : "—" },
+                                new() { Label = "Company", Value = !string.IsNullOrEmpty(_client.Company) ? _client.Company : "—" },
+                                new() { Label = "Registered On", Value = _client.RegisteredOn.ToString("MMM dd, yyyy") },
+                                new() { Label = "Address", Value = !string.IsNullOrEmpty(_client.Address) ? _client.Address : "—" }
+                            })">
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Edit" Class="mt-4"
+                           Href="@($"/clients/edit/{_client.Id}")">
+                    Edit Client
+                </MudButton>
+            </DetailInfoCard>
+        </MudItem>
+
+        <MudItem xs="12" md="8">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6 mb-4">
+                <MudText Typo="Typo.subtitle2" Class="mb-4">Projects (@_client.Projects.Count)</MudText>
+                @if (_client.Projects.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Class="text-disabled">No projects yet.</MudText>
+                }
+                else
+                {
+                    <MudTable T="ProjectBriefDto" Items="@_client.Projects" Dense="true" Hover="true"
+                              Outlined="false" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>Name</MudTh>
+                            <MudTh>Status</MudTh>
+                            <MudTh>Progress</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>@context.Name</MudTd>
+                            <MudTd>@context.Status</MudTd>
+                            <MudTd>
+                                <MudProgressLinear Value="@context.ProgressPercent"
+                                                   Class="rounded" Style="max-width: 200px;" />
+                                <MudText Typo="Typo.caption" Class="ml-2">@context.ProgressPercent%</MudText>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+            </MudPaper>
+
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6">
+                <MudText Typo="Typo.subtitle2" Class="mb-4">Invoices (@_client.Invoices.Count)</MudText>
+                @if (_client.Invoices.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Class="text-disabled">No invoices yet.</MudText>
+                }
+                else
+                {
+                    <MudTable T="InvoiceBriefDto" Items="@_client.Invoices" Dense="true" Hover="true"
+                              Outlined="false" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>Invoice #</MudTh>
+                            <MudTh>Issue Date</MudTh>
+                            <MudTh>Total</MudTh>
+                            <MudTh>Status</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>@context.InvoiceNumber</MudTd>
+                            <MudTd>@context.IssueDate.ToString("MMM dd, yyyy")</MudTd>
+                            <MudTd>@context.Total.ToString("C")</MudTd>
+                            <MudTd>
+                                <StatusChip Status="@context.Status">@context.Status</StatusChip>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private bool _loading = true;
+    private string? _errorMessage;
+    private ClientDetailDto? _client;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _client = await ClientService.GetByIdAsync(Id);
+        }
+        catch
+        {
+            _errorMessage = "Failed to load data.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

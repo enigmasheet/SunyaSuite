@@ -1,0 +1,310 @@
+@page "/invoices/edit/{Id:guid}"
+@attribute [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
+@inject IInvoiceService InvoiceService
+@inject IProjectService ProjectService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageHeader Title="@(_invoice is null ? "Edit Invoice" : $"Edit: {_invoice.InvoiceNumber}")" />
+
+<ErrorAlert Message="@_errorMessage"
+            OnDismiss="@(() => _errorMessage = null)" />
+
+@if (_loading)
+{
+    <LoadingSkeleton Variant="SkeletonVariant.Form" />
+}
+else if (_invoice is null)
+{
+    <MudAlert Severity="Severity.Warning" Class="mt-4">Invoice not found.</MudAlert>
+}
+else if (_invoice.Status != "Draft")
+{
+    <MudAlert Severity="Severity.Warning" Class="mt-4">
+        Only draft invoices can be edited.
+        <MudButton Variant="Variant.Text" Color="Color.Primary" Href="@($"/invoices/{Id}")" Class="ml-2">
+            View Invoice
+        </MudButton>
+    </MudAlert>
+}
+else
+{
+    <FormCard>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.body2" Class="text-secondary">Client</MudText>
+                    <MudText Typo="Typo.body1">@_invoice.ClientName</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudDatePicker @bind-Date="_dueDate"
+                                   Label="Due Date"
+                                   Required="true"
+                                   RequiredError="Due date is required" />
+                </MudItem>
+            </MudGrid>
+
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.body2" Class="text-secondary">Bill Type</MudText>
+                    <MudText Typo="Typo.body1">@_invoice.BillType</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6" Class="d-flex align-center">
+                    <MudSwitch @bind-Value="_isAbbreviated"
+                               Label="Abbreviated (Rule 17-Ka)"
+                               Disabled="@(_invoice.BillType == Domain.Enums.BillType.PanBill)" />
+                </MudItem>
+            </MudGrid>
+
+            @if (_invoice.BillType == Domain.Enums.BillType.VatBill)
+            {
+                <MudGrid>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_buyerPan"
+                                      Label="Buyer PAN (required if total > NPR 100,000)" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_buyerAddress" Label="Buyer Address" />
+                    </MudItem>
+                </MudGrid>
+            }
+
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudSelect @bind-Value="_selectedProjectId"
+                               Label="Project (optional)"
+                               Clearable="true"
+                               AnchorOrigin="Origin.BottomCenter">
+                        @foreach (var project in _projects)
+                        {
+                            <MudSelectItem Value="@(new Guid?(project.Id))" @key="project.Id">@project.Name (@project.ClientName)</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_projectRemark"
+                                  Label="Project Remark (optional)" />
+                </MudItem>
+            </MudGrid>
+
+            <MudText Typo="Typo.subtitle2" Class="mt-6 mb-4">Line Items</MudText>
+
+            @for (int i = 0; i < _items.Count; i++)
+            {
+                var idx = i;
+                <MudGrid Class="mb-2" @key="@_items[idx].Id">
+                    <MudItem xs="12" sm="3">
+                        <MudTextField @bind-Value="_items[idx].Description"
+                                      Placeholder="Description"
+                                      Required="true"
+                                      RequiredError="Required" />
+                    </MudItem>
+                    <MudItem xs="6" sm="1">
+                        <MudTextField @bind-Value="_items[idx].HsCode"
+                                      Placeholder="HS"
+                                      Disabled="@(_invoice.BillType != Domain.Enums.BillType.VatBill)" />
+                    </MudItem>
+                    <MudItem xs="6" sm="2">
+                        <MudSelect T="Guid?" @bind-Value="_items[idx].ProjectId"
+                                   Placeholder="Project"
+                                   Clearable="true"
+                                   AnchorOrigin="Origin.BottomCenter">
+                            @foreach (var project in _projects)
+                            {
+                                <MudSelectItem Value="@(new Guid?(project.Id))" @key="project.Id">@project.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="4" sm="1">
+                        <MudNumericField T="decimal" @bind-Value="_items[idx].Quantity"
+                                         Min="0.01m" Step="1m" />
+                    </MudItem>
+                    <MudItem xs="4" sm="1">
+                        <MudTextField @bind-Value="_items[idx].Unit" Placeholder="Unit" />
+                    </MudItem>
+                    <MudItem xs="4" sm="2">
+                        <MudNumericField T="decimal" @bind-Value="_items[idx].UnitPrice"
+                                         Min="0m" Step="0.01m" />
+                    </MudItem>
+                    <MudItem xs="6" sm="1" Class="d-flex align-center">
+                        <MudText Typo="Typo.body2">@(_items[idx].Amount).ToString("C")</MudText>
+                    </MudItem>
+                    <MudItem xs="6" sm="1" Class="d-flex align-center">
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                       Color="Color.Error"
+                                       Disabled="@(_items.Count <= 1)"
+                                       aria-label="Remove line item"
+                                       OnClick="@(() => RemoveItem(idx))" />
+                    </MudItem>
+                </MudGrid>
+            }
+
+            <MudButton Variant="Variant.Text" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="@AddItem" Class="mt-2">
+                Add Item
+            </MudButton>
+
+            <MudGrid Class="mt-6">
+                <MudItem xs="12" sm="4">
+                    <MudNumericField T="decimal" @bind-Value="_discountAmount"
+                                     Label="Discount Amount"
+                                     Min="0m" Step="1m" />
+                </MudItem>
+            </MudGrid>
+
+            <MudPaper Elevation="0" Outlined="true" Class="pa-4 mt-4 totals-box">
+                <MudGrid>
+                    <MudItem xs="6"><MudText Typo="Typo.body2">Subtotal:</MudText></MudItem>
+                    <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2">@_items.Sum(i => i.Amount).ToString("C")</MudText></MudItem>
+                    @if (_invoice.BillType == Domain.Enums.BillType.VatBill && !_isAbbreviated)
+                    {
+                        <MudItem xs="6"><MudText Typo="Typo.body2">VAT (@_vatRate%):</MudText></MudItem>
+                        <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2">@((_items.Sum(i => i.Amount) * _vatRate / 100m).ToString("C"))</MudText></MudItem>
+                    }
+                    @if (_discountAmount > 0)
+                    {
+                        <MudItem xs="6"><MudText Typo="Typo.body2">Discount:</MudText></MudItem>
+                        <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2">-@_discountAmount.ToString("C")</MudText></MudItem>
+                    }
+                    <MudItem xs="12"><MudDivider /></MudItem>
+                    <MudItem xs="6"><MudText Typo="Typo.subtitle1" Class="font-weight-bold">Total:</MudText></MudItem>
+                    <MudItem xs="6" Class="text-right"><MudText Typo="Typo.subtitle1">@_total.ToString("C")</MudText></MudItem>
+                </MudGrid>
+            </MudPaper>
+
+            <FormActions SaveLabel="Save Changes"
+                         CancelHref="@($"/invoices/{Id}")"
+                         Disabled="@(!_isValid)"
+                         OnSave="@(async () => await SaveAsync())" />
+        </MudForm>
+    </FormCard>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private MudForm _form = null!;
+    private bool _isValid;
+    private bool _loading = true;
+    private string? _errorMessage;
+    private InvoiceDetailDto? _invoice;
+    private string _invoiceNumber = string.Empty;
+
+    private DateTime? _dueDate;
+    private bool _isAbbreviated;
+    private string _buyerPan = string.Empty;
+    private string _buyerAddress = string.Empty;
+    private decimal _vatRate = 13m;
+    private decimal _discountAmount;
+    private List<InvoiceItemDto> _items = [];
+    private List<ProjectOptionDto> _projects = [];
+    private Guid? _selectedProjectId;
+    private string _projectRemark = string.Empty;
+
+    private decimal _total => _items.Sum(i => i.Amount) - _discountAmount +
+        (_invoice?.BillType == Domain.Enums.BillType.VatBill && !_isAbbreviated ? _items.Sum(i => i.Amount) * _vatRate / 100m : 0);
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _invoice = await InvoiceService.GetByIdAsync(Id);
+            if (_invoice is not null)
+            {
+                _invoiceNumber = _invoice.InvoiceNumber;
+                _dueDate = _invoice.DueDate.ToDateTime(TimeOnly.MinValue);
+                _isAbbreviated = _invoice.IsAbbreviated;
+                _buyerPan = _invoice.BuyerPan;
+                _buyerAddress = _invoice.BuyerAddress;
+                _discountAmount = _invoice.DiscountAmount;
+                _selectedProjectId = _invoice.ProjectId;
+                _projectRemark = _invoice.ProjectRemark ?? string.Empty;
+                _items = _invoice.Items.Select(i => new InvoiceItemDto
+                {
+                    Id = Guid.NewGuid(),
+                    LineNo = i.LineNo,
+                    Description = i.Description,
+                    HsCode = i.HsCode,
+                    Unit = i.Unit,
+                    Quantity = i.Quantity,
+                    UnitPrice = i.UnitPrice,
+                    ProjectId = i.ProjectId,
+                    ProjectName = i.ProjectName
+                }).ToList();
+
+                if (_items.Count == 0)
+                    AddItem();
+
+                _projects = await ProjectService.GetProjectOptionsAsync();
+            }
+        }
+        catch
+        {
+            _errorMessage = "Failed to load data.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void AddItem()
+    {
+        _items.Add(new InvoiceItemDto { Id = Guid.NewGuid(), LineNo = _items.Count + 1, Description = "", Quantity = 1, UnitPrice = 0, Unit = "pcs" });
+    }
+
+    private void RemoveItem(int index)
+    {
+        if (_items.Count > 1)
+            _items.RemoveAt(index);
+    }
+
+    private async Task SaveAsync()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid || _dueDate is null) return;
+
+        var items = _items
+            .Where(i => !string.IsNullOrWhiteSpace(i.Description))
+            .Select((i, idx) => new InvoiceItemDto
+            {
+                LineNo = idx + 1,
+                Description = i.Description.Trim(),
+                HsCode = _invoice?.BillType == Domain.Enums.BillType.VatBill ? i.HsCode : null,
+                Unit = i.Unit,
+                Quantity = i.Quantity,
+                UnitPrice = i.UnitPrice,
+                ProjectId = i.ProjectId
+            })
+            .ToList();
+
+        if (items.Count == 0)
+        {
+            Snackbar.Add("At least one line item is required.", Severity.Warning);
+            return;
+        }
+
+        var request = new UpdateInvoiceRequest(
+            Id,
+            DateOnly.FromDateTime(_dueDate.Value),
+            _discountAmount,
+            _isAbbreviated,
+            _buyerPan,
+            _buyerAddress,
+            _selectedProjectId,
+            string.IsNullOrWhiteSpace(_projectRemark) ? null : _projectRemark,
+            items);
+
+        try
+        {
+            await InvoiceService.UpdateAsync(request);
+            Snackbar.Add("Invoice updated successfully.", Severity.Success);
+            Navigation.NavigateTo($"/invoices/{Id}");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to update invoice: {ex.Message}", Severity.Error);
+        }
+    }
+}
