@@ -1,0 +1,187 @@
+@page "/clients"
+@attribute [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
+@inject IClientService ClientService
+@inject IExportService ExportService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+@inject IDialogService DialogService
+
+<PageHeader Title="Clients" />
+
+<IndexToolbar @bind-SearchTerm="_searchTerm"
+              OnSearch="@(async (v) => { _searchTerm = v; await _table.ReloadServerData(); })"
+              SearchPlaceholder="Search by name, email, or company..."
+              ShowExport="true"
+              Exporting="_exporting"
+              OnExport="@ExportClients"
+              ShowFilter="true"
+              OnToggleFilter="@ToggleFilterPanel"
+              AddHref="/clients/create"
+              AddLabel="Add Client" />
+
+<FilterPanel Visible="_showFilters"
+             OnApply="@ApplyFilters"
+             OnClear="@ClearFilters">
+    <StatusFilterGroup TEnum="ClientStatus"
+                       Label="Status"
+                       SelectedValues="_selectedStatuses"
+                       SelectedValuesChanged="@(v => _selectedStatuses = v)" />
+    <DateRangeFilter Label="Registered On"
+                     @bind-From="_registeredOnFrom"
+                     @bind-To="_registeredOnTo" />
+</FilterPanel>
+
+<MudTable T="ClientListItemDto" ServerData="@(async (state, ct) => await ServerReload(state, ct))"
+          Dense="true" Hover="true" Striped="true"
+          Outlined="true" Elevation="0" Class="mt-4"
+          @ref="_table">
+
+    <ColGroup>
+        <col style="width: 28%;" />
+        <col style="width: 22%;" />
+        <col style="width: 22%;" />
+        <col style="width: 10%;" />
+        <col style="width: 18%;" />
+    </ColGroup>
+
+    <HeaderContent>
+        <MudTh><MudTableSortLabel T="ClientListItemDto" SortLabel="name">Name</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="ClientListItemDto" SortLabel="email">Email</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="ClientListItemDto" SortLabel="company">Company</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="ClientListItemDto" SortLabel="status">Status</MudTableSortLabel></MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+
+    <RowTemplate>
+        <MudTd DataLabel="Name">
+            <MudLink Href="@($"/clients/{context.Id}")">@context.Name</MudLink>
+        </MudTd>
+        <MudTd DataLabel="Email">@context.Email</MudTd>
+        <MudTd DataLabel="Company">@context.Company</MudTd>
+        <MudTd DataLabel="Status">
+            <StatusChip Status="@context.Status">@context.Status</StatusChip>
+        </MudTd>
+        <MudTd DataLabel="Actions">
+            <ActionButtons ViewHref="@($"/clients/{context.Id}")"
+                           EditHref="@($"/clients/edit/{context.Id}")"
+                           OnDelete="@(() => PromptDelete(context.Id, context.Name))" />
+        </MudTd>
+    </RowTemplate>
+
+    <PagerContent>
+        <MudTablePager PageSizeOptions="@([10, 25, 50])" />
+    </PagerContent>
+    <NoRecordsContent>
+        <EmptyState Icon="@Icons.Material.Filled.PeopleOutline" Title="No clients found." />
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    private string? _searchTerm;
+    private bool _exporting;
+    private MudTable<ClientListItemDto> _table = null!;
+
+    private bool _showFilters;
+    private HashSet<ClientStatus> _selectedStatuses = [];
+    private DateTime? _registeredOnFrom;
+    private DateTime? _registeredOnTo;
+
+    private void ToggleFilterPanel()
+    {
+        _showFilters = !_showFilters;
+    }
+
+    private async Task<TableData<ClientListItemDto>> ServerReload(TableState state, CancellationToken ct)
+    {
+        try
+        {
+            var sortDirection = state.SortDirection switch
+            {
+                SortDirection.Ascending => "asc",
+                SortDirection.Descending => "desc",
+                _ => null
+            };
+
+            var filter = _showFilters ? new ClientFilterDto
+            {
+                Statuses = _selectedStatuses.Count > 0 ? [.. _selectedStatuses] : null,
+                RegisteredOnFrom = _registeredOnFrom is not null ? DateOnly.FromDateTime(_registeredOnFrom.Value) : null,
+                RegisteredOnTo = _registeredOnTo is not null ? DateOnly.FromDateTime(_registeredOnTo.Value) : null,
+            } : null;
+
+            var result = await ClientService.GetPagedAsync(
+                state.Page + 1,
+                state.PageSize,
+                state.SortLabel,
+                sortDirection,
+                _searchTerm,
+                filter,
+                ct);
+
+            return new TableData<ClientListItemDto> { Items = result.Items, TotalItems = result.Total };
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load clients: {ex.Message}", Severity.Error);
+            return new TableData<ClientListItemDto> { Items = [], TotalItems = 0 };
+        }
+    }
+
+    private async Task ApplyFilters()
+    {
+        await _table.ReloadServerData();
+    }
+
+    private async Task ClearFilters()
+    {
+        _selectedStatuses.Clear();
+        _registeredOnFrom = null;
+        _registeredOnTo = null;
+        await _table.ReloadServerData();
+    }
+
+    private async Task ExportClients()
+    {
+        _exporting = true;
+        try
+        {
+            var bytes = await ExportService.ExportClientsAsync();
+            var b64 = Convert.ToBase64String(bytes);
+            await JsRuntime.InvokeVoidAsync("downloadFile", "clients.xlsx", b64, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            Snackbar.Add("Clients exported.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Export failed: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _exporting = false;
+        }
+    }
+
+    private async Task PromptDelete(Guid id, string name)
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+            "Delete Client",
+            new DialogParameters
+            {
+                { "Message", $"Delete \"{name}\"? It will be moved to trash." }
+            },
+            new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            try
+            {
+                await ClientService.DeleteAsync(id);
+                Snackbar.Add("Client moved to trash.", Severity.Success);
+                await _table.ReloadServerData();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to delete client: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}

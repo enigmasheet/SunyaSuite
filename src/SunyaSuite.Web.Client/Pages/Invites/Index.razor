@@ -1,0 +1,143 @@
+@page "/invites"
+@attribute [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
+@inject IInviteService InviteService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@inject TimeProvider TimeProvider
+
+<PageHeader Title="Invites" />
+
+<IndexToolbar @bind-SearchTerm="_searchTerm"
+              OnSearch="@(async (v) => { _searchTerm = v; await _table.ReloadServerData(); })"
+              SearchPlaceholder="Search by code or email..."
+              ShowFilter="false"
+              ShowExport="false"
+              AddHref="/invites/create"
+              AddLabel="Create Invite" />
+
+<MudTable T="InviteDto" ServerData="@(async (state, ct) => await ServerReload(state, ct))"
+          Dense="true" Hover="true" Striped="true"
+          Outlined="true" Elevation="0" Class="mt-4"
+          @ref="_table">
+
+    <ColGroup>
+        <col style="width: 20%;" />
+        <col style="width: 12%;" />
+        <col style="width: 12%;" />
+        <col style="width: 18%;" />
+        <col style="width: 18%;" />
+        <col style="width: 20%;" />
+    </ColGroup>
+
+    <HeaderContent>
+        <MudTh>Code</MudTh>
+        <MudTh>Role</MudTh>
+        <MudTh>Status</MudTh>
+        <MudTh>Created</MudTh>
+        <MudTh>Expires</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+
+    <RowTemplate>
+        <MudTd DataLabel="Code">
+            <MudText Typo="Typo.body2" Class="font-weight-bold">@context.Code</MudText>
+        </MudTd>
+        <MudTd DataLabel="Role">
+            <MudChip T="string" Size="Size.Small" Color="Color.Primary">@context.Role</MudChip>
+        </MudTd>
+        <MudTd DataLabel="Status">
+            @if (context.IsUsed)
+            {
+                <MudChip T="string" Size="Size.Small" Color="Color.Warning">Used</MudChip>
+            }
+            else if (context.IsExpiredAsOf(TimeProvider.GetUtcNow().UtcDateTime))
+            {
+                <MudChip T="string" Size="Size.Small" Color="Color.Error">Expired</MudChip>
+            }
+            else
+            {
+                <MudChip T="string" Size="Size.Small" Color="Color.Success">Active</MudChip>
+            }
+        </MudTd>
+        <MudTd DataLabel="Created">@context.CreatedAt.ToString("g")</MudTd>
+        <MudTd DataLabel="Expires">@context.ExpiresAt.ToString("g")</MudTd>
+        <MudTd DataLabel="Actions">
+            <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small"
+                           aria-label="Copy invite link"
+                           OnClick="@(() => CopyLink(context.Code, context.Role))" />
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                           Color="Color.Error"
+                           aria-label="Revoke invite"
+                           OnClick="@(() => PromptRevoke(context.Id, context.Code))" />
+        </MudTd>
+    </RowTemplate>
+
+    <PagerContent>
+        <MudTablePager PageSizeOptions="@([10, 25, 50])" />
+    </PagerContent>
+    <NoRecordsContent>
+        <EmptyState Icon="@Icons.Material.Filled.MailOutline" Title="No invites found." Description="Create your first invite to allow new users to register." />
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    private string? _searchTerm;
+    private MudTable<InviteDto> _table = null!;
+
+    private async Task<TableData<InviteDto>> ServerReload(TableState state, CancellationToken ct)
+    {
+        try
+        {
+            var (items, total) = await InviteService.GetPagedAsync(
+                state.Page + 1, state.PageSize, _searchTerm, ct);
+            return new TableData<InviteDto> { Items = items, TotalItems = total };
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load invites: {ex.Message}", Severity.Error);
+            return new TableData<InviteDto> { Items = [], TotalItems = 0 };
+        }
+    }
+
+    private async Task CopyLink(string code, string role)
+    {
+        var baseUri = Navigation.BaseUri.TrimEnd('/');
+        var link = $"{baseUri}/Account/Register?code={code}&role={role}";
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", link);
+            Snackbar.Add("Invite link copied to clipboard.", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Failed to copy link.", Severity.Error);
+        }
+    }
+
+    private async Task PromptRevoke(Guid id, string code)
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+            "Revoke Invite",
+            new DialogParameters
+            {
+                { "Message", $"Revoke invite \"{code}\"? It can no longer be used." }
+            },
+            new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            try
+            {
+                await InviteService.DeleteAsync(id);
+                Snackbar.Add("Invite revoked.", Severity.Success);
+                await _table.ReloadServerData();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to revoke: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}

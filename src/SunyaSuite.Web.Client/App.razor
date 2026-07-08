@@ -1,0 +1,26 @@
+﻿@inject NavigationManager Navigation
+
+<ErrorBoundary>
+    <ErrorContent>
+        <MudContainer MaxWidth="MaxWidth.Small" Class="d-flex flex-column align-center py-16">
+            <MudIcon Icon="@Icons.Material.Filled.ErrorOutline" Size="@Size.Large" Color="@Color.Error" Class="mb-4" />
+            <MudText Typo="Typo.h3" Align="@Align.Center" Class="mb-2">Something went wrong</MudText>
+            <MudText Typo="Typo.body1" Align="@Align.Center" Class="mb-4">Please try reloading the page.</MudText>
+            <MudButton Variant="@Variant.Filled" Color="@Color.Primary" OnClick="@(() => Navigation.NavigateTo(Navigation.Uri, forceLoad: true))">Reload Page</MudButton>
+        </MudContainer>
+    </ErrorContent>
+    <ChildContent>
+        <CascadingAuthenticationState>
+        <Router AppAssembly="@typeof(App).Assembly">
+            <Found Context="routeData">
+                <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                    <NotAuthorized>
+                        <RedirectToLogin />
+                    </NotAuthorized>
+                </AuthorizeRouteView>
+                <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+            </Found>
+        </Router>
+    </CascadingAuthenticationState>
+    </ChildContent>
+</ErrorBoundary>

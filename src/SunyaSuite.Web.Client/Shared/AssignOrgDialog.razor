@@ -1,0 +1,48 @@
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.subtitle2">Assign Organization</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudSelect @bind-Value="_selectedOrgId"
+                   Label="Organization"
+                   Required="true"
+                   RequiredError="Please select an organization">
+            @foreach (var org in Organizations)
+            {
+                <MudSelectItem Value="@org.Id" @key="org.Id">@org.Name</MudSelectItem>
+            }
+        </MudSelect>
+        <MudSelect @bind-Value="_selectedRole"
+                   Label="Role"
+                   Required="true"
+                   RequiredError="Please select a role"
+                   Class="mt-4">
+            @foreach (var role in OrgRoles)
+            {
+                <MudSelectItem Value="@role" @key="role">@role</MudSelectItem>
+            }
+        </MudSelect>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   Disabled="@(_selectedOrgId == Guid.Empty || string.IsNullOrEmpty(_selectedRole))"
+                   OnClick="Confirm">
+            Assign
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter] public List<OrganizationDto> Organizations { get; set; } = [];
+    [Parameter] public List<string> OrgRoles { get; set; } = [];
+
+    private Guid _selectedOrgId;
+    private string? _selectedRole;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Confirm() => MudDialog.Close(DialogResult.Ok(new AssignOrgResult(_selectedOrgId, _selectedRole!)));
+}

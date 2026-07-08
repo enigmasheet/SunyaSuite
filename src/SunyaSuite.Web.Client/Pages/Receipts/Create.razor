@@ -1,0 +1,287 @@
+@page "/receipts/create"
+@attribute [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
+@inject IMoneyReceiptService MoneyReceiptService
+@inject IInvoiceService InvoiceService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
+
+<PageHeader Title="Create Receipt" />
+
+<ErrorAlert Message="@_errorMessage" />
+
+@if (_loading)
+{
+    <LoadingSkeleton Variant="SkeletonVariant.Form" />
+}
+else
+{
+    <MudForm @ref="_form" @bind-IsValid="_isValid">
+    <MudPaper Elevation="0" Outlined="true" Class="pa-6 mb-4">
+        <MudText Typo="Typo.subtitle2" Class="mb-4">Payer Information</MudText>
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_model.ReceivedFromName"
+                              Label="Received From *"
+                              Required="true"
+                              RequiredError="Received from is required"
+                              For="@(() => _model.ReceivedFromName)" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudTextField @bind-Value="_model.ReceivedFromPan"
+                              Label="PAN"
+                              For="@(() => _model.ReceivedFromPan)" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudTextField @bind-Value="_model.ReferenceNo"
+                              Label="Reference No"
+                              For="@(() => _model.ReferenceNo)" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_model.ReceivedFromAddress"
+                              Label="Address"
+                              Lines="2"
+                              For="@(() => _model.ReceivedFromAddress)" />
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudPaper Elevation="0" Outlined="true" Class="pa-6 mb-4">
+        <MudText Typo="Typo.subtitle2" Class="mb-4">Payment Details</MudText>
+        <MudGrid>
+            <MudItem xs="12" md="4">
+                <MudSelect @bind-Value="_model.PaymentMethod"
+                           Label="Payment Method *"
+                           Required="true"
+                           RequiredError="Payment method is required"
+                           For="@(() => _model.PaymentMethod)">
+                    @foreach (var method in Enum.GetValues<PaymentMethod>())
+                    {
+                        <MudSelectItem T="PaymentMethod" Value="@method" @key="method">@method.ToString()</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_model.Notes"
+                              Label="Notes"
+                              Lines="2"
+                              For="@(() => _model.Notes)" />
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudPaper Elevation="0" Outlined="true" Class="pa-6 mb-4">
+        <MudText Typo="Typo.subtitle2" Class="mb-4">Select Invoices</MudText>
+
+        @if (_preSelectedInvoiceId is not null)
+        {
+            <MudAlert Severity="Severity.Info" Class="mb-4">
+                Pre-selected invoice from previous page. You may add more invoices below.
+            </MudAlert>
+        }
+
+        <MudSelect T="Guid?" Label="Add Invoice"
+                   Variant="Variant.Outlined"
+                   @bind-Value="_selectedInvoiceId"
+                   Clearable="true"
+                   FullWidth="true"
+                   Class="mb-4">
+            @foreach (var inv in _availableInvoices)
+            {
+                <MudSelectItem T="Guid?" Value="@inv.Id" @key="inv.Id">@inv.InvoiceNumber - @inv.ClientName (@inv.Total.ToString("C"))</MudSelectItem>
+            }
+        </MudSelect>
+
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                   Disabled="@(_selectedInvoiceId is null)"
+                   OnClick="@AddInvoice">
+            Add Invoice
+        </MudButton>
+
+        @if (_selectedInvoices.Count > 0)
+        {
+            <MudTable T="SelectedInvoiceRow" Items="@_selectedInvoices"
+                      Dense="true" Hover="true" Outlined="false" Elevation="0" Class="mt-4">
+                <HeaderContent>
+                    <MudTh>Invoice #</MudTh>
+                    <MudTh>Client</MudTh>
+                    <MudTh>Total</MudTh>
+                    <MudTh>Paid</MudTh>
+                    <MudTh>Balance Due</MudTh>
+                    <MudTh>Allocating *</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>
+                        <MudLink Href="@($"/invoices/{context.InvoiceId}")" Target="_blank">@context.InvoiceNumber</MudLink>
+                    </MudTd>
+                    <MudTd>@context.ClientName</MudTd>
+                    <MudTd>@context.Total.ToString("C")</MudTd>
+                    <MudTd>@context.AmountPaid.ToString("C")</MudTd>
+                    <MudTd>@context.BalanceDue.ToString("C")</MudTd>
+                    <MudTd>
+                        <MudNumericField T="decimal"
+                                         @bind-Value="context.Allocating"
+                                         Min="0.01m"
+                                         Max="@context.BalanceDue"
+                                         Immediate="true"
+                                         Variant="Variant.Outlined"
+                                          Class="mud-numeric-field-compact" />
+                    </MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small"
+                                       Color="Color.Error"
+                                       aria-label="Remove invoice"
+                                       OnClick="@(() => RemoveInvoice(context.InvoiceId))" />
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+        else
+        {
+            <MudText Typo="Typo.body2" Class="text-secondary mt-4">No invoices selected.</MudText>
+        }
+    </MudPaper>
+
+        <FormActions SaveLabel="Create Receipt"
+                     CancelHref="/receipts"
+                     Disabled="@(!_isValid)"
+                     OnSave="@(async () => await SaveAsync())" />
+    </MudForm>
+}
+
+@code {
+    [SupplyParameterFromQuery] public Guid? InvoiceId { get; set; }
+
+    private MudForm _form = null!;
+    private bool _isValid;
+    private bool _loading = true;
+    private string? _errorMessage;
+    private CreateReceiptModel _model = new();
+    private Guid? _selectedInvoiceId;
+    private Guid? _preSelectedInvoiceId;
+    private List<SelectedInvoiceRow> _selectedInvoices = [];
+
+    private List<InvoiceSelectionDto> _availableInvoices = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _availableInvoices = await InvoiceService.GetInvoiceSelectionAsync();
+
+            if (InvoiceId.HasValue)
+            {
+                _preSelectedInvoiceId = InvoiceId;
+                var inv = _availableInvoices.FirstOrDefault(i => i.Id == InvoiceId.Value);
+                if (inv is not null)
+                {
+                    _selectedInvoices.Add(new SelectedInvoiceRow
+                    {
+                        InvoiceId = inv.Id,
+                        InvoiceNumber = inv.InvoiceNumber,
+                        ClientName = inv.ClientName,
+                        Total = inv.Total,
+                        AmountPaid = inv.AmountPaid,
+                        BalanceDue = inv.Total - inv.AmountPaid,
+                        Allocating = inv.Total - inv.AmountPaid
+                    });
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to load data: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task AddInvoice()
+    {
+        if (_selectedInvoiceId is null) return;
+
+        if (_selectedInvoices.Any(i => i.InvoiceId == _selectedInvoiceId.Value))
+        {
+            Snackbar.Add("Invoice already selected.", Severity.Warning);
+            return;
+        }
+
+        var inv = _availableInvoices.FirstOrDefault(i => i.Id == _selectedInvoiceId.Value);
+        if (inv is null) return;
+
+        _selectedInvoices.Add(new SelectedInvoiceRow
+        {
+            InvoiceId = inv.Id,
+            InvoiceNumber = inv.InvoiceNumber,
+            ClientName = inv.ClientName,
+            Total = inv.Total,
+            AmountPaid = inv.AmountPaid,
+            BalanceDue = inv.Total - inv.AmountPaid,
+            Allocating = inv.Total - inv.AmountPaid
+        });
+
+        _selectedInvoiceId = null;
+    }
+
+    private void RemoveInvoice(Guid invoiceId)
+    {
+        _selectedInvoices.RemoveAll(i => i.InvoiceId == invoiceId);
+    }
+
+    private async Task SaveAsync()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid) return;
+
+        if (_selectedInvoices.Count == 0 || _selectedInvoices.Sum(i => i.Allocating) <= 0)
+        {
+            Snackbar.Add("At least one invoice with allocation is required.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            var request = new CreateMoneyReceiptRequest(
+                _selectedInvoices.Select(i => i.InvoiceId).ToArray(),
+                _selectedInvoices.Select(i => i.Allocating).ToArray(),
+                _model.PaymentMethod,
+                _model.ReferenceNo,
+                _model.ReceivedFromName,
+                _model.ReceivedFromPan,
+                _model.ReceivedFromAddress,
+                _model.Notes);
+
+            var result = await MoneyReceiptService.CreateAsync(request);
+            Snackbar.Add($"Receipt {result.ReceiptNumber} created.", Severity.Success);
+            Navigation.NavigateTo($"/receipts/{result.Id}");
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to create receipt: {ex.Message}";
+        }
+    }
+
+    private class CreateReceiptModel
+    {
+        public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.BankTransfer;
+        public string ReceivedFromName { get; set; } = string.Empty;
+        public string? ReceivedFromPan { get; set; }
+        public string? ReceivedFromAddress { get; set; }
+        public string? ReferenceNo { get; set; }
+        public string Notes { get; set; } = string.Empty;
+    }
+
+    private class SelectedInvoiceRow
+    {
+        public Guid InvoiceId { get; set; }
+        public string InvoiceNumber { get; set; } = string.Empty;
+        public string ClientName { get; set; } = string.Empty;
+        public decimal Total { get; set; }
+        public decimal AmountPaid { get; set; }
+        public decimal BalanceDue { get; set; }
+        public decimal Allocating { get; set; }
+    }
+}

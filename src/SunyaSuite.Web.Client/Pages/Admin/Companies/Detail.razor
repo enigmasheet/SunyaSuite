@@ -1,0 +1,132 @@
+@page "/admin/companies/{Id:guid}"
+@attribute [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
+@inject ICompanyService CompanyService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject NavigationManager Navigation
+
+<PageHeader Title="@(_company is null ? "Company" : _company.Name)" />
+
+<ErrorAlert Message="@_errorMessage"
+            OnDismiss="@(() => _errorMessage = null)" />
+
+@if (_loading)
+{
+    <LoadingSkeleton Variant="SkeletonVariant.DetailCard" />
+}
+else if (_company is null)
+{
+    <MudAlert Severity="Severity.Warning" Class="mt-4">Company not found.</MudAlert>
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12" md="8">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6 mb-4">
+                <div class="d-flex justify-space-between align-center mb-4">
+                    <MudText Typo="Typo.h6">Company Information</MudText>
+                    <div class="d-flex gap-2">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Edit"
+                                   Href="@($"/admin/companies/edit/{Id}")">
+                            Edit
+                        </MudButton>
+                    </div>
+                </div>
+                <MudGrid>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Name</MudText>
+                        <MudText Typo="Typo.body1">@_company.Name</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Slug</MudText>
+                        <MudText Typo="Typo.body1">@_company.Slug</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Email</MudText>
+                        <MudText Typo="Typo.body1">@_company.Email</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Phone</MudText>
+                        <MudText Typo="Typo.body1">@_company.Phone</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.body2" Class="text-secondary">PAN Number</MudText>
+                        <MudText Typo="Typo.body1">@(!string.IsNullOrEmpty(_company.PanNumber) ? _company.PanNumber : "—")</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Status</MudText>
+                        <MudChip T="string" Size="Size.Small" Color="@(_company.IsActive ? Color.Success : Color.Error)">
+                            @(_company.IsActive ? "Active" : "Inactive")
+                        </MudChip>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Address</MudText>
+                        <MudText Typo="Typo.body1">@(!string.IsNullOrEmpty(_company.Address) ? _company.Address : "—")</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Created</MudText>
+                        <MudText Typo="Typo.body1">@_company.CreatedAt.ToString("MMM dd, yyyy")</MudText>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+
+            <MudButton Variant="Variant.Filled" Color="Color.Error"
+                       StartIcon="@Icons.Material.Filled.Delete"
+                       OnClick="@PromptDelete">
+                Delete Company
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private bool _loading = true;
+    private string? _errorMessage;
+    private CompanyDto? _company;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _company = await CompanyService.GetByIdAsync(Id);
+        }
+        catch
+        {
+            _errorMessage = "Failed to load company data.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task PromptDelete()
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+            "Delete Company",
+            new DialogParameters
+            {
+                { "Message", $"Delete \"{_company!.Name}\"? It can be restored later from Trash." },
+                { "ConfirmText", "Delete" }
+            },
+            new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            try
+            {
+                await CompanyService.SoftDeleteAsync(Id);
+                Snackbar.Add("Company deleted.", Severity.Success);
+                Navigation.NavigateTo("/admin/companies");
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to delete: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}

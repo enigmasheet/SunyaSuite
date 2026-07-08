@@ -1,0 +1,136 @@
+@page "/clients/edit/{Id:guid}"
+@attribute [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
+@inject IClientService ClientService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageHeader Title="@(_clientName is null ? "Edit Client" : $"Edit: {_clientName}")" />
+
+<ErrorAlert Message="@_errorMessage"
+            OnDismiss="@(() => _errorMessage = null)" />
+
+@if (_loading)
+{
+    <LoadingSkeleton Variant="SkeletonVariant.Form" />
+}
+else if (_notFound)
+{
+    <MudAlert Severity="Severity.Warning" Class="mt-4">Client not found.</MudAlert>
+}
+else
+{
+    <FormCard>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_name"
+                                  Label="Full Name"
+                                  Required="true"
+                                  RequiredError="Full name is required"
+                                  For="@(() => _name)" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_email"
+                                  Label="Email Address"
+                                  Required="true"
+                                  RequiredError="Email is required"
+                                  Validation="@(new Func<string, string?>(v =>
+                                      string.IsNullOrWhiteSpace(v) || v.Contains('@') ? null : "Enter a valid email"))"
+                                  For="@(() => _email)" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_company" Label="Company" For="@(() => _company)" />
+                </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="_phone" Label="Phone" For="@(() => _phone)" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="_panNumber" Label="PAN Number" For="@(() => _panNumber)" />
+            </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_address" Label="Address" Lines="3"
+                                  For="@(() => _address)" />
+                </MudItem>
+            </MudGrid>
+
+            <FormActions SaveLabel="Save Changes"
+                         CancelHref="@($"/clients/{Id}")"
+                         Disabled="@(!_isValid)"
+                         OnSave="@(async () => await SaveAsync())" />
+        </MudForm>
+    </FormCard>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private MudForm _form = null!;
+    private bool _isValid;
+    private bool _loading = true;
+    private bool _notFound;
+    private string? _errorMessage;
+    private string? _clientName;
+
+    private string _name = string.Empty;
+    private string _email = string.Empty;
+    private string _company = string.Empty;
+    private string _phone = string.Empty;
+    private string _address = string.Empty;
+    private string? _panNumber;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var client = await ClientService.GetByIdAsync(Id);
+            if (client is null)
+            {
+                _notFound = true;
+            }
+            else
+            {
+                _clientName = client.Name;
+                _name = client.Name;
+                _email = client.Email;
+                _company = client.Company;
+                _phone = client.Phone;
+                _address = client.Address;
+                _panNumber = client.PanNumber;
+            }
+        }
+        catch
+        {
+            _errorMessage = "Failed to load data.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid) return;
+
+        var request = new UpdateClientRequest(
+            Id,
+            _name.Trim(),
+            _email.Trim(),
+            _company.Trim(),
+            _phone.Trim(),
+            _address.Trim(),
+            _panNumber?.Trim());
+
+        try
+        {
+            await ClientService.UpdateAsync(request);
+            Snackbar.Add("Client updated successfully.", Severity.Success);
+            Navigation.NavigateTo($"/clients/{Id}");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to update client: {ex.Message}", Severity.Error);
+        }
+    }
+}

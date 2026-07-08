@@ -1,0 +1,131 @@
+@page "/invites/create"
+@attribute [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
+@inject IInviteService InviteService
+@inject IUserService UserService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageHeader Title="Create Invite" />
+
+<ErrorAlert Message="@_errorMessage" />
+
+<FormCard MaxWidth="600px">
+    <MudForm @ref="_form" @bind-IsValid="_isValid">
+        <MudGrid>
+            <MudItem xs="12">
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Role</MudText>
+                <MudSelect @bind-Value="_selectedRole"
+                           Label="Role" Required="true"
+                           RequiredError="Please select a role"
+                           For="@(() => _selectedRole)">
+                    @if (_allRoles.Count == 0)
+                    {
+                        <MudSelectItem T="string" Value="null" Disabled="true">Loading...</MudSelectItem>
+                    }
+                    else
+                    {
+                        @foreach (var role in _allRoles)
+                        {
+                            <MudSelectItem T="string" Value="@role" @key="role">@role</MudSelectItem>
+                        }
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12">
+                <MudNumericField @bind-Value="_expiresInHours"
+                                 Label="Expires in (hours)"
+                                 HelperText="Leave empty for default (7 days)"
+                                 Min="1" Max="8760" />
+            </MudItem>
+        </MudGrid>
+
+        <FormActions SaveLabel="Generate Invite"
+                     SavingText="Generating..."
+                     CancelHref="/invites"
+                     Disabled="@(!_isValid)"
+                     Saving="@_saving"
+                     OnSave="@(async () => await SaveAsync())" />
+    </MudForm>
+
+    @if (_createdInviteCode is not null)
+    {
+        <MudAlert Severity="Severity.Success" Class="mt-6" Variant="Variant.Filled">
+            <MudText Typo="Typo.body1" Class="mb-2">Invite created!</MudText>
+            <MudText Typo="Typo.body2" Class="mb-2">Share this link with the user:</MudText>
+            <MudTextField @bind-Value="_createdInviteLink"
+                          Variant="Variant.Outlined"
+                          ReadOnly="true"
+                          Adornment="Adornment.End"
+                          AdornmentIcon="@Icons.Material.Filled.ContentCopy"
+                          OnAdornmentClick="@CopyLink"
+                          Class="mt-2" />
+        </MudAlert>
+    }
+</FormCard>
+
+@code {
+    private MudForm? _form;
+    private bool _isValid;
+    private bool _saving;
+    private string? _errorMessage;
+
+    private List<string> _allRoles = [];
+    private string? _selectedRole;
+    private int? _expiresInHours;
+
+    private string? _createdInviteCode;
+    private string? _createdInviteLink;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _allRoles = await UserService.GetOrgRolesAsync();
+        }
+        catch
+        {
+            _errorMessage = "Failed to load roles.";
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        await _form!.ValidateAsync();
+        if (!_isValid || _selectedRole is null) return;
+
+        _saving = true;
+        _errorMessage = null;
+
+        try
+        {
+            var invite = await InviteService.CreateAsync(_selectedRole, _expiresInHours, string.Empty);
+            _createdInviteCode = invite.Code;
+
+            var baseUri = Navigation.BaseUri.TrimEnd('/');
+            _createdInviteLink = $"{baseUri}/Account/Register?code={invite.Code}&role={invite.Role}";
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to create invite: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task CopyLink()
+    {
+        if (_createdInviteLink is null) return;
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", _createdInviteLink);
+            Snackbar.Add("Link copied to clipboard.", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Failed to copy link.", Severity.Error);
+        }
+    }
+}

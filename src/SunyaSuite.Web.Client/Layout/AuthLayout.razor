@@ -1,0 +1,14 @@
+@inherits LayoutComponentBase
+@inject NavigationManager Navigation
+
+<MudThemeProvider Theme="VercelTheme.Instance" />
+<div class="auth-layout">
+    <div class="auth-header">
+        <MudText Typo="Typo.h5" Class="auth-brand">SunyaSuite</MudText>
+    </div>
+    <div class="auth-content">
+        <div class="auth-container">
+            @Body
+        </div>
+    </div>
+</div>

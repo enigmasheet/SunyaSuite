@@ -1,0 +1,191 @@
+@page "/audit"
+@using SunyaSuite.Application.DTOs
+@attribute [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
+@inject IAuditService AuditService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageHeader Title="Audit Log" />
+
+<MudExpansionPanels>
+    <MudExpansionPanel Text="Filters" Class="mt-4">
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="3">
+                <MudTextField @bind-Value="_searchTerm"
+                              Label="Search"
+                              Placeholder="Search action, entity, details..."
+                              Immediate="true"
+                              @onkeydown="@HandleSearchKeyDown" />
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect @bind-Value="_selectedAction"
+                            Label="Action"
+                            Clearable="true"
+                            AnchorOrigin="Origin.BottomCenter">
+                    @foreach (var action in _actions)
+                    {
+                        <MudSelectItem Value="@action" @key="action">@action</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect @bind-Value="_selectedEntityName"
+                            Label="Entity"
+                            Clearable="true"
+                            AnchorOrigin="Origin.BottomCenter">
+                    @foreach (var name in _entityNames)
+                    {
+                        <MudSelectItem Value="@name" @key="name">@name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3" Class="d-flex align-end">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           OnClick="@ReloadAsync" Class="mr-2">Apply</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary"
+                           OnClick="@ClearFilters">Clear</MudButton>
+            </MudItem>
+        </MudGrid>
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="3">
+                <MudDatePicker @bind-Date="_dateFrom" Label="From" />
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudDatePicker @bind-Date="_dateTo" Label="To" />
+            </MudItem>
+        </MudGrid>
+    </MudExpansionPanel>
+</MudExpansionPanels>
+
+<MudTable T="AuditLogDto" ServerData="@(async (state, ct) => await ServerReload(state, ct))"
+          Dense="true" Hover="true" Bordered="true"
+          Elevation="0" Outlined="true" Class="mt-4"
+          Loading="_loading">
+    <LoadingContent>
+        <LoadingSkeleton Variant="SkeletonVariant.Table" Lines="4" />
+    </LoadingContent>
+    <ColGroup>
+        <col style="width: 180px" />
+        <col style="width: 200px" />
+        <col style="width: 140px" />
+        <col style="width: 120px" />
+        <col />
+    </ColGroup>
+    <HeaderContent>
+        <MudTh>Timestamp</MudTh>
+        <MudTh>User</MudTh>
+        <MudTh>Action</MudTh>
+        <MudTh>Entity</MudTh>
+        <MudTh>Details</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Timestamp">@context.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</MudTd>
+        <MudTd DataLabel="User" Class="text-small">@context.UserId</MudTd>
+        <MudTd DataLabel="Action">
+            <MudChip T="string" Size="Size.Small" Color="@GetActionColor(context.Action)">@context.Action</MudChip>
+        </MudTd>
+        <MudTd DataLabel="Entity">@context.EntityName</MudTd>
+        <MudTd DataLabel="Details" Class="text-medium">@context.Details</MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager PageSizeOptions="@([50, 100, 200])" />
+    </PagerContent>
+    <NoRecordsContent>
+        <EmptyState Icon="@Icons.Material.Filled.History" Title="No audit log entries found." />
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    private bool _loading;
+    private MudTable<AuditLogDto> _table = null!;
+
+    private string? _searchTerm;
+    private string? _selectedAction;
+    private string? _selectedEntityName;
+    private DateTime? _dateFrom;
+    private DateTime? _dateTo;
+
+    private List<string> _actions = [];
+    private List<string> _entityNames = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _actions = await AuditService.GetDistinctActionsAsync();
+        }
+        catch
+        {
+            // Non-critical — dropdowns will just be empty
+        }
+
+        try
+        {
+            _entityNames = await AuditService.GetDistinctEntityNamesAsync();
+        }
+        catch
+        {
+            // Non-critical
+        }
+    }
+
+    private async Task<TableData<AuditLogDto>> ServerReload(TableState state, CancellationToken ct)
+    {
+        try
+        {
+            _loading = true;
+            var page = state.Page + 1;
+            var pageSize = state.PageSize;
+
+            var filter = new AuditLogFilterDto(
+                _searchTerm,
+                _selectedAction,
+                _selectedEntityName,
+                _dateFrom.HasValue ? _dateFrom.Value.ToUniversalTime() : null,
+                _dateTo.HasValue ? _dateTo.Value.ToUniversalTime() : null);
+
+            var result = await AuditService.GetRecentAsync(page, pageSize, filter, ct);
+            return new TableData<AuditLogDto> { Items = result.Items, TotalItems = result.Total };
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load audit log: {ex.Message}", Severity.Error);
+            return new TableData<AuditLogDto> { Items = [], TotalItems = 0 };
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task HandleSearchKeyDown(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs args)
+    {
+        if (args.Key is "Enter")
+            await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        if (_table is not null)
+            await _table.ReloadServerData();
+    }
+
+    private async Task ClearFilters()
+    {
+        _searchTerm = null;
+        _selectedAction = null;
+        _selectedEntityName = null;
+        _dateFrom = null;
+        _dateTo = null;
+        await ReloadAsync();
+    }
+
+    private Color GetActionColor(string action) => action switch
+    {
+        "Deleted" => Color.Error,
+        "StatusChanged" => Color.Warning,
+        "Created" => Color.Success,
+        "Updated" => Color.Info,
+        _ => Color.Default
+    };
+}

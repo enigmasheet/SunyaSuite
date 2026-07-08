@@ -1,0 +1,27 @@
+@page "/Account/Logout"
+@layout AuthLayout
+@inject Auth.TokenManager TokenManager
+@inject Auth.OrgManager OrgManager
+@inject Auth.JwtAuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+
+<PageTitle>Signed Out — SunyaSuite</PageTitle>
+
+<MudCard Class="auth-card" Elevation="0">
+    <MudCardContent>
+        <MudText Typo="Typo.h5" Align="Align.Center" Class="mb-4">Signed Out</MudText>
+        <MudText Typo="Typo.body2" Align="Align.Center" Class="mb-4">You have been signed out successfully.</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Href="/login">
+            Sign In Again
+        </MudButton>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await TokenManager.ClearTokenAsync();
+        await OrgManager.ClearAsync();
+        await AuthStateProvider.NotifyAuthenticationStateChanged();
+    }
+}

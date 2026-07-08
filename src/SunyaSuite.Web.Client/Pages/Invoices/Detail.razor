@@ -1,0 +1,455 @@
+@page "/invoices/{Id:guid}"
+@attribute [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
+@inject IInvoiceService InvoiceService
+@inject IInvoicePdfService PdfService
+@inject IEmailService EmailService
+@inject IMoneyReceiptService MoneyReceiptService
+@inject INepaliDateService NepaliDateService
+@inject IUserPreferenceService UserPreferenceService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+@inject IDialogService DialogService
+
+<PageHeader Title="@($"Invoice {_invoiceNumber}")" />
+
+<ErrorAlert Message="@_errorMessage" />
+
+@if (_loading)
+{
+    <LoadingSkeleton Variant="SkeletonVariant.DetailCard" HeaderWidth="50%" />
+}
+else if (_invoice is null)
+{
+    <MudAlert Severity="Severity.Warning" Class="mt-4">Invoice not found.</MudAlert>
+}
+else
+{
+    <div class="d-flex align-center justify-space-between mb-4">
+        <MudText Typo="Typo.h4" Class="mb-0">
+            Invoice @_invoice.InvoiceNumber
+            <MudText Typo="Typo.caption" Class="text-secondary">FY @_invoice.FiscalYear</MudText>
+        </MudText>
+        <div class="d-flex align-center">
+            <MudChip T="string" Size="Size.Small" Class="mr-2"
+                      Color="@(_invoice.BillType == Domain.Enums.BillType.VatBill ? Color.Primary : Color.Secondary)">
+                @_invoice.BillType
+            </MudChip>
+            <StatusChip Status="@_invoice.Status" Class="mr-4">@_invoice.Status</StatusChip>
+            <MudButton Variant="@(_preference == Domain.Enums.DateDisplayPreference.Nepali ? Variant.Filled : Variant.Outlined)"
+                       Color="Color.Tertiary"
+                       Size="Size.Small"
+                       Class="ml-2"
+                       Disabled="@(_preference == Domain.Enums.DateDisplayPreference.Nepali)"
+                       OnClick="@(() => TogglePreference(Domain.Enums.DateDisplayPreference.Nepali))">
+                🇳🇵 BS
+            </MudButton>
+            <MudButton Variant="@(_preference == Domain.Enums.DateDisplayPreference.Gregorian ? Variant.Filled : Variant.Outlined)"
+                       Color="Color.Tertiary"
+                       Size="Size.Small"
+                       Class="ml-1"
+                       Disabled="@(_preference == Domain.Enums.DateDisplayPreference.Gregorian)"
+                       OnClick="@(() => TogglePreference(Domain.Enums.DateDisplayPreference.Gregorian))">
+                🌐 AD
+            </MudButton>
+        </div>
+    </div>
+
+    <MudGrid>
+        <MudItem xs="12" md="4">
+            <DetailInfoCard Title="Invoice Details"
+                            Fields="@(new List<DetailField>
+                            {
+                                new() { Label = "Client", Value = _invoice.ClientName, IsLink = true, Href = $"/clients/{_invoice.ClientId}" },
+                                new() { Label = "Bill Type", Value = _invoice.BillType.ToString() },
+                                new() { Label = "Issue Date (AD)", Value = _invoice.IssueDate.ToString("MMM dd, yyyy") },
+                                new() { Label = "Issue Date (BS)", Value = _invoice.DateBS },
+                                new() { Label = "Due Date", Value = FormatDate(_invoice.DueDate) },
+                                new() { Label = "Status", Value = _invoice.Status },
+                                new() { Label = "Project", Value = _invoice.ProjectName ?? "-", IsLink = _invoice.ProjectId.HasValue, Href = _invoice.ProjectId.HasValue ? $"/projects/{_invoice.ProjectId}" : null }
+                            })" />
+
+            @if (!string.IsNullOrEmpty(_invoice.ProjectRemark))
+            {
+                <div class="mt-4">
+                    <DetailInfoCard Title="Project Remark"
+                                    Fields="@(new List<DetailField>
+                                    {
+                                        new() { Label = "Remark", Value = _invoice.ProjectRemark }
+                                    })" />
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(_invoice.BuyerPan))
+            {
+                <div class="mt-4">
+                    <DetailInfoCard Title="Buyer Info"
+                                    Fields="@(new List<DetailField>
+                                    {
+                                        new() { Label = "PAN", Value = _invoice.BuyerPan },
+                                        new() { Label = "Address", Value = _invoice.BuyerAddress }
+                                    })" />
+                </div>
+            }
+
+            @if (_invoice.Status == "Draft")
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           FullWidth="true" Class="mt-4"
+                           OnClick="@(() => UpdateStatusWithConfirm(Domain.Enums.InvoiceStatus.Sent))">
+                    Send Invoice
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Default"
+                           FullWidth="true" Class="mt-2"
+                           Href="@($"/invoices/edit/{_invoice.Id}")">
+                    Edit Invoice
+                </MudButton>
+            }
+            else if (_invoice.Status == "Sent")
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Success"
+                           FullWidth="true" Class="mt-4"
+                           OnClick="@(() => UpdateStatusWithConfirm(Domain.Enums.InvoiceStatus.Paid))">
+                    Mark as Paid
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Error"
+                           FullWidth="true" Class="mt-2"
+                           OnClick="@(() => UpdateStatusWithConfirm(Domain.Enums.InvoiceStatus.Overdue))">
+                    Mark as Overdue
+                </MudButton>
+            }
+            else if (_invoice.Status == "Overdue")
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Success"
+                           FullWidth="true" Class="mt-4"
+                           OnClick="@(() => UpdateStatusWithConfirm(Domain.Enums.InvoiceStatus.Paid))">
+                    Mark as Paid
+                </MudButton>
+            }
+
+            <MudSelect T="CopyType" @bind-Value="_copyType" Label="Copy Type"
+                       Variant="Variant.Outlined" Class="mt-4" FullWidth="true">
+                @foreach (var ct in Enum.GetValues<CopyType>())
+                {
+                    <MudSelectItem Value="@ct" @key="ct">@ct.ToString()</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudButton Variant="Variant.Filled" Color="Color.Info"
+                       FullWidth="true" StartIcon="@Icons.Material.Filled.Download"
+                       Class="mt-2"
+                       OnClick="@(async () => await DownloadPdf())">
+                Download PDF (@_copyType)
+            </MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       FullWidth="true" StartIcon="@Icons.Material.Filled.Email"
+                       Class="mt-2"
+                       Disabled="@_sendingEmail"
+                       OnClick="@(async () => await SendInvoiceEmail())">
+                Send Email
+            </MudButton>
+        </MudItem>
+
+        <MudItem xs="12" md="8">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6 mb-4">
+                <MudText Typo="Typo.subtitle2" Class="mb-4">Line Items</MudText>
+                <MudTable T="InvoiceItemDto" Items="@_invoice.Items" Dense="true" Hover="true"
+                          Outlined="false" Elevation="0">
+                    <HeaderContent>
+                        <MudTh>#</MudTh>
+                        <MudTh>Description</MudTh>
+                        @if (_invoice.Items.Any(i => !string.IsNullOrEmpty(i.HsCode)))
+                        {
+                            <MudTh>HS Code</MudTh>
+                        }
+                        @if (_invoice.Items.Any(i => !string.IsNullOrEmpty(i.ProjectName)))
+                        {
+                            <MudTh>Project</MudTh>
+                        }
+                        <MudTh>Qty</MudTh>
+                        <MudTh>Unit</MudTh>
+                        <MudTh>Rate</MudTh>
+                        <MudTh>Amount</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.LineNo</MudTd>
+                        <MudTd>@context.Description</MudTd>
+                        @if (_invoice.Items.Any(i => !string.IsNullOrEmpty(i.HsCode)))
+                        {
+                            <MudTd>@context.HsCode</MudTd>
+                        }
+                        @if (_invoice.Items.Any(i => !string.IsNullOrEmpty(i.ProjectName)))
+                        {
+                            <MudTd>@(string.IsNullOrEmpty(context.ProjectName) ? "-" : context.ProjectName)</MudTd>
+                        }
+                        <MudTd>@context.Quantity.ToString("N2")</MudTd>
+                        <MudTd>@(string.IsNullOrEmpty(context.Unit) ? "-" : context.Unit)</MudTd>
+                        <MudTd>@context.UnitPrice.ToString("N2")</MudTd>
+                        <MudTd>@context.Amount.ToString("N2")</MudTd>
+                    </RowTemplate>
+                </MudTable>
+
+                <MudDivider Class="my-4" />
+
+                <div Class="totals-box">
+                    <MudGrid>
+                        <MudItem xs="6"><MudText Typo="Typo.body2">Subtotal:</MudText></MudItem>
+                        <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2">@_invoice.Subtotal.ToString("N2")</MudText></MudItem>
+                        @if (_invoice.BillType == Domain.Enums.BillType.VatBill && !_invoice.IsAbbreviated)
+                        {
+                            <MudItem xs="6"><MudText Typo="Typo.body2">VAT (13%):</MudText></MudItem>
+                            <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2">@_invoice.VatAmount.ToString("N2")</MudText></MudItem>
+                        }
+                        @if (_invoice.DiscountAmount > 0)
+                        {
+                            <MudItem xs="6"><MudText Typo="Typo.body2">Discount:</MudText></MudItem>
+                            <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2">-@_invoice.DiscountAmount.ToString("N2")</MudText></MudItem>
+                        }
+                        <MudItem xs="12"><MudDivider /></MudItem>
+                        <MudItem xs="6"><MudText Typo="Typo.subtitle1" Class="font-weight-bold">Grand Total:</MudText></MudItem>
+                        <MudItem xs="6" Class="text-right"><MudText Typo="Typo.subtitle1">@_invoice.Total.ToString("N2")</MudText></MudItem>
+                    </MudGrid>
+                    @if (!string.IsNullOrEmpty(_invoice.GrandTotalInWords))
+                    {
+                        <MudText Typo="Typo.caption" Class="text-secondary mt-2 d-block" Style="text-align: right;">
+                            @_invoice.GrandTotalInWords
+                        </MudText>
+                    }
+                </div>
+            </MudPaper>
+
+            @* Receipts Section *@
+            @if (_invoice.Status != "Draft")
+            {
+                var balanceDue = _invoice.Total - _invoice.AmountPaid;
+
+                <MudPaper Elevation="0" Outlined="true" Class="pa-6 mb-4">
+                    <div class="d-flex align-center justify-space-between mb-4">
+                        <MudText Typo="Typo.subtitle2">Receipts</MudText>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Add"
+                                   Href="@($"/receipts/create?invoiceId={_invoice.Id}")">
+                            Record Receipt
+                        </MudButton>
+                    </div>
+
+                    @if (_invoice.ReceiptAllocations is { Count: > 0 })
+                    {
+                        <MudTable T="ReceiptAllocationDto" Items="@_invoice.ReceiptAllocations"
+                                  Dense="true" Hover="true" Outlined="false" Elevation="0">
+                            <HeaderContent>
+                                <MudTh>Receipt #</MudTh>
+                                <MudTh>FY</MudTh>
+                                <MudTh>Amount</MudTh>
+                                <MudTh>Actions</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>
+                                    <MudLink Href="@($"/receipts/{context.MoneyReceiptId}")">@context.ReceiptNumber</MudLink>
+                                </MudTd>
+                                <MudTd>@context.ReceiptFiscalYear</MudTd>
+                                <MudTd>@context.AllocatedAmount.ToString("C")</MudTd>
+                                <MudTd>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                                   Color="Color.Error"
+                                                   aria-label="Delete receipt"
+                                                   OnClick="@(() => PromptDeleteReceipt(context.MoneyReceiptId))" />
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2" Class="text-secondary">No receipts recorded yet.</MudText>
+                    }
+
+                    <MudDivider Class="my-4" />
+                    <div Class="totals-box">
+                        <MudGrid>
+                            <MudItem xs="6"><MudText Typo="Typo.body2">Paid:</MudText></MudItem>
+                            <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2" Class="text-success">@_invoice.AmountPaid.ToString("C")</MudText></MudItem>
+                            @if (balanceDue > 0)
+                            {
+                                <MudItem xs="6"><MudText Typo="Typo.subtitle1" Class="font-weight-bold">Balance Due:</MudText></MudItem>
+                                <MudItem xs="6" Class="text-right"><MudText Typo="Typo.subtitle1" Color="Color.Error">@balanceDue.ToString("C")</MudText></MudItem>
+                            }
+                        </MudGrid>
+                    </div>
+                </MudPaper>
+            }
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private bool _loading = true;
+    private string? _errorMessage;
+    private InvoiceDetailDto? _invoice;
+    private string _invoiceNumber = string.Empty;
+    private bool _sendingEmail;
+    private DateDisplayPreference _preference;
+    private CopyType _copyType = CopyType.Original;
+    private string _userId = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            _userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+
+            _preference = await UserPreferenceService.GetDateDisplayPreferenceAsync(_userId);
+
+            _invoice = await InvoiceService.GetByIdAsync(Id);
+            _invoiceNumber = _invoice?.InvoiceNumber ?? string.Empty;
+        }
+        catch
+        {
+            _errorMessage = "Failed to load data.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private string FormatDate(DateTime date)
+    {
+        return _preference == DateDisplayPreference.Nepali
+            ? NepaliDateService.ToNepaliDateString(date)
+            : date.ToString("MMM dd, yyyy");
+    }
+
+    private string FormatDate(DateOnly date)
+    {
+        return _preference == DateDisplayPreference.Nepali
+            ? NepaliDateService.ToNepaliDateString(date.ToDateTime(TimeOnly.MinValue))
+            : date.ToString("MMM dd, yyyy");
+    }
+
+    private async Task TogglePreference(DateDisplayPreference preference)
+    {
+        if (_preference == preference) return;
+        _preference = preference;
+        await UserPreferenceService.SetDateDisplayPreferenceAsync(_userId, preference);
+    }
+
+    private async Task UpdateStatusWithConfirm(InvoiceStatus newStatus)
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+            $"Mark as {newStatus}",
+            new DialogParameters
+            {
+                { "Message", $"Mark invoice {_invoice?.InvoiceNumber} as {newStatus}?" },
+                { "ConfirmText", $"Mark as {newStatus}" }
+            },
+            new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+            await UpdateStatus(newStatus);
+    }
+
+    private async Task UpdateStatus(InvoiceStatus newStatus)
+    {
+        try
+        {
+            await InvoiceService.UpdateStatusAsync(Id, newStatus);
+            _invoice = await InvoiceService.GetByIdAsync(Id);
+            Snackbar.Add($"Invoice marked as {newStatus}.", Severity.Success);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to update status: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task SendInvoiceEmail()
+    {
+        if (_invoice is null) return;
+
+        if (string.IsNullOrWhiteSpace(_invoice.ClientEmail))
+        {
+            Snackbar.Add("Client has no email address on file.", Severity.Warning);
+            return;
+        }
+
+        if (!EmailService.IsConfigured)
+        {
+            Snackbar.Add("Email is not configured (SMTP settings missing).", Severity.Warning);
+            return;
+        }
+
+        _sendingEmail = true;
+        try
+        {
+            var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+                "Send Invoice",
+                new DialogParameters
+                {
+                    { "Message", $"Send invoice {_invoice.InvoiceNumber} to {_invoice.ClientEmail}?" },
+                    { "ConfirmText", "Send Email" }
+                },
+                new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+            var result = await dialog.Result;
+            if (result is { Canceled: false })
+            {
+                var pdfBytes = await PdfService.GeneratePdfAsync(_invoice, _copyType, _preference);
+                var htmlBody = $@"<html><body style='font-family:sans-serif;'><h2>Invoice {_invoice.InvoiceNumber}</h2><p>Dear {_invoice.ClientName},</p><p>Please find your invoice attached.</p><table border='1' cellpadding='8' style='border-collapse:collapse;'><tr><th>Invoice #</th><th>Amount</th><th>Date</th></tr><tr><td>{_invoice.InvoiceNumber}</td><td>{_invoice.Total:C}</td><td>{_invoice.IssueDate:MMM dd, yyyy}</td></tr></table><p>Thank you for your business.</p></body></html>";
+                await EmailService.SendWithAttachmentAsync(_invoice.ClientEmail, $"Invoice {_invoice.InvoiceNumber} from SunyaSuite", htmlBody, $"Invoice_{_invoice.InvoiceNumber}.pdf", pdfBytes);
+                Snackbar.Add($"Invoice sent to {_invoice.ClientEmail}.", Severity.Success);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to send email: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _sendingEmail = false;
+        }
+    }
+
+    private async Task DownloadPdf()
+    {
+        try
+        {
+            var pdfBytes = await PdfService.GeneratePdfAsync(_invoice!, _copyType, _preference);
+            var base64 = Convert.ToBase64String(pdfBytes);
+            await JsRuntime.InvokeVoidAsync("downloadFile", $"Invoice_{_invoice!.InvoiceNumber}_{_copyType}.pdf", base64);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to generate PDF: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task PromptDeleteReceipt(Guid receiptId)
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+            "Delete Receipt",
+            new DialogParameters
+            {
+                { "Message", "Delete this receipt? This cannot be undone." },
+                { "ConfirmText", "Delete Receipt" }
+            },
+            new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            try
+            {
+                await MoneyReceiptService.DeleteAsync(receiptId);
+                _invoice = await InvoiceService.GetByIdAsync(Id);
+                Snackbar.Add("Receipt deleted.", Severity.Success);
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to delete receipt: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}

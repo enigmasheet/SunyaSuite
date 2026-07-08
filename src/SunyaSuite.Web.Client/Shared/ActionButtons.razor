@@ -1,0 +1,31 @@
+<MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small"
+               aria-label="View"
+               Href="@ViewHref" Disabled="@(!HasView)" />
+@if (ShowEdit)
+{
+    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                   aria-label="Edit"
+                   Href="@EditHref" Disabled="@(!HasEdit)" />
+}
+@if (ShowDelete)
+{
+    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                   Color="Color.Error"
+                   aria-label="Delete"
+                   Disabled="@(!HasDelete)"
+                   OnClick="@OnDelete" />
+}
+
+@code {
+    [Parameter] public string? ViewHref { get; set; }
+    [Parameter] public string? EditHref { get; set; }
+    [Parameter] public EventCallback<MouseEventArgs> OnDelete { get; set; }
+
+    [Parameter] public bool ShowView { get; set; } = true;
+    [Parameter] public bool ShowEdit { get; set; } = true;
+    [Parameter] public bool ShowDelete { get; set; } = true;
+
+    private bool HasView => ShowView && !string.IsNullOrEmpty(ViewHref);
+    private bool HasEdit => ShowEdit && !string.IsNullOrEmpty(EditHref);
+    private bool HasDelete => ShowDelete && OnDelete.HasDelegate;
+}

@@ -1,0 +1,135 @@
+@page "/users"
+@attribute [Authorize(Policy = PolicyNames.SystemAdminOnly)]
+@inject IUserService UserService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageHeader Title="Users" />
+
+<IndexToolbar @bind-SearchTerm="_searchTerm"
+              OnSearch="@(async (v) => { _searchTerm = v; await _table.ReloadServerData(); })"
+              SearchPlaceholder="Search by name, email, or username..."
+              ShowFilter="false"
+              ShowExport="false"
+              AddHref="/users/create"
+              AddLabel="Add User" />
+
+<MudTable T="UserDto" ServerData="@(async (state, ct) => await ServerReload(state, ct))"
+          Dense="true" Hover="true" Striped="true"
+          Outlined="true" Elevation="0" Class="mt-4"
+          @ref="_table">
+
+    <ColGroup>
+        <col style="width: 18%;" />
+        <col style="width: 13%;" />
+        <col style="width: 13%;" />
+        <col style="width: 16%;" />
+        <col style="width: 22%;" />
+        <col style="width: 18%;" />
+    </ColGroup>
+
+    <HeaderContent>
+        <MudTh>Email</MudTh>
+        <MudTh>First Name</MudTh>
+        <MudTh>Last Name</MudTh>
+        <MudTh>System Roles</MudTh>
+        <MudTh>Organizations</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+
+    <RowTemplate>
+        <MudTd DataLabel="Email">@context.Email</MudTd>
+        <MudTd DataLabel="First Name">@context.FirstName</MudTd>
+        <MudTd DataLabel="Last Name">@context.LastName</MudTd>
+        <MudTd DataLabel="System Roles">
+            @foreach (var role in context.Roles)
+            {
+                <MudChip T="string" @key="role" Size="Size.Small" Color="Color.Info">@role</MudChip>
+            }
+            @if (context.Roles.Count == 0)
+            {
+                <MudText Typo="Typo.body2" Class="text-secondary">—</MudText>
+            }
+        </MudTd>
+        <MudTd DataLabel="Organizations">
+            @if (context.Organizations.Count > 0)
+            {
+                @foreach (var org in context.Organizations)
+                {
+                    <div class="d-flex align-center mb-1" @key="org">
+                        <MudText Typo="Typo.body2" Class="font-weight-bold mr-2">@org.OrganizationName</MudText>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Primary">@org.Role</MudChip>
+                    </div>
+                }
+            }
+            else
+            {
+                <MudText Typo="Typo.body2" Class="text-secondary">—</MudText>
+            }
+        </MudTd>
+        <MudTd DataLabel="Actions">
+            <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small"
+                           aria-label="View user"
+                           Href="@($"/users/{context.Id}")" />
+            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                           aria-label="Edit user"
+                           Href="@($"/users/edit/{context.Id}")" />
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                           Color="Color.Error"
+                           aria-label="Delete user"
+                           OnClick="@(() => PromptDelete(context.Id, context.Email))" />
+        </MudTd>
+    </RowTemplate>
+
+    <PagerContent>
+        <MudTablePager PageSizeOptions="@([10, 25, 50])" />
+    </PagerContent>
+    <NoRecordsContent>
+        <EmptyState Icon="@Icons.Material.Filled.PersonOff" Title="No users found." />
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    private string? _searchTerm;
+    private MudTable<UserDto> _table = null!;
+
+    private async Task<TableData<UserDto>> ServerReload(TableState state, CancellationToken ct)
+    {
+        try
+        {
+            var (items, total) = await UserService.GetPagedAsync(
+                state.Page + 1, state.PageSize, _searchTerm, ct);
+            return new TableData<UserDto> { Items = items, TotalItems = total };
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load users: {ex.Message}", Severity.Error);
+            return new TableData<UserDto> { Items = [], TotalItems = 0 };
+        }
+    }
+
+    private async Task PromptDelete(string id, string email)
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+            "Delete User",
+            new DialogParameters
+            {
+                { "Message", $"Delete user \"{email}\"? This cannot be undone." }
+            },
+            new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            try
+            {
+                await UserService.DeleteAsync(id);
+                Snackbar.Add("User deleted.", Severity.Success);
+                await _table.ReloadServerData();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to delete user: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}

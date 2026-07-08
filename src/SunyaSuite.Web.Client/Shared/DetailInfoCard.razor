@@ -1,0 +1,28 @@
+<MudPaper Elevation="0" Outlined="true" Class="pa-6">
+    <MudText Typo="Typo.subtitle2" Class="mb-4">@Title</MudText>
+    <MudList T="string" Dense="true">
+        @foreach (var field in Fields)
+        {
+            <MudListItem T="string" @key="field.Label">
+                <MudText Typo="Typo.body2" Class="text-secondary">@field.Label</MudText>
+                @if (field.IsLink)
+                {
+                    <MudLink Href="@field.Href">
+                        <MudText Typo="Typo.body1">@field.Value</MudText>
+                    </MudLink>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body1" Color="@field.Color">@field.Value</MudText>
+                }
+            </MudListItem>
+        }
+    </MudList>
+    @ChildContent
+</MudPaper>
+
+@code {
+    [Parameter] public string Title { get; set; } = "Details";
+    [Parameter] public List<DetailField> Fields { get; set; } = [];
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

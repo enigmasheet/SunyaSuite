@@ -1,0 +1,28 @@
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.subtitle2">@Title</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body1">@Message</MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Error"
+                   OnClick="Confirm"
+                   StartIcon="@Icons.Material.Filled.Delete">
+            @ConfirmText
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter] public string Title { get; set; } = "Confirm Delete";
+    [Parameter] public string Message { get; set; } = "Are you sure you want to delete this item? This action cannot be undone.";
+    [Parameter] public string ConfirmText { get; set; } = "Delete";
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Confirm() => MudDialog.Close(DialogResult.Ok(true));
+}

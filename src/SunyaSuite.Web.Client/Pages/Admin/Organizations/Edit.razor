@@ -1,0 +1,110 @@
+@page "/admin/organizations/{Id:guid}/edit"
+@attribute [Authorize(Policy = PolicyNames.SystemAdminOnly)]
+@inject IOrganizationService OrganizationService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageHeader Title="@(_org is null ? "Edit Organization" : $"Edit: {_org.Name}")" />
+
+<ErrorAlert Message="@_errorMessage"
+            OnDismiss="@(() => _errorMessage = null)" />
+
+@if (_loading)
+{
+    <LoadingSkeleton Variant="SkeletonVariant.Form" />
+}
+else if (_org is null)
+{
+    <MudAlert Severity="Severity.Warning" Class="mt-4">Organization not found.</MudAlert>
+}
+else
+{
+    <FormCard MaxWidth="600px">
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_name"
+                                  Label="Organization Name"
+                                  Required="true"
+                                  RequiredError="Name is required"
+                                  For="@(() => _name)" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_slug"
+                                  Label="Slug"
+                                  Required="true"
+                                  RequiredError="Slug is required"
+                                  HelperText="Lowercase letters, numbers, and hyphens only"
+                                  For="@(() => _slug)" />
+                </MudItem>
+            </MudGrid>
+
+            <FormActions SaveLabel="Save Changes"
+                         SavingText="Saving..."
+                         CancelHref="@($"/admin/organizations/{Id}")"
+                         Disabled="@(!_isValid)"
+                         Saving="@_saving"
+                         OnSave="@(async () => await SaveAsync())" />
+        </MudForm>
+    </FormCard>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private MudForm _form = null!;
+    private bool _isValid;
+    private bool _loading = true;
+    private bool _saving;
+    private string? _errorMessage;
+    private OrganizationDto? _org;
+
+    private string _name = string.Empty;
+    private string _slug = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _org = await OrganizationService.GetByIdAsync(Id);
+            if (_org is not null)
+            {
+                _name = _org.Name;
+                _slug = _org.Slug;
+            }
+        }
+        catch
+        {
+            _errorMessage = "Failed to load organization.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid) return;
+
+        _saving = true;
+        _errorMessage = null;
+
+        try
+        {
+            var request = new UpdateOrganizationRequest(_name, _slug.ToLowerInvariant());
+            await OrganizationService.UpdateAsync(Id, request);
+            Snackbar.Add("Organization updated.", Severity.Success);
+            Navigation.NavigateTo($"/admin/organizations/{Id}");
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

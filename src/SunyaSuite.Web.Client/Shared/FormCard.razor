@@ -1,0 +1,19 @@
+<MudPaper Elevation="0" Outlined="true" Class="@GetClass()" Style="@MaxWidthStyle">
+    @ChildContent
+</MudPaper>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string? MaxWidth { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private string GetClass()
+    {
+        var cls = "pa-8";
+        if (!string.IsNullOrEmpty(Class))
+            cls += " " + Class;
+        return cls;
+    }
+
+    private string? MaxWidthStyle => !string.IsNullOrEmpty(MaxWidth) ? $"max-width: {MaxWidth};" : null;
+}

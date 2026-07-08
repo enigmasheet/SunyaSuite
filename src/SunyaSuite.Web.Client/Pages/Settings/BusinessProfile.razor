@@ -1,0 +1,165 @@
+@page "/settings/business-profile"
+@attribute [Authorize]
+@inject IBusinessProfileService BusinessProfileService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageHeader Title="Business Profile" Subtitle="Your seller information for invoices" />
+
+<ErrorAlert Message="@_errorMessage" />
+
+@if (_loading)
+{
+    <LoadingSkeleton Variant="SkeletonVariant.Form" />
+}
+else
+{
+    <FormCard>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_businessName"
+                                  Label="Business Name"
+                                  Required="true"
+                                  RequiredError="Business name is required"
+                                  For="@(() => _businessName)" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_panNumber"
+                                  Label="PAN / VAT Number"
+                                  For="@(() => _panNumber)" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_address" Label="Business Address" Lines="3"
+                                  For="@(() => _address)" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_phone" Label="Phone" For="@(() => _phone)" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.body2" Class="mb-2">Logo (optional)</MudText>
+                    @if (!string.IsNullOrEmpty(_logoBase64))
+                    {
+                        <img src="@_logoBase64" alt="Logo preview" class="logo-preview" />
+                    }
+                    <div class="d-flex align-center">
+                        <label for="logo-upload" class="mud-button-root mud-button mud-button-outlined mud-button-outlined-primary mud-button-size-small"
+                               role="button" tabindex="0">
+                            Choose Image
+                        </label>
+                        @if (!string.IsNullOrEmpty(_logoBase64))
+                        {
+                            <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small" Class="ml-2"
+                                       OnClick="@(() => _logoBase64 = null)">
+                                Remove
+                            </MudButton>
+                        }
+                    </div>
+                    <InputFile id="logo-upload" OnChange="@OnLogoSelected" accept=".png,.jpg,.jpeg"
+                               style="display:none" />
+                </MudItem>
+            </MudGrid>
+
+            <FormActions SaveLabel="Save"
+                         CancelHref="/"
+                         Disabled="@(!_isValid)"
+                         OnSave="@(async () => await SaveAsync())" />
+        </MudForm>
+    </FormCard>
+}
+
+@code {
+    private MudForm _form = null!;
+    private bool _isValid;
+    private bool _loading = true;
+    private string? _errorMessage;
+
+    private Guid _companyId;
+    private string _businessName = string.Empty;
+    private string _panNumber = string.Empty;
+    private string _address = string.Empty;
+    private string _phone = string.Empty;
+    private string? _logoBase64;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var profile = await BusinessProfileService.GetDefaultAsync();
+            if (profile is not null)
+            {
+                _businessName = profile.BusinessName;
+                _panNumber = profile.PanNumber;
+                _address = profile.Address;
+                _phone = profile.Phone;
+                _logoBase64 = profile.LogoBase64;
+                _companyId = profile.CompanyId;
+            }
+        }
+        catch
+        {
+            _errorMessage = "Failed to load profile.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OnLogoSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file is null) return;
+
+        try
+        {
+            using var stream = file.OpenReadStream(maxAllowedSize: 512 * 1024);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            var bytes = ms.ToArray();
+            var extension = Path.GetExtension(file.Name)?.ToLowerInvariant() switch
+            {
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".png" => "image/png",
+                _ => "image/png"
+            };
+            _logoBase64 = $"data:{extension};base64,{Convert.ToBase64String(bytes)}";
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to read logo: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid) return;
+
+        var dto = new BusinessProfileDto
+        {
+            BusinessName = _businessName.Trim(),
+            PanNumber = _panNumber.Trim(),
+            Address = _address.Trim(),
+            Phone = _phone.Trim(),
+            LogoBase64 = _logoBase64
+        };
+
+        try
+        {
+            if (_companyId != Guid.Empty)
+            {
+                await BusinessProfileService.SaveAsync(_companyId, dto);
+            }
+            else
+            {
+                await BusinessProfileService.SaveDefaultAsync(dto);
+            }
+            Snackbar.Add("Business profile saved.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to save: {ex.Message}", Severity.Error);
+        }
+    }
+}

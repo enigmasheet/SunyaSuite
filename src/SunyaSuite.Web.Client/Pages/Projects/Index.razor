@@ -1,0 +1,214 @@
+@page "/projects"
+@attribute [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
+@inject IProjectService ProjectService
+@inject IClientService ClientService
+@inject IExportService ExportService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+@inject IDialogService DialogService
+
+<PageHeader Title="Projects" />
+
+<IndexToolbar @bind-SearchTerm="_searchTerm"
+              OnSearch="@(async (v) => { _searchTerm = v; await _table.ReloadServerData(); })"
+              SearchPlaceholder="Search by name or description..."
+              ShowExport="true"
+              Exporting="_exporting"
+              OnExport="@ExportProjects"
+              ShowFilter="true"
+              OnToggleFilter="@ToggleFilterPanel"
+              AddHref="/projects/create"
+              AddLabel="Add Project" />
+
+<FilterPanel Visible="_showFilters"
+             OnApply="@ApplyFilters"
+             OnClear="@ClearFilters">
+    <StatusFilterGroup TEnum="ProjectStatus"
+                       Label="Status"
+                       SelectedValues="_selectedStatuses"
+                       SelectedValuesChanged="@(v => _selectedStatuses = v)" />
+    <DateRangeFilter Label="Deadline"
+                     @bind-From="_deadlineFrom"
+                     @bind-To="_deadlineTo" />
+
+    <MudText Typo="Typo.subtitle2" Class="mb-2 mt-4">Client</MudText>
+    <MudSelect T="Guid?" Label="Select client" @bind-Value="_clientId"
+               Clearable="true" AnchorOrigin="Origin.BottomCenter">
+        @foreach (var client in _allClients)
+        {
+            <MudSelectItem T="Guid?" Value="@client.Id" @key="client.Id">@client.Name</MudSelectItem>
+        }
+    </MudSelect>
+</FilterPanel>
+
+<MudTable T="ProjectListItemDto" ServerData="@(async (state, ct) => await ServerReload(state, ct))"
+          Dense="true" Hover="true" Striped="true"
+          Outlined="true" Elevation="0" Class="mt-4"
+          @ref="_table">
+
+    <ColGroup>
+        <col style="width: 24%;" />
+        <col style="width: 18%;" />
+        <col style="width: 12%;" />
+        <col style="width: 14%;" />
+        <col style="width: 22%;" />
+        <col style="width: 10%;" />
+    </ColGroup>
+
+    <HeaderContent>
+        <MudTh><MudTableSortLabel T="ProjectListItemDto" SortLabel="name">Name</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="ProjectListItemDto" SortLabel="client">Client</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="ProjectListItemDto" SortLabel="status">Status</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="ProjectListItemDto" SortLabel="deadline">Deadline</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="ProjectListItemDto" SortLabel="progress">Progress</MudTableSortLabel></MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+
+    <RowTemplate>
+        <MudTd DataLabel="Name">
+            <MudLink Href="@($"/projects/{context.Id}")">@context.Name</MudLink>
+        </MudTd>
+        <MudTd DataLabel="Client">
+            <MudLink Href="@($"/clients/{context.ClientId}")">@context.ClientName</MudLink>
+        </MudTd>
+        <MudTd DataLabel="Status">
+            <StatusChip Status="@context.Status">@context.Status</StatusChip>
+        </MudTd>
+        <MudTd DataLabel="Deadline">@context.Deadline.ToString("MMM dd, yyyy")</MudTd>
+        <MudTd DataLabel="Progress">
+            <MudProgressLinear Value="@context.ProgressPercent" Class="rounded" Style="max-width: 160px;" />
+            <MudText Typo="Typo.caption" Class="ml-1">@context.ProgressPercent%</MudText>
+        </MudTd>
+        <MudTd DataLabel="Actions">
+            <ActionButtons ViewHref="@($"/projects/{context.Id}")"
+                           EditHref="@($"/projects/edit/{context.Id}")"
+                           OnDelete="@(() => PromptDelete(context.Id, context.Name))" />
+        </MudTd>
+    </RowTemplate>
+
+    <PagerContent>
+        <MudTablePager PageSizeOptions="@([10, 25, 50])" />
+    </PagerContent>
+    <NoRecordsContent>
+        <EmptyState Icon="@Icons.Material.Filled.FolderOff" Title="No projects found." />
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    private string? _searchTerm;
+    private bool _exporting;
+    private MudTable<ProjectListItemDto> _table = null!;
+
+    private bool _showFilters;
+    private HashSet<ProjectStatus> _selectedStatuses = [];
+    private DateTime? _deadlineFrom;
+    private DateTime? _deadlineTo;
+    private Guid? _clientId;
+    private List<ClientOptionDto> _allClients = [];
+
+    private void ToggleFilterPanel()
+    {
+        _showFilters = !_showFilters;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _allClients = await ClientService.GetClientOptionsAsync();
+    }
+
+    private async Task<TableData<ProjectListItemDto>> ServerReload(TableState state, CancellationToken ct)
+    {
+        try
+        {
+            var sortDirection = state.SortDirection switch
+            {
+                SortDirection.Ascending => "asc",
+                SortDirection.Descending => "desc",
+                _ => null
+            };
+
+            var filter = _showFilters ? new ProjectFilterDto
+            {
+                Statuses = _selectedStatuses.Count > 0 ? [.. _selectedStatuses] : null,
+                DeadlineFrom = _deadlineFrom is not null ? DateOnly.FromDateTime(_deadlineFrom.Value) : null,
+                DeadlineTo = _deadlineTo is not null ? DateOnly.FromDateTime(_deadlineTo.Value) : null,
+                ClientId = _clientId,
+            } : null;
+
+            var result = await ProjectService.GetPagedAsync(
+                state.Page + 1,
+                state.PageSize,
+                state.SortLabel,
+                sortDirection,
+                _searchTerm,
+                filter,
+                ct);
+
+            return new TableData<ProjectListItemDto> { Items = result.Items, TotalItems = result.Total };
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load projects: {ex.Message}", Severity.Error);
+            return new TableData<ProjectListItemDto> { Items = [], TotalItems = 0 };
+        }
+    }
+
+    private async Task ApplyFilters()
+    {
+        await _table.ReloadServerData();
+    }
+
+    private async Task ClearFilters()
+    {
+        _selectedStatuses.Clear();
+        _deadlineFrom = null;
+        _deadlineTo = null;
+        _clientId = null;
+        await _table.ReloadServerData();
+    }
+
+    private async Task ExportProjects()
+    {
+        _exporting = true;
+        try
+        {
+            var bytes = await ExportService.ExportProjectsAsync();
+            var b64 = Convert.ToBase64String(bytes);
+            await JsRuntime.InvokeVoidAsync("downloadFile", "projects.xlsx", b64, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            Snackbar.Add("Projects exported.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Export failed: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _exporting = false;
+        }
+    }
+
+    private async Task PromptDelete(Guid id, string name)
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+            "Delete Project",
+            new DialogParameters
+            {
+                { "Message", $"Delete project \"{name}\"? It will be moved to trash." }
+            },
+            new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            try
+            {
+                await ProjectService.DeleteAsync(id);
+                Snackbar.Add("Project moved to trash.", Severity.Success);
+                await _table.ReloadServerData();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to delete project: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}

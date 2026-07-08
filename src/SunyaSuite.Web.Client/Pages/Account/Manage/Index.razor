@@ -1,0 +1,39 @@
+@page "/Account/Manage"
+@attribute [Authorize]
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageHeader Title="Account Settings" />
+
+<MudPaper Elevation="0" Outlined="true" Class="pa-6" Style="max-width: 600px;">
+    <MudText Typo="Typo.subtitle2" Class="mb-4">Profile</MudText>
+
+    @if (_user is not null)
+    {
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">
+                <MudText Typo="Typo.body2" Class="text-secondary">Email</MudText>
+                <MudText Typo="Typo.body1">@_user.FindFirst(ClaimTypes.Email)?.Value</MudText>
+            </MudListItem>
+            <MudListItem T="string">
+                <MudText Typo="Typo.body2" Class="text-secondary">User ID</MudText>
+                <MudText Typo="Typo.body1">@_user.FindFirst(ClaimTypes.NameIdentifier)?.Value</MudText>
+            </MudListItem>
+            <MudListItem T="string">
+                <MudText Typo="Typo.body2" Class="text-secondary">Roles</MudText>
+                <MudText Typo="Typo.body1">@string.Join(", ", _user.FindAll(ClaimTypes.Role).Select(c => c.Value))</MudText>
+            </MudListItem>
+        </MudList>
+    }
+
+    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Href="/Account/Manage/ChangePassword" Class="mt-4">Change Password</MudButton>
+</MudPaper>
+
+@code {
+    private ClaimsPrincipal? _user;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        _user = state.User;
+    }
+}

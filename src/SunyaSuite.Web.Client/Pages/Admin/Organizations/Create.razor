@@ -1,0 +1,102 @@
+@page "/admin/organizations/create"
+@attribute [Authorize(Policy = PolicyNames.SystemAdminOnly)]
+@inject IOrganizationService OrgService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageHeader Title="Create Organization" />
+
+<ErrorAlert Message="@_errorMessage" />
+
+<FormCard MaxWidth="600px">
+    <MudForm @ref="_form" @bind-IsValid="_isValid">
+        <MudGrid>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="_name"
+                              Label="Organization Name"
+                              Required="true"
+                              RequiredError="Name is required"
+                              For="@(() => _name)" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="_slug"
+                              Label="Slug"
+                              Required="true"
+                              RequiredError="Slug is required"
+                              HelperText="Lowercase letters, numbers, and hyphens only"
+                              For="@(() => _slug)" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_databaseName"
+                              Label="Database Name (optional)"
+                              HelperText="Leave empty to use the shared tenant database. Provide a name to create a dedicated database." />
+            </MudItem>
+        </MudGrid>
+
+        <FormActions SaveLabel="Create Organization"
+                     SavingText="Creating..."
+                     CancelHref="/admin/organizations"
+                     Disabled="@(!_isValid)"
+                     Saving="@_saving"
+                     OnSave="@(async () => await SaveAsync())" />
+    </MudForm>
+
+    @if (_createdOrg is not null)
+    {
+        <MudAlert Severity="Severity.Success" Class="mt-6" Variant="Variant.Filled">
+            <MudText Typo="Typo.body1">Organization "@_createdOrg.Name" created successfully!</MudText>
+            @if (_createdOrg.ConnectionString is not null)
+            {
+                <MudText Typo="Typo.body2" Class="mt-2">A dedicated database has been provisioned and seeded.</MudText>
+            }
+            else
+            {
+                <MudText Typo="Typo.body2" Class="mt-2">Using the shared tenant database.</MudText>
+            }
+        </MudAlert>
+    }
+</FormCard>
+
+@code {
+    private MudForm? _form;
+    private bool _isValid;
+    private bool _saving;
+    private string? _errorMessage;
+
+    private string _name = string.Empty;
+    private string _slug = string.Empty;
+    private string? _databaseName;
+
+    private OrganizationDto? _createdOrg;
+
+    private async Task SaveAsync()
+    {
+        await _form!.ValidateAsync();
+        if (!_isValid) return;
+
+        _saving = true;
+        _errorMessage = null;
+
+        try
+        {
+            var request = new CreateOrganizationRequest
+            {
+                Name = _name,
+                Slug = _slug.ToLowerInvariant(),
+                DatabaseName = string.IsNullOrWhiteSpace(_databaseName) ? null : _databaseName.Trim()
+            };
+
+            var userId = ""; // server-side resolves from JWT
+            _createdOrg = await OrgService.CreateAsync(request, userId);
+            Snackbar.Add("Organization created successfully.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

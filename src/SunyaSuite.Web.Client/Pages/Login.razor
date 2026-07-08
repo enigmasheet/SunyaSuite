@@ -1,0 +1,129 @@
+@page "/login"
+@layout AuthLayout
+@using SunyaSuite.Application.DTOs.Config
+@using System.Text.Json
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@inject Auth.TokenManager TokenManager
+@inject Auth.OrgManager OrgManager
+@inject Auth.JwtAuthenticationStateProvider AuthStateProvider
+@inject IHttpClientFactory HttpClientFactory
+
+<PageTitle>Sign In — SunyaSuite</PageTitle>
+
+<MudCard Class="auth-card" Elevation="0">
+    <MudCardContent>
+        <MudText Typo="Typo.h5" Align="Align.Center" Class="mb-8">Sign in to SunyaSuite</MudText>
+
+        <ErrorAlert Message="@_errorMessage" />
+
+        <MudForm @ref="_form" @bind-IsValid="@_isValid" @bind-Errors="@_errors">
+            <MudTextField @bind-Value="_email" Label="Email" Variant="Variant.Outlined" Class="mb-4" Required="true"
+                          For="@(() => _email)" Validation="@((string? v) => v?.Contains('@') == true ? null : "Enter a valid email address")" />
+            <MudTextField @bind-Value="_password" Label="Password" Variant="Variant.Outlined" InputType="InputType.Password" Class="mb-4" Required="true"
+                          For="@(() => _password)" Validation="@((string? v) => string.IsNullOrEmpty(v) ? "Password is required" : null)" />
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="@HandleLogin" Disabled="@(_loading || !_isValid)" Class="mb-4">
+                @if (_loading)
+                {
+                    <MudProgressCircular Size="Size.Small" Class="ms-2" />
+                }
+                Sign In
+            </MudButton>
+        </MudForm>
+
+        <MudText Typo="Typo.body2" Align="Align.Center" Class="mb-2">
+            <a href="/Account/Register@(!string.IsNullOrEmpty(_returnUrl) ? $"?returnUrl={Uri.EscapeDataString(_returnUrl)}" : "")">Don't have an account? Register</a>
+        </MudText>
+        <MudText Typo="Typo.body2" Align="Align.Center">
+            <a href="/Account/ForgotPassword">Forgot password?</a>
+        </MudText>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private MudForm? _form;
+    private string _email = "";
+    private string _password = "";
+    private bool _loading;
+    private bool _isValid = true;
+    private string[] _errors = [];
+    private string _errorMessage = "";
+    private string? _returnUrl;
+
+    protected override void OnInitialized()
+    {
+        var uri = new Uri(Navigation.Uri);
+        var query = uri.Query.TrimStart('?');
+        foreach (var part in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var kv = part.Split('=', 2);
+            if (kv.Length == 2 && kv[0].Equals("returnUrl", StringComparison.OrdinalIgnoreCase))
+                _returnUrl = Uri.UnescapeDataString(kv[1]);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var token = await TokenManager.GetTokenAsync();
+            if (!string.IsNullOrEmpty(token))
+                Navigation.NavigateTo("/", forceLoad: true);
+        }
+    }
+
+    private async Task HandleLogin()
+    {
+        _loading = true;
+        _errorMessage = "";
+
+        try
+        {
+            var http = HttpClientFactory.CreateClient("Api");
+            var response = await http.PostAsJsonAsync("api/auth/login", new { email = _email, password = _password, rememberMe = true });
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<AuthResponse>();
+                if (result is not null)
+                {
+                    await TokenManager.SetTokenAsync(result.Token, result.ExpiresAt);
+                    if (result.Organizations is { Count: > 0 })
+                    {
+                        await OrgManager.SetOrganizationsAsync(result.Organizations);
+                        // Set the first org as active (or previously selected)
+                        var activeSlug = await OrgManager.GetActiveSlugAsync();
+                        if (string.IsNullOrEmpty(activeSlug) || !result.Organizations.Any(o => o.Slug == activeSlug))
+                            activeSlug = result.Organizations[0].Slug;
+                        await OrgManager.SetActiveSlugAsync(activeSlug);
+                    }
+                    await AuthStateProvider.NotifyAuthenticationStateChanged();
+                    Navigation.NavigateTo("/", forceLoad: true);
+                }
+            }
+            else
+            {
+                try
+                {
+                    var problem = await response.Content.ReadFromJsonAsync<Dictionary<string, JsonElement>>();
+                    _errorMessage = problem?.GetValueOrDefault("message").GetString() ?? "Invalid email or password.";
+                }
+                catch
+                {
+                    _errorMessage = "Invalid email or password.";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Connection error: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private record AuthResponse(string Token, DateTime ExpiresAt, string UserId, string Email, IList<string> Roles, List<OrganizationDto>? Organizations);
+}

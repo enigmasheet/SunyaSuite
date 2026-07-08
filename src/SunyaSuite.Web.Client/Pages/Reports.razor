@@ -1,0 +1,238 @@
+@page "/reports"
+@attribute [Authorize(Policy = PolicyNames.SystemAdminOnly)]
+@inject IDashboardService DashboardService
+@inject IFiscalYearService FiscalYearService
+@inject IExportService ExportService
+@inject IJSRuntime JsRuntime
+@inject ISnackbar Snackbar
+
+<PageHeader Title="Reports" />
+
+<ErrorAlert Message="@_errorMessage" />
+
+<div class="d-flex align-center justify-space-between mb-6">
+    <div class="d-flex align-center">
+        <MudSelect T="Guid?" Label="Fiscal Year"
+                   ValueChanged="@(async (Guid? v) => { _fiscalYearId = v; await LoadData(); })"
+                   Value="@_fiscalYearId"
+                   Clearable="true" Variant="Variant.Outlined"
+                   Class="mud-select-small mud-select-min-width">
+            @foreach (var fy in _fiscalYears)
+            {
+                <MudSelectItem T="Guid?" Value="@fy.Id" @key="fy.Id">
+                    @fy.YearName @(fy.IsCurrent ? "(Current)" : fy.IsOpen ? "" : "(Closed)")
+                </MudSelectItem>
+            }
+        </MudSelect>
+    </div>
+    <MudButton Variant="Variant.Outlined" Color="Color.Secondary"
+               StartIcon="@Icons.Material.Filled.Download"
+               Disabled="@_exporting"
+               OnClick="@ExportReport">
+        @(_exporting ? "Exporting..." : "Export Report")
+    </MudButton>
+</div>
+
+@if (_loading)
+{
+    <MudGrid>
+        <MudItem xs="12" sm="6" md="3">
+            <LoadingSkeleton Variant="SkeletonVariant.Card" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <LoadingSkeleton Variant="SkeletonVariant.Card" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <LoadingSkeleton Variant="SkeletonVariant.Card" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <LoadingSkeleton Variant="SkeletonVariant.Card" />
+        </MudItem>
+    </MudGrid>
+    <MudGrid Class="mt-6">
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6">
+                <MudSkeleton Width="40%" Height="20px" Class="mb-4" />
+                <MudSkeleton Width="100%" Height="200px" />
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6">
+                <MudSkeleton Width="40%" Height="20px" Class="mb-4" />
+                <MudSkeleton Width="100%" Height="200px" />
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+    <MudGrid Class="mt-6">
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6">
+                <MudSkeleton Width="40%" Height="20px" Class="mb-4" />
+                <MudSkeleton Width="100%" Height="16px" Class="mb-2" />
+                <MudSkeleton Width="100%" Height="16px" Class="mb-2" />
+                <MudSkeleton Width="100%" Height="16px" Class="mb-2" />
+                <MudSkeleton Width="60%" Height="16px" />
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+else if (_stats is not null)
+{
+    <MudGrid>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="0" Outlined="true" Class="pa-4">
+                <MudText Typo="Typo.subtitle2" Class="text-secondary mb-1">Total Clients</MudText>
+                <MudText Typo="Typo.h3">@_stats.TotalClients</MudText>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="0" Outlined="true" Class="pa-4">
+                <MudText Typo="Typo.subtitle2" Class="text-secondary mb-1">Active Projects</MudText>
+                <MudText Typo="Typo.h3">@_stats.ActiveProjects</MudText>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="0" Outlined="true" Class="pa-4">
+                <MudText Typo="Typo.subtitle2" Class="text-secondary mb-1">Outstanding Invoices</MudText>
+                <MudText Typo="Typo.h3">@_stats.OutstandingInvoices</MudText>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="0" Outlined="true" Class="pa-4">
+                <MudText Typo="Typo.subtitle2" Class="text-secondary mb-1">Total Revenue</MudText>
+                <MudText Typo="Typo.h3">@_stats.RevenueTotal.ToString("C0")</MudText>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+
+    <MudGrid Class="mt-6">
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6">
+                <MudText Typo="Typo.subtitle2" Class="mb-4">Client Status</MudText>
+                <MudTable T="StatusBreakdown" Items="@_stats.ClientStatusBreakdown" Dense="true"
+                          Hover="true" Outlined="false" Elevation="0">
+                    <HeaderContent>
+                        <MudTh>Status</MudTh>
+                        <MudTh>Count</MudTh>
+                        <MudTh>%</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.Status</MudTd>
+                        <MudTd>@context.Count</MudTd>
+                        <MudTd>
+                            @(_stats.TotalClients > 0 ? Math.Round((double)context.Count / _stats.TotalClients * 100).ToString() : "0")%
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6">
+                <MudText Typo="Typo.subtitle2" Class="mb-4">Project Status</MudText>
+                <MudTable T="StatusBreakdown" Items="@_stats.ProjectStatusBreakdown" Dense="true"
+                          Hover="true" Outlined="false" Elevation="0">
+                    <HeaderContent>
+                        <MudTh>Status</MudTh>
+                        <MudTh>Count</MudTh>
+                        <MudTh>%</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.Status</MudTd>
+                        <MudTd>@context.Count</MudTd>
+                        <MudTd>
+                            @{
+                                var totalP = _stats.ProjectStatusBreakdown.Sum(s => s.Count);
+                            }
+                            @(totalP > 0 ? Math.Round((double)context.Count / totalP * 100).ToString() : "0")%
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <MudGrid Class="mt-6">
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6">
+                <MudText Typo="Typo.subtitle2" Class="mb-4">Invoice Summary</MudText>
+                <MudList T="string" Dense="true">
+                    <MudListItem T="string">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Paid Invoices</MudText>
+                        <MudText Typo="Typo.body1">@_stats.PaidInvoices</MudText>
+                    </MudListItem>
+                    <MudListItem T="string">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Overdue Invoices</MudText>
+                        <MudText Typo="Typo.body1" Color="Color.Error">@_stats.OverdueInvoices</MudText>
+                    </MudListItem>
+                    <MudListItem T="string">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Outstanding Invoices</MudText>
+                        <MudText Typo="Typo.body1">@_stats.OutstandingInvoices</MudText>
+                    </MudListItem>
+                    <MudListItem T="string">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Revenue This Month</MudText>
+                        <MudText Typo="Typo.body1">@_stats.RevenueThisMonth.ToString("C")</MudText>
+                    </MudListItem>
+                    <MudListItem T="string">
+                        <MudText Typo="Typo.body2" Class="text-secondary">Total Revenue</MudText>
+                        <MudText Typo="Typo.body1">@_stats.RevenueTotal.ToString("C")</MudText>
+                    </MudListItem>
+                </MudList>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private bool _loading = true;
+    private bool _exporting;
+    private string? _errorMessage;
+    private Guid? _fiscalYearId;
+    private List<FiscalYearListItemDto> _fiscalYears = [];
+    private DashboardStats? _stats;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _fiscalYears = await FiscalYearService.GetAllAsync();
+            var current = _fiscalYears.FirstOrDefault(f => f.IsCurrent);
+            if (current is not null)
+                _fiscalYearId = current.Id;
+
+            await LoadData();
+        }
+        catch
+        {
+            _errorMessage = "Failed to load data.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task LoadData()
+    {
+        _stats = await DashboardService.GetStatsAsync(_fiscalYearId);
+        StateHasChanged();
+    }
+
+    private async Task ExportReport()
+    {
+        _exporting = true;
+        try
+        {
+            var bytes = await ExportService.ExportReportsAsync();
+            var b64 = Convert.ToBase64String(bytes);
+            await JsRuntime.InvokeVoidAsync("downloadFile", "sunya-report.xlsx", b64, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            Snackbar.Add("Report exported.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Export failed: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _exporting = false;
+        }
+    }
+}

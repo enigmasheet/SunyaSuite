@@ -1,0 +1,25 @@
+<div class="d-flex align-center justify-end mt-6 gap-4">
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Save"
+               Disabled="@(Disabled || Saving)"
+               OnClick="@OnSave">
+        @if (Saving)
+        {
+            <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-1" />
+        }
+        @(Saving ? SavingText : SaveLabel)
+    </MudButton>
+    <MudButton Variant="Variant.Text" Color="Color.Default"
+               Href="@CancelHref">
+        Cancel
+    </MudButton>
+</div>
+
+@code {
+    [Parameter] public string SaveLabel { get; set; } = "Save";
+    [Parameter] public string SavingText { get; set; } = "Saving...";
+    [Parameter] public string CancelHref { get; set; } = "/";
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool Saving { get; set; }
+    [Parameter] public EventCallback<MouseEventArgs> OnSave { get; set; }
+}

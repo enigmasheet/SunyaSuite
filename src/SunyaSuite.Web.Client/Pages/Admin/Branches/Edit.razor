@@ -1,0 +1,148 @@
+@page "/admin/branches/edit/{Id:guid}"
+@attribute [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
+@inject IBranchService BranchService
+@inject ICompanyService CompanyService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageHeader Title="@(_branchName is null ? "Edit Branch" : $"Edit: {_branchName}")" />
+
+<ErrorAlert Message="@_errorMessage"
+            OnDismiss="@(() => _errorMessage = null)" />
+
+@if (_loading)
+{
+    <LoadingSkeleton Variant="SkeletonVariant.Form" />
+}
+else if (_notFound)
+{
+    <MudAlert Severity="Severity.Warning" Class="mt-4">Branch not found.</MudAlert>
+}
+else
+{
+    <FormCard>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudSelect @bind-Value="_companyId"
+                               Label="Company"
+                               Required="true"
+                               RequiredError="Company is required"
+                               For="@(() => _companyId)">
+                        @foreach (var company in _companies)
+                        {
+                            <MudSelectItem Value="@company.Id" @key="company.Id">@company.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_name"
+                                  Label="Branch Name"
+                                  Required="true"
+                                  RequiredError="Branch name is required"
+                                  For="@(() => _name)" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_slug"
+                                  Label="Slug"
+                                  Required="true"
+                                  RequiredError="Slug is required"
+                                  HelperText="Lowercase letters, numbers, and hyphens"
+                                  For="@(() => _slug)" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_phone" Label="Phone" For="@(() => _phone)" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSwitch @bind-Value="_isActive" Color="Color.Primary">Active</MudSwitch>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_address" Label="Address" Lines="3"
+                                  For="@(() => _address)" />
+                </MudItem>
+            </MudGrid>
+
+            <FormActions SaveLabel="Save Changes"
+                         CancelHref="/admin/branches"
+                         Disabled="@(!_isValid)"
+                         OnSave="@(async () => await SaveAsync())" />
+        </MudForm>
+    </FormCard>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private MudForm _form = null!;
+    private bool _isValid;
+    private bool _loading = true;
+    private bool _notFound;
+    private string? _errorMessage;
+    private string? _branchName;
+
+    private List<CompanyDto> _companies = [];
+    private Guid _companyId;
+    private string _name = string.Empty;
+    private string _slug = string.Empty;
+    private string _phone = string.Empty;
+    private string _address = string.Empty;
+    private bool _isActive = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var branch = await BranchService.GetByIdAsync(Id);
+            _companies = await CompanyService.GetActiveAsync();
+
+            if (branch is null)
+            {
+                _notFound = true;
+            }
+            else
+            {
+                _branchName = branch.Name;
+                _companyId = branch.CompanyId;
+                _name = branch.Name;
+                _slug = branch.Slug;
+                _phone = branch.Phone;
+                _address = branch.Address;
+                _isActive = branch.IsActive;
+            }
+        }
+        catch
+        {
+            _errorMessage = "Failed to load data.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid) return;
+
+        var request = new UpdateBranchRequest(
+            Id,
+            _companyId,
+            _name.Trim(),
+            _slug.Trim().ToLowerInvariant(),
+            _address.Trim(),
+            _phone.Trim(),
+            _isActive);
+
+        try
+        {
+            await BranchService.UpdateAsync(request);
+            Snackbar.Add("Branch updated successfully.", Severity.Success);
+            Navigation.NavigateTo("/admin/branches");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to update branch: {ex.Message}", Severity.Error);
+        }
+    }
+}

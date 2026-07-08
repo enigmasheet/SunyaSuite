@@ -1,0 +1,57 @@
+<MudGrid Class="mt-4">
+    <MudItem xs="12" sm="6" md="4">
+        <SearchField @bind-Value="@SearchTerm"
+                     Placeholder="@SearchPlaceholder"
+                     OnSearch="@OnSearch" />
+    </MudItem>
+    <MudItem xs="12" sm="6" md="8" Class="d-flex align-center justify-end gap-2">
+        @if (ShowFilter)
+        {
+            <MudButton Variant="Variant.Outlined" Color="Color.Secondary"
+                       StartIcon="@Icons.Material.Filled.FilterList"
+                       OnClick="@OnToggleFilter">
+                Filters
+            </MudButton>
+        }
+        @if (ShowExport)
+        {
+            <MudButton Variant="Variant.Outlined" Color="Color.Secondary"
+                       StartIcon="@Icons.Material.Filled.Download"
+                       Disabled="@Exporting"
+                       OnClick="@OnExport">
+                @(Exporting ? ExportingText : ExportText)
+            </MudButton>
+        }
+        @if (ShowAdd)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       Href="@AddHref">
+                @AddLabel
+            </MudButton>
+        }
+        @ChildContent
+    </MudItem>
+</MudGrid>
+
+@code {
+    [Parameter] public string? SearchTerm { get; set; }
+    [Parameter] public EventCallback<string?> SearchTermChanged { get; set; }
+    [Parameter] public EventCallback<string?> OnSearch { get; set; }
+    [Parameter] public string SearchPlaceholder { get; set; } = "Search...";
+
+    [Parameter] public bool ShowFilter { get; set; } = true;
+    [Parameter] public EventCallback<MouseEventArgs> OnToggleFilter { get; set; }
+
+    [Parameter] public bool ShowExport { get; set; } = true;
+    [Parameter] public bool Exporting { get; set; }
+    [Parameter] public EventCallback<MouseEventArgs> OnExport { get; set; }
+    [Parameter] public string ExportText { get; set; } = "Export";
+    [Parameter] public string ExportingText { get; set; } = "Exporting...";
+
+    [Parameter] public bool ShowAdd { get; set; } = true;
+    [Parameter] public string AddHref { get; set; } = "/create";
+    [Parameter] public string AddLabel { get; set; } = "Add";
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

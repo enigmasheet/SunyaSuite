@@ -1,0 +1,42 @@
+<MudDialog>
+    <DialogContent>
+        <MudText Class="mb-4">@Message</MudText>
+        <MudTextField @bind-Value="_input" Label="@Label" Variant="Variant.Outlined" FullWidth="true"
+                       Validation="@(_validation)" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Submit">@ConfirmText</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter] public string Message { get; set; } = string.Empty;
+    [Parameter] public string ConfirmText { get; set; } = "OK";
+    [Parameter] public string Label { get; set; } = "Value";
+
+    private string _input = string.Empty;
+
+    private Func<string?, string?>? _validation;
+
+    protected override void OnInitialized()
+    {
+        _validation = Label?.ToLowerInvariant() switch
+        {
+            "email" => v => string.IsNullOrWhiteSpace(v)
+                ? "Email is required."
+                : System.Net.Mail.MailAddress.TryCreate(v, out _)
+                    ? null
+                    : "Enter a valid email address.",
+            _ => v => string.IsNullOrWhiteSpace(v)
+                ? $"{Label} is required."
+                : null
+        };
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Submit() => MudDialog.Close(DialogResult.Ok(_input));
+}

@@ -1,0 +1,118 @@
+@page "/admin/branches/create"
+@attribute [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
+@inject IBranchService BranchService
+@inject ICompanyService CompanyService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageHeader Title="Create Branch" />
+
+<ErrorAlert Message="@_errorMessage" />
+
+@if (_loading)
+{
+    <LoadingSkeleton Variant="SkeletonVariant.Form" />
+}
+else
+{
+    <FormCard>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudSelect @bind-Value="_companyId"
+                               Label="Company"
+                               Required="true"
+                               RequiredError="Company is required"
+                               For="@(() => _companyId)">
+                        @foreach (var company in _companies)
+                        {
+                            <MudSelectItem Value="@company.Id" @key="company.Id">@company.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_name"
+                                  Label="Branch Name"
+                                  Required="true"
+                                  RequiredError="Branch name is required"
+                                  For="@(() => _name)" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_slug"
+                                  Label="Slug"
+                                  Required="true"
+                                  RequiredError="Slug is required"
+                                  HelperText="Lowercase letters, numbers, and hyphens"
+                                  For="@(() => _slug)" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_phone" Label="Phone" For="@(() => _phone)" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_address" Label="Address" Lines="3"
+                                  For="@(() => _address)" />
+                </MudItem>
+            </MudGrid>
+
+            <FormActions SaveLabel="Create Branch"
+                         CancelHref="/admin/branches"
+                         Disabled="@(!_isValid)"
+                         OnSave="@(async () => await SaveAsync())" />
+        </MudForm>
+    </FormCard>
+}
+
+@code {
+    private MudForm _form = null!;
+    private bool _isValid;
+    private bool _loading = true;
+    private string? _errorMessage;
+
+    private List<CompanyDto> _companies = [];
+    private Guid _companyId;
+    private string _name = string.Empty;
+    private string _slug = string.Empty;
+    private string _phone = string.Empty;
+    private string _address = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _companies = await CompanyService.GetActiveAsync();
+        }
+        catch
+        {
+            _errorMessage = "Failed to load companies.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid) return;
+
+        var request = new CreateBranchRequest(
+            _companyId,
+            _name.Trim(),
+            _slug.Trim().ToLowerInvariant(),
+            _address.Trim(),
+            _phone.Trim());
+
+        try
+        {
+            _errorMessage = null;
+            await BranchService.CreateAsync(request);
+            Snackbar.Add("Branch created successfully.", Severity.Success);
+            Navigation.NavigateTo("/admin/branches");
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to create branch: {ex.Message}";
+        }
+    }
+}

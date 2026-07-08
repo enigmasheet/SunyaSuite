@@ -1,0 +1,24 @@
+@if (Visible)
+{
+    <MudPaper Elevation="0" Outlined="true" Class="pa-4 mt-4">
+        @ChildContent
+
+        <MudStack Row="true" Class="mt-4 gap-2">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       OnClick="@OnApply">
+                Apply
+            </MudButton>
+            <MudButton Variant="Variant.Outlined"
+                       OnClick="@OnClear">
+                Clear All
+            </MudButton>
+        </MudStack>
+    </MudPaper>
+}
+
+@code {
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public EventCallback<MouseEventArgs> OnApply { get; set; }
+    [Parameter] public EventCallback<MouseEventArgs> OnClear { get; set; }
+}

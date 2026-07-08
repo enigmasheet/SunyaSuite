@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.Docker.Sdk">
+  <PropertyGroup Label="Globals">
+    <ProjectVersion>2.1</ProjectVersion>
+    <DockerComposeProjectPath>docker-compose.yml</DockerComposeProjectPath>
+    <DockerTargetOS>Linux</DockerTargetOS>
+    <DockerServiceName>web</DockerServiceName>
+  </PropertyGroup>
+</Project>

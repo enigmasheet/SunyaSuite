@@ -1,0 +1,84 @@
+@page "/admin/organizations"
+@attribute [Authorize(Policy = PolicyNames.SystemAdminOnly)]
+@inject IOrganizationService OrgService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageHeader Title="Organizations" />
+
+<IndexToolbar OnSearch="@(async (v) => { _searchTerm = v; await _table.ReloadServerData(); })"
+              ShowFilter="false"
+              ShowExport="false"
+              AddHref="/admin/organizations/create"
+              AddLabel="Create Organization" />
+
+<MudTable T="OrganizationDto" ServerData="@(async (state, ct) => await ServerReload(state, ct))"
+          Dense="true" Hover="true" Striped="true"
+          Outlined="true" Elevation="0" Class="mt-4"
+          @ref="_table">
+
+    <ColGroup>
+        <col style="width: 30%;" />
+        <col style="width: 20%;" />
+        <col style="width: 30%;" />
+        <col style="width: 20%;" />
+    </ColGroup>
+
+    <HeaderContent>
+        <MudTh>Name</MudTh>
+        <MudTh>Slug</MudTh>
+        <MudTh>Database</MudTh>
+        <MudTh>Active</MudTh>
+    </HeaderContent>
+
+    <RowTemplate>
+        <MudTd DataLabel="Name">
+            <MudLink Href="@($"/admin/organizations/{context.Id}")" Typo="Typo.body2" Class="font-weight-bold">
+                @context.Name
+            </MudLink>
+        </MudTd>
+        <MudTd DataLabel="Slug">
+            <MudText Typo="Typo.body2">@context.Slug</MudText>
+        </MudTd>
+        <MudTd DataLabel="Database">
+            @if (!string.IsNullOrEmpty(context.ConnectionString))
+            {
+                <MudChip T="string" Size="Size.Small" Color="Color.Tertiary">Separate</MudChip>
+            }
+            else
+            {
+                <MudChip T="string" Size="Size.Small" Color="Color.Default">Shared</MudChip>
+            }
+        </MudTd>
+        <MudTd DataLabel="Active">
+            <MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Error)">@(context.IsActive ? "Yes" : "No")</MudChip>
+        </MudTd>
+    </RowTemplate>
+
+    <PagerContent>
+        <MudTablePager PageSizeOptions="@([10, 25, 50])" />
+    </PagerContent>
+    <NoRecordsContent>
+        <EmptyState Icon="@Icons.Material.Filled.Business" Title="No organizations found." Description="Create your first organization to get started." />
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    private string? _searchTerm;
+    private MudTable<OrganizationDto> _table = null!;
+
+    private async Task<TableData<OrganizationDto>> ServerReload(TableState state, CancellationToken ct)
+    {
+        try
+        {
+            var (items, total) = await OrgService.GetPagedAsync(
+                state.Page + 1, state.PageSize, _searchTerm, ct);
+            return new TableData<OrganizationDto> { Items = items, TotalItems = total };
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load organizations: {ex.Message}", Severity.Error);
+            return new TableData<OrganizationDto> { Items = [], TotalItems = 0 };
+        }
+    }
+}

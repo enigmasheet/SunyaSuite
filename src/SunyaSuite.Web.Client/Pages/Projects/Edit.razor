@@ -1,0 +1,156 @@
+@page "/projects/edit/{Id:guid}"
+@attribute [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
+@inject IProjectService ProjectService
+@inject IClientService ClientService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageHeader Title="@(_project is null ? "Edit Project" : $"Edit: {_project.Name}")" />
+
+<ErrorAlert Message="@_errorMessage"
+            OnDismiss="@(() => _errorMessage = null)" />
+
+@if (_loading)
+{
+    <LoadingSkeleton Variant="SkeletonVariant.Form" />
+}
+else if (_project is null)
+{
+    <MudAlert Severity="Severity.Warning" Class="mt-4">Project not found.</MudAlert>
+}
+else if (_clients is null)
+{
+    <MudProgressCircular Indeterminate="true" Class="mt-8" />
+}
+else
+{
+    <FormCard>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudSelect @bind-Value="_selectedClientId"
+                               Label="Client"
+                               Required="true"
+                               RequiredError="Client is required"
+                               For="@(() => _selectedClientId)">
+                        @foreach (var client in _clients)
+                        {
+                            <MudSelectItem Value="@client.Id" @key="client.Id">@client.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_name"
+                                  Label="Project Name"
+                                  Required="true"
+                                  RequiredError="Project name is required"
+                                  For="@(() => _name)" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_description"
+                                  Label="Description"
+                                  Lines="3"
+                                  For="@(() => _description)" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudDatePicker @bind-Date="_deadline"
+                                   Label="Deadline"
+                                   Required="true"
+                                   RequiredError="Deadline is required" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect @bind-Value="_status"
+                               Label="Status"
+                               Required="true"
+                               For="@(() => _status)">
+                        @foreach (var status in Enum.GetValues<ProjectStatus>())
+                        {
+                            <MudSelectItem Value="@status.ToString()" @key="status">@status.ToString()</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudNumericField @bind-Value="_progressPercent"
+                                     Label="Progress (%)"
+                                     Min="0" Max="100"
+                                     For="@(() => _progressPercent)" />
+                </MudItem>
+            </MudGrid>
+
+            <FormActions SaveLabel="Save Changes"
+                         CancelHref="@($"/projects/{Id}")"
+                         Disabled="@(!_isValid)"
+                         OnSave="@(async () => await SaveAsync())" />
+        </MudForm>
+    </FormCard>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private MudForm _form = null!;
+    private bool _isValid;
+    private bool _loading = true;
+    private string? _errorMessage;
+    private ProjectDetailDto? _project;
+    private List<ClientOptionDto>? _clients;
+
+    private Guid _selectedClientId;
+    private string _name = string.Empty;
+    private string _description = string.Empty;
+    private DateTime? _deadline;
+    private string _status = "NotStarted";
+    private int _progressPercent;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _project = await ProjectService.GetByIdAsync(Id);
+            if (_project is not null)
+            {
+                _selectedClientId = _project.ClientId;
+                _name = _project.Name;
+                _description = _project.Description;
+                _deadline = _project.Deadline.ToDateTime(TimeOnly.MinValue);
+                _status = _project.Status;
+                _progressPercent = _project.ProgressPercent;
+            }
+            _clients = await ClientService.GetClientOptionsAsync();
+        }
+        catch
+        {
+            _errorMessage = "Failed to load data.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid || _deadline is null) return;
+
+        var request = new UpdateProjectRequest(
+            Id,
+            _selectedClientId,
+            _name.Trim(),
+            _description.Trim(),
+            DateOnly.FromDateTime(_deadline.Value),
+            _status,
+            _progressPercent);
+
+        try
+        {
+            await ProjectService.UpdateAsync(request);
+            Snackbar.Add("Project updated successfully.", Severity.Success);
+            Navigation.NavigateTo($"/projects/{Id}");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to update project: {ex.Message}", Severity.Error);
+        }
+    }
+}

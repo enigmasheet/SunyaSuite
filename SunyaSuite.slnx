@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SunyaSuite.Application/SunyaSuite.Application.csproj" />
+    <Project Path="src/SunyaSuite.Domain/SunyaSuite.Domain.csproj" />
+    <Project Path="src/SunyaSuite.Infrastructure/SunyaSuite.Infrastructure.csproj" />
+    <Project Path="src/SunyaSuite.Web.Client/SunyaSuite.Web.Client.csproj" />
+    <Project Path="src/SunyaSuite.Web/SunyaSuite.Web.Api.csproj" />
+  </Folder>
+</Solution>

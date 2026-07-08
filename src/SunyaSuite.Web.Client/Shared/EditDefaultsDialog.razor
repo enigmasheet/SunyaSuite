@@ -1,0 +1,75 @@
+@inject IDialogService DialogService
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mb-4">@Message</MudText>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_companyIdText"
+                              Label="Company ID (Guid)"
+                              HelperText="Leave empty to clear"
+                              For="@(() => _companyIdText)" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_branchIdText"
+                              Label="Branch ID (Guid)"
+                              HelperText="Leave empty to clear"
+                              For="@(() => _branchIdText)" />
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   OnClick="Save" Disabled="@(!_isValid)">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public string Message { get; set; } = string.Empty;
+    [Parameter] public string? CompanyId { get; set; }
+    [Parameter] public string? BranchId { get; set; }
+
+    private string _companyIdText = string.Empty;
+    private string _branchIdText = string.Empty;
+    private bool _isValid = true;
+
+    protected override void OnInitialized()
+    {
+        _companyIdText = CompanyId ?? string.Empty;
+        _branchIdText = BranchId ?? string.Empty;
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Save()
+    {
+        Guid? companyId = null;
+        if (!string.IsNullOrWhiteSpace(_companyIdText))
+        {
+            if (!Guid.TryParse(_companyIdText.Trim(), out var cid))
+            {
+                _isValid = false;
+                return;
+            }
+            companyId = cid;
+        }
+
+        Guid? branchId = null;
+        if (!string.IsNullOrWhiteSpace(_branchIdText))
+        {
+            if (!Guid.TryParse(_branchIdText.Trim(), out var bid))
+            {
+                _isValid = false;
+                return;
+            }
+            branchId = bid;
+        }
+
+        _isValid = true;
+        MudDialog.Close(DialogResult.Ok(new EditDefaultsResult(companyId, branchId)));
+    }
+}
