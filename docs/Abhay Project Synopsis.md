@@ -15,7 +15,7 @@
 
 **Submitted by:** Abhay Kumar Mandal
 
-**Course:** Bachelor of Computer Application / Computer Science & Information Technology
+**Course:** Master of Computer Science
 
 <div align="center">**Multi-Tenant Client Management and Billing System Using Blazor and ASP.NET Core**</div>
 
