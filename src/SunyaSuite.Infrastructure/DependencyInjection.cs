@@ -66,6 +66,7 @@ public static class DependencyInjection
         services.AddScoped<IReceiptPdfService, ReceiptPdfService>();
         services.AddScoped<IInviteService, InviteService>();
         services.AddScoped<IOrganizationService, OrganizationService>();
+        services.AddScoped<ISystemDashboardService, SystemDashboardService>();
         services.AddScoped<DatabaseResetService>();
         services.AddHostedService<ApplyTenantMigrationsService>();
 

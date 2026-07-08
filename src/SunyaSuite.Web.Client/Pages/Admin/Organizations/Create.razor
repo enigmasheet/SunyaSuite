@@ -10,13 +10,15 @@
 
 <FormCard MaxWidth="600px">
     <MudForm @ref="_form" @bind-IsValid="_isValid">
+        <MudText Typo="Typo.subtitle2" Class="mb-4">Organization Details</MudText>
         <MudGrid>
             <MudItem xs="12" sm="6">
                 <MudTextField @bind-Value="_name"
                               Label="Organization Name"
                               Required="true"
                               RequiredError="Name is required"
-                              For="@(() => _name)" />
+                              For="@(() => _name)"
+                              @oninput="@(() => AutoGenerateSlug())" />
             </MudItem>
             <MudItem xs="12" sm="6">
                 <MudTextField @bind-Value="_slug"
@@ -24,12 +26,48 @@
                               Required="true"
                               RequiredError="Slug is required"
                               HelperText="Lowercase letters, numbers, and hyphens only"
-                              For="@(() => _slug)" />
+                              For="@(() => _slug)"
+                              @oninput="@(() => _slugManuallyEdited = true)" />
             </MudItem>
             <MudItem xs="12">
                 <MudTextField @bind-Value="_databaseName"
                               Label="Database Name (optional)"
                               HelperText="Leave empty to use the shared tenant database. Provide a name to create a dedicated database." />
+            </MudItem>
+        </MudGrid>
+
+        <MudText Typo="Typo.subtitle2" Class="mb-4 mt-6">Owner Details</MudText>
+        <MudGrid>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="_ownerFirstName"
+                              Label="Owner First Name"
+                              Required="true"
+                              RequiredError="Owner first name is required"
+                              For="@(() => _ownerFirstName)" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="_ownerLastName"
+                              Label="Owner Last Name"
+                              Required="true"
+                              RequiredError="Owner last name is required"
+                              For="@(() => _ownerLastName)" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_ownerEmail"
+                              Label="Owner Email"
+                              Required="true"
+                              RequiredError="Owner email is required"
+                              Validation="@(new Func<string, string?>(v => string.IsNullOrWhiteSpace(v) || v.Contains('@') ? null : "Enter a valid email"))"
+                              For="@(() => _ownerEmail)" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_ownerPassword"
+                              Label="Owner Password"
+                              InputType="InputType.Password"
+                              Required="true"
+                              RequiredError="Owner password is required"
+                              HelperText="Minimum 6 characters"
+                              For="@(() => _ownerPassword)" />
             </MudItem>
         </MudGrid>
 
@@ -45,6 +83,9 @@
     {
         <MudAlert Severity="Severity.Success" Class="mt-6" Variant="Variant.Filled">
             <MudText Typo="Typo.body1">Organization "@_createdOrg.Name" created successfully!</MudText>
+            <MudText Typo="Typo.body2" Class="mt-2">
+                Owner "@_ownerFirstName @_ownerLastName" (@_ownerEmail) has been created and assigned as Owner.
+            </MudText>
             @if (_createdOrg.ConnectionString is not null)
             {
                 <MudText Typo="Typo.body2" Class="mt-2">A dedicated database has been provisioned and seeded.</MudText>
@@ -66,8 +107,28 @@
     private string _name = string.Empty;
     private string _slug = string.Empty;
     private string? _databaseName;
+    private bool _slugManuallyEdited;
+
+    private string _ownerEmail = string.Empty;
+    private string _ownerPassword = string.Empty;
+    private string _ownerFirstName = string.Empty;
+    private string _ownerLastName = string.Empty;
 
     private OrganizationDto? _createdOrg;
+
+    private void AutoGenerateSlug()
+    {
+        if (_slugManuallyEdited) return;
+
+        _slug = string.IsNullOrWhiteSpace(_name)
+            ? string.Empty
+            : _name.ToLowerInvariant()
+                .Replace(" ", "-")
+                .Replace(".", "-")
+                .Replace("_", "-")
+                .Replace("--", "-")
+                .Trim('-');
+    }
 
     private async Task SaveAsync()
     {
@@ -83,11 +144,14 @@
             {
                 Name = _name,
                 Slug = _slug.ToLowerInvariant(),
-                DatabaseName = string.IsNullOrWhiteSpace(_databaseName) ? null : _databaseName.Trim()
+                DatabaseName = string.IsNullOrWhiteSpace(_databaseName) ? null : _databaseName.Trim(),
+                OwnerEmail = _ownerEmail,
+                OwnerPassword = _ownerPassword,
+                OwnerFirstName = _ownerFirstName,
+                OwnerLastName = _ownerLastName
             };
 
-            var userId = ""; // server-side resolves from JWT
-            _createdOrg = await OrgService.CreateAsync(request, userId);
+            _createdOrg = await OrgService.CreateAsync(request, "");
             Snackbar.Add("Organization created successfully.", Severity.Success);
         }
         catch (Exception ex)
