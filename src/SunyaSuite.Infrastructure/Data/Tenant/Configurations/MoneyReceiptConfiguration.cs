@@ -22,7 +22,7 @@ public class MoneyReceiptConfiguration : IEntityTypeConfiguration<MoneyReceipt>
         builder.Property(x => x.PaymentMethod).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(x => x.ReferenceNo).HasMaxLength(100);
         builder.Property(x => x.ReceivedBy).HasMaxLength(200);
-        builder.Property(x => x.RowVersion).IsRowVersion().IsRequired();
+        builder.Property(x => x.RowVersion).IsConcurrencyToken().IsRequired();
         builder.Property(x => x.SellerLogoBase64).HasColumnType("text");
         builder.Property(x => x.IsDeleted).IsRequired();
         builder.Property(x => x.DeletedAt);

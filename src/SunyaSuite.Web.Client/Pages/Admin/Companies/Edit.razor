@@ -57,6 +57,38 @@ else
                 </MudItem>
             </MudGrid>
 
+            <MudGrid Class="mt-4">
+                <MudItem xs="12">
+                    <MudText Typo="Typo.h6" Class="mb-2">Company Logo</MudText>
+                    <div class="d-flex align-start gap-4">
+                        <div>
+                            @if (!string.IsNullOrEmpty(_logoPreview))
+                            {
+                                <img src="@_logoPreview" alt="Logo preview" style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; border-radius: 4px;" />
+                            }
+                            else if (!string.IsNullOrEmpty(_existingLogo))
+                            {
+                                <img src="@_existingLogo" alt="Current logo" style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; border-radius: 4px;" />
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.body2" Class="text-secondary">No logo uploaded</MudText>
+                            }
+                        </div>
+                        <div class="d-flex flex-column gap-2">
+                            <InputFile OnChange="@OnLogoSelected"
+                                       accept=".png,.jpg,.jpeg,.gif,.webp" />
+                            <MudText Typo="Typo.caption" Class="text-secondary">PNG, JPG, GIF, or WebP (max 2 MB)</MudText>
+                            @if (!string.IsNullOrEmpty(_logoPreview) || !string.IsNullOrEmpty(_existingLogo))
+                            {
+                                <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small"
+                                           OnClick="@ClearLogo">Remove Logo</MudButton>
+                            }
+                        </div>
+                    </div>
+                </MudItem>
+            </MudGrid>
+
             <FormActions SaveLabel="Save Changes"
                          CancelHref="/admin/companies"
                          Disabled="@(!_isValid)"
@@ -82,6 +114,10 @@ else
     private string _address = string.Empty;
     private string? _panNumber;
     private bool _isActive = true;
+    private string? _existingLogo;
+    private string? _logoPreview;
+    private string? _logoBase64;
+    private bool _logoCleared;
 
     protected override async Task OnInitializedAsync()
     {
@@ -102,6 +138,7 @@ else
                 _address = company.Address;
                 _panNumber = company.PanNumber;
                 _isActive = company.IsActive;
+                _existingLogo = company.LogoBase64;
             }
         }
         catch
@@ -114,10 +151,37 @@ else
         }
     }
 
+    private async Task OnLogoSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.GetMultipleFiles(1).FirstOrDefault();
+        if (file is null) return;
+
+        const int maxSize = 2 * 1024 * 1024;
+        if (file.Size > maxSize)
+        {
+            Snackbar.Add("Logo must be under 2 MB.", Severity.Error);
+            return;
+        }
+
+        using var ms = new MemoryStream();
+        await file.OpenReadStream(maxSize).CopyToAsync(ms);
+        _logoBase64 = $"data:{file.ContentType};base64,{Convert.ToBase64String(ms.ToArray())}";
+        _logoPreview = _logoBase64;
+    }
+
+    private void ClearLogo()
+    {
+        _logoBase64 = null;
+        _logoPreview = null;
+        _logoCleared = true;
+    }
+
     private async Task SaveAsync()
     {
         await _form.ValidateAsync();
         if (!_isValid) return;
+
+        var logo = _logoCleared ? null : _logoBase64 ?? _existingLogo;
 
         var request = new UpdateCompanyRequest(
             Id,
@@ -127,7 +191,8 @@ else
             _address.Trim(),
             _phone.Trim(),
             _panNumber?.Trim(),
-            _isActive);
+            _isActive,
+            logo);
 
         try
         {

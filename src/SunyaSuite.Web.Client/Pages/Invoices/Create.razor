@@ -3,7 +3,6 @@
 @inject IInvoiceService InvoiceService
 @inject IClientService ClientService
 @inject IProjectService ProjectService
-@inject IBusinessProfileService BusinessProfileService
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 
@@ -201,7 +200,6 @@ else
 
     private List<ClientOptionDto> _clients = [];
     private Guid _selectedClientId;
-    private Guid? _businessProfileId;
     private DateTime? _dueDate = DateTime.UtcNow.AddDays(30);
     private BillType _billType = BillType.VatBill;
     private bool _isAbbreviated;
@@ -222,9 +220,6 @@ else
         try
         {
             _clients = await ClientService.GetClientOptionsAsync();
-
-            var profile = await BusinessProfileService.GetDefaultAsync();
-            _businessProfileId = profile?.Id;
 
             AddItem();
         }
@@ -275,7 +270,6 @@ else
             _isAbbreviated,
             _buyerPan,
             _buyerAddress,
-            _businessProfileId,
             _selectedProjectId,
             string.IsNullOrWhiteSpace(_projectRemark) ? null : _projectRemark,
             _items

@@ -58,7 +58,7 @@ public static class DependencyInjection
         services.AddScoped<INotificationPreferenceService, NotificationPreferenceService>();
         services.AddScoped<INepaliDateService, NepaliDateService>();
         services.AddScoped<IUserPreferenceService, UserPreferenceService>();
-        services.AddScoped<IBusinessProfileService, BusinessProfileService>();
+
         services.AddScoped<INumberToWordsService, NumberToWordsService>();
         services.AddScoped<IFiscalYearService, FiscalYearService>();
         services.AddScoped<ICompanyService, CompanyService>();

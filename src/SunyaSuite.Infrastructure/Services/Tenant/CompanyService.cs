@@ -137,6 +137,7 @@ public class CompanyService : ICompanyService
         company.Phone = request.Phone;
         company.PanNumber = request.PanNumber ?? string.Empty;
         company.IsActive = request.IsActive;
+        company.LogoBase64 = request.LogoBase64;
 
         await context.SaveChangesAsync(ct);
 
@@ -144,5 +145,5 @@ public class CompanyService : ICompanyService
     }
 
     private static CompanyDto MapToDto(Company c) => new(
-        c.Id, c.Name, c.Slug, c.Email, c.Address, c.Phone, c.PanNumber, c.IsActive, c.CreatedAt, c.IsDeleted, c.DeletedAt);
+        c.Id, c.Name, c.Slug, c.Email, c.Address, c.Phone, c.PanNumber, c.IsActive, c.CreatedAt, c.IsDeleted, c.DeletedAt, c.LogoBase64);
 }

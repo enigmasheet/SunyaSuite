@@ -103,7 +103,6 @@ public class MenuController : ControllerBase
             Items =
             [
                 new MenuItemDto { Label = "Notifications", Icon = "Notifications", Href = "/account/notifications" },
-                new MenuItemDto { Label = "Business Profile", Icon = "Business", Href = "/settings/business-profile" },
                 new MenuItemDto { Label = "Settings", Icon = "Settings", Href = "/Account/Manage" },
             ]
         });

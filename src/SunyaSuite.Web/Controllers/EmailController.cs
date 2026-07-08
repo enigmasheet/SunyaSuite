@@ -25,4 +25,24 @@ public class EmailController : ControllerBase
         await _emailService.SendAsync(request.To, request.Subject, request.HtmlBody, ct);
         return NoContent();
     }
+
+    [HttpPost("with-attachment")]
+    public async Task<ActionResult> SendWithAttachment(CancellationToken ct = default)
+    {
+        var file = Request.Form.Files.GetFile("attachment");
+        if (file is null)
+            return BadRequest("Attachment file is required.");
+
+        var to = Request.Form["to"].FirstOrDefault();
+        var subject = Request.Form["subject"].FirstOrDefault();
+        var htmlBody = Request.Form["htmlBody"].FirstOrDefault();
+
+        if (string.IsNullOrWhiteSpace(to) || string.IsNullOrWhiteSpace(subject))
+            return BadRequest("To and subject are required.");
+
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms, ct);
+        await _emailService.SendWithAttachmentAsync(to, subject, htmlBody ?? "", file.FileName, ms.ToArray(), ct);
+        return NoContent();
+    }
 }

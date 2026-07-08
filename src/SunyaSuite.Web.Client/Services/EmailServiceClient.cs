@@ -29,7 +29,7 @@ public class EmailServiceClient : IEmailService
             { new StringContent(htmlBody), "htmlBody" },
             { new ByteArrayContent(attachmentBytes), "attachment", attachmentName }
         };
-        var response = await _http.PostAsync(ApiEndpoints.Email, formData, ct);
+        var response = await _http.PostAsync($"{ApiEndpoints.Email}/with-attachment", formData, ct);
         response.EnsureSuccessStatusCode();
     }
 }

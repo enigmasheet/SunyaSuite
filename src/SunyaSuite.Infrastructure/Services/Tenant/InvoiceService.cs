@@ -20,7 +20,6 @@ public class InvoiceService : IInvoiceService
     private readonly IClientStatusCalculator _statusCalculator;
     private readonly INepaliDateService _nepaliDateService;
     private readonly INumberToWordsService _numberToWordsService;
-    private readonly IBusinessProfileService _businessProfileService;
     private readonly IFiscalYearService _fiscalYearService;
     private readonly VatSettings _vatSettings;
     private readonly ITenantContext _tenantContext;
@@ -32,7 +31,6 @@ public class InvoiceService : IInvoiceService
         IClientStatusCalculator statusCalculator,
         INepaliDateService nepaliDateService,
         INumberToWordsService numberToWordsService,
-        IBusinessProfileService businessProfileService,
         IFiscalYearService fiscalYearService,
         IOptions<VatSettings> vatSettings,
         ITenantContext tenantContext,
@@ -44,7 +42,6 @@ public class InvoiceService : IInvoiceService
         _timeProvider = timeProvider;
         _nepaliDateService = nepaliDateService;
         _numberToWordsService = numberToWordsService;
-        _businessProfileService = businessProfileService;
         _fiscalYearService = fiscalYearService;
         _vatSettings = vatSettings.Value;
         _tenantContext = tenantContext;
@@ -166,13 +163,12 @@ public class InvoiceService : IInvoiceService
         if (!fy.IsOpen)
             throw new InvalidOperationException($"Fiscal year {fy.YearName} is closed. Cannot create invoices.");
 
-        var businessProfile = request.BusinessProfileId.HasValue
-            ? await _businessProfileService.GetDefaultAsync(ct)
-            : null;
-
         var vatRate = await GetVatRateAsync(ct);
 
         var companyId = await GetRequiredCompanyIdAsync(ct);
+
+        var company = await context.Companies.AsNoTracking()
+            .FirstAsync(c => c.Id == companyId, ct);
 
         var invoice = new Invoice
         {
@@ -194,11 +190,11 @@ public class InvoiceService : IInvoiceService
             ProjectRemark = request.ProjectRemark,
             BuyerPan = request.BuyerPan,
             BuyerAddress = request.BuyerAddress,
-            SellerName = businessProfile?.BusinessName ?? "",
-            SellerPan = businessProfile?.PanNumber ?? "",
-            SellerAddress = businessProfile?.Address ?? "",
-            SellerPhone = businessProfile?.Phone ?? "",
-            SellerLogoBase64 = businessProfile?.LogoBase64
+            SellerName = company.Name,
+            SellerPan = company.PanNumber,
+            SellerAddress = company.Address,
+            SellerPhone = company.Phone,
+            SellerLogoBase64 = company.LogoBase64
         };
 
         invoice.Items = request.Items.Select((item, idx) => new InvoiceItem
@@ -484,7 +480,7 @@ public class InvoiceService : IInvoiceService
             $"CREATE SEQUENCE IF NOT EXISTS \"{sequenceName}\" START 1");
 
         var nextSeq = await context.Database
-            .SqlQueryRaw<long>($"SELECT nextval('\"{sequenceName}\"')")
+            .SqlQueryRaw<long>($"SELECT nextval('\"{sequenceName}\"') AS \"Value\"")
             .FirstAsync();
 #pragma warning restore EF1002
 

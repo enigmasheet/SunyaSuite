@@ -10,7 +10,6 @@ public sealed record CreateInvoiceRequest(
     bool IsAbbreviated,
     string BuyerPan,
     string BuyerAddress,
-    Guid? BusinessProfileId,
     Guid? ProjectId,
     string? ProjectRemark,
     List<InvoiceItemDto> Items);

@@ -15,6 +15,7 @@ public class CompanyConfiguration : IEntityTypeConfiguration<Company>
         builder.Property(x => x.Address).HasMaxLength(500);
         builder.Property(x => x.Phone).HasMaxLength(50);
         builder.Property(x => x.PanNumber).HasMaxLength(15);
+        builder.Property(x => x.LogoBase64).HasColumnType("text");
         builder.HasIndex(x => x.Slug).IsUnique();
         builder.HasMany(x => x.Branches)
             .WithOne(x => x.Company)

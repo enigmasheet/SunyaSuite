@@ -28,7 +28,7 @@ public class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         builder.Property(x => x.SellerPhone).HasMaxLength(50);
         builder.Property(x => x.SellerLogoBase64).HasColumnType("text");
         builder.Property(x => x.AmountPaid).HasPrecision(18, 2);
-        builder.Property(x => x.RowVersion).IsRowVersion().IsRequired();
+        builder.Property(x => x.RowVersion).IsConcurrencyToken().IsRequired();
 
         builder.Property(x => x.BillType)
             .HasConversion<int>();
