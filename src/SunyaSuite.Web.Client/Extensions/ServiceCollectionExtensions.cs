@@ -55,6 +55,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddAppServiceClients(this IServiceCollection services)
     {
         // Config service clients
+        RegisterClientService<ISystemDashboardService, SystemDashboardServiceClient>(services);
         RegisterClientService<IUserService, UserServiceClient>(services);
         RegisterClientService<IAuditService, AuditServiceClient>(services);
         RegisterClientService<IUserPreferenceService, UserPreferenceServiceClient>(services);

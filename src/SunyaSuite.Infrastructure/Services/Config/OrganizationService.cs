@@ -194,6 +194,9 @@ public class OrganizationService : IOrganizationService
         if (await configDb.Organizations.AnyAsync(o => o.Slug == request.Slug))
             throw new InvalidOperationException($"Organization with slug '{request.Slug}' already exists.");
 
+        if (await configDb.Users.AnyAsync(u => u.Email == request.OwnerEmail))
+            throw new InvalidOperationException($"User with email '{request.OwnerEmail}' already exists.");
+
         string? connectionString = null;
         if (!string.IsNullOrEmpty(request.DatabaseName))
         {
@@ -206,6 +209,22 @@ public class OrganizationService : IOrganizationService
 
             await CreateDatabaseFromTemplateAsync(templateConnStr, templateDbName, dbName);
         }
+
+        var ownerUser = new ApplicationUser
+        {
+            UserName = request.OwnerEmail,
+            Email = request.OwnerEmail,
+            FirstName = request.OwnerFirstName,
+            LastName = request.OwnerLastName,
+            CreatedAt = _timeProvider.GetUtcNow().UtcDateTime
+        };
+
+        var createResult = await _userManager.CreateAsync(ownerUser, request.OwnerPassword);
+        if (!createResult.Succeeded)
+            throw new InvalidOperationException(string.Join("; ", createResult.Errors.Select(e => e.Description)));
+
+        var confirmToken = await _userManager.GenerateEmailConfirmationTokenAsync(ownerUser);
+        await _userManager.ConfirmEmailAsync(ownerUser, confirmToken);
 
         var org = new Organization
         {
@@ -223,8 +242,17 @@ public class OrganizationService : IOrganizationService
         {
             Id = Guid.NewGuid(),
             OrganizationId = org.Id,
-            UserId = adminUserId,
+            UserId = ownerUser.Id,
             Role = OrgRoles.Owner,
+            JoinedAt = _timeProvider.GetUtcNow().UtcDateTime
+        });
+
+        configDb.OrganizationUsers.Add(new OrganizationUser
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = org.Id,
+            UserId = adminUserId,
+            Role = OrgRoles.OrgAdmin,
             JoinedAt = _timeProvider.GetUtcNow().UtcDateTime
         });
 

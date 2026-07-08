@@ -91,6 +91,7 @@ public class MenuController : ControllerBase
                     new MenuItemDto { Label = "Users", Icon = "Person", Href = "/users" },
                     new MenuItemDto { Label = "Trash", Icon = "DeleteSweep", Href = "/trash" },
                     new MenuItemDto { Label = "Organizations", Icon = "Business", Href = "/admin/organizations" },
+                    new MenuItemDto { Label = "Dashboard", Icon = "Dashboard", Href = "/admin/dashboard" },
                     new MenuItemDto { Label = "Roles", Icon = "Badge", Href = "/admin/roles" },
                 ]
             });

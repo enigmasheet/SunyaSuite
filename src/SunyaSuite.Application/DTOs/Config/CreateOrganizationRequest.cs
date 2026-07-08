@@ -15,4 +15,21 @@ public class CreateOrganizationRequest
 
     [MaxLength(200)]
     public string? DatabaseName { get; set; }
+
+    [Required]
+    [EmailAddress]
+    [MaxLength(256)]
+    public string OwnerEmail { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(100, MinimumLength = 6)]
+    public string OwnerPassword { get; set; } = string.Empty;
+
+    [Required]
+    [MaxLength(100)]
+    public string OwnerFirstName { get; set; } = string.Empty;
+
+    [Required]
+    [MaxLength(100)]
+    public string OwnerLastName { get; set; } = string.Empty;
 }

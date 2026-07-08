@@ -28,8 +28,12 @@ public class OrganizationServiceClient : IOrganizationService
     public async Task<OrganizationDto?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
         await _http.GetFromJsonAsync<OrganizationDto>($"{ApiEndpoints.Organizations}/{id}", ct);
 
-    public Task<OrganizationDto> CreateAsync(CreateOrganizationRequest request, string adminUserId) =>
-        throw new NotSupportedException("Create is only supported server-side.");
+    public async Task<OrganizationDto> CreateAsync(CreateOrganizationRequest request, string adminUserId)
+    {
+        var response = await _http.PostAsJsonAsync(ApiEndpoints.Organizations, request);
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<OrganizationDto>())!;
+    }
 
     public Task<List<OrganizationUserDto>> GetUserOrganizationsAsync(string userId, CancellationToken ct = default) =>
         throw new NotSupportedException("Use GetOrgUsersAsync from client side.");
