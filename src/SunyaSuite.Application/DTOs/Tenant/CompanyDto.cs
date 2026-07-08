@@ -11,7 +11,8 @@ public sealed record CompanyDto(
     bool IsActive,
     DateTime CreatedAt,
     bool IsDeleted = false,
-    DateTime? DeletedAt = null);
+    DateTime? DeletedAt = null,
+    string? LogoBase64 = null);
 
 public sealed record CreateCompanyRequest(
     string Name,
@@ -29,4 +30,5 @@ public sealed record UpdateCompanyRequest(
     string Address,
     string Phone,
     string? PanNumber,
-    bool IsActive);
+    bool IsActive,
+    string? LogoBase64 = null);

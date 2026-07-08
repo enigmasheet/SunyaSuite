@@ -21,6 +21,19 @@ else if (_company is null)
 else
 {
     <MudGrid>
+        <MudItem xs="12" md="4">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6 mb-4">
+                <MudText Typo="Typo.h6" Class="mb-4">Company Logo</MudText>
+                @if (!string.IsNullOrEmpty(_company.LogoBase64))
+                {
+                    <img src="@_company.LogoBase64" alt="Company logo" style="max-width: 100%; max-height: 250px; border: 1px solid #ddd; border-radius: 4px;" />
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Class="text-secondary">No logo uploaded.</MudText>
+                }
+            </MudPaper>
+        </MudItem>
         <MudItem xs="12" md="8">
             <MudPaper Elevation="0" Outlined="true" Class="pa-6 mb-4">
                 <div class="d-flex justify-space-between align-center mb-4">

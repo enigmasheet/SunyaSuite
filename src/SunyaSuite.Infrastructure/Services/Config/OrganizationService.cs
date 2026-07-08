@@ -8,6 +8,8 @@ using SunyaSuite.Application.Settings;
 using SunyaSuite.Domain.Entities.Config;
 using SunyaSuite.Domain.Enums;
 using SunyaSuite.Infrastructure.Data.Config;
+using SunyaSuite.Infrastructure.Data.Tenant;
+using SunyaSuite.Infrastructure.DataSeeding;
 using System.Text.RegularExpressions;
 
 namespace SunyaSuite.Infrastructure.Services.Config;
@@ -198,6 +200,7 @@ public class OrganizationService : IOrganizationService
             throw new InvalidOperationException($"User with email '{request.OwnerEmail}' already exists.");
 
         string? connectionString = null;
+        string? createdDbName = null;
         if (!string.IsNullOrEmpty(request.DatabaseName))
         {
             var templateConnStr = _databaseSettings.TemplateConnection
@@ -206,6 +209,7 @@ public class OrganizationService : IOrganizationService
             var templateDbName = ExtractDatabaseName(templateConnStr);
             var dbName = SanitizeDatabaseName(request.DatabaseName);
             connectionString = BuildConnectionString(templateConnStr, dbName);
+            createdDbName = dbName;
 
             await CreateDatabaseFromTemplateAsync(templateConnStr, templateDbName, dbName);
         }
@@ -256,7 +260,28 @@ public class OrganizationService : IOrganizationService
             JoinedAt = _timeProvider.GetUtcNow().UtcDateTime
         });
 
-        await configDb.SaveChangesAsync();
+        try
+        {
+            await configDb.SaveChangesAsync();
+        }
+        catch
+        {
+            await _userManager.DeleteAsync(ownerUser);
+            if (createdDbName is not null)
+                await DropDatabaseIfExistsAsync(connectionString!);
+            throw;
+        }
+
+        if (connectionString is not null)
+        {
+            var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
+            optionsBuilder.UseNpgsql(connectionString, npgsqlOptions =>
+                npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(10), errorCodesToAdd: null));
+
+            await using var tenantDb = new ApplicationDbContext(optionsBuilder.Options, _timeProvider);
+            await tenantDb.Database.MigrateAsync();
+            await SeedData.SeedTenantDataAsync(tenantDb);
+        }
 
         return new OrganizationDto
         {
@@ -470,5 +495,28 @@ public class OrganizationService : IOrganizationService
         await using var createCmd = conn.CreateCommand();
         createCmd.CommandText = $@"CREATE DATABASE ""{databaseName}"" WITH TEMPLATE ""{templateDbName}"" ENCODING 'UTF8'";
         await createCmd.ExecuteNonQueryAsync();
+    }
+
+    private static async Task DropDatabaseIfExistsAsync(string connectionString)
+    {
+        var builder = new NpgsqlConnectionStringBuilder(connectionString);
+        var dbName = builder.Database!;
+        builder.Database = "postgres";
+
+        await using var conn = new NpgsqlConnection(builder.ConnectionString);
+        await conn.OpenAsync();
+
+        await using var termCmd = conn.CreateCommand();
+        termCmd.CommandText = @"
+            SELECT pg_terminate_backend(pg_stat_activity.pid)
+            FROM pg_stat_activity
+            WHERE pg_stat_activity.datname = @name
+              AND pid <> pg_backend_pid();";
+        termCmd.Parameters.AddWithValue("name", dbName);
+        await termCmd.ExecuteNonQueryAsync();
+
+        await using var dropCmd = conn.CreateCommand();
+        dropCmd.CommandText = $@"DROP DATABASE IF EXISTS ""{dbName}""";
+        await dropCmd.ExecuteNonQueryAsync();
     }
 }

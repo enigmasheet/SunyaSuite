@@ -12,7 +12,6 @@ internal static class ApiEndpoints
     public const string Audit = "api/audit";
     public const string UserPreferences = "api/user-preferences";
     public const string NotificationPreferences = "api/notification-preferences";
-    public const string BusinessProfile = "api/business-profile";
     public const string InvoicePdf = "api/invoice-pdf";
     public const string ReceiptPdf = "api/receipt-pdf";
     public const string Export = "api/export";

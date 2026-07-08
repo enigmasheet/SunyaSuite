@@ -13,6 +13,7 @@ public class Company
     public DateTime CreatedAt { get; set; }
     public bool IsDeleted { get; set; }
     public DateTime? DeletedAt { get; set; }
+    public string? LogoBase64 { get; set; }
 
     public ICollection<Branch> Branches { get; set; } = new List<Branch>();
 }

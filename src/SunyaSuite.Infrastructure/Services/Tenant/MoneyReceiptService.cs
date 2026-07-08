@@ -19,7 +19,6 @@ public class MoneyReceiptService : IMoneyReceiptService
     private readonly INumberToWordsService _numberToWordsService;
     private readonly IClientStatusCalculator _statusCalculator;
     private readonly IFiscalYearService _fiscalYearService;
-    private readonly IBusinessProfileService _businessProfileService;
     private readonly ITenantContext _tenantContext;
     private readonly TimeProvider _timeProvider;
 
@@ -30,7 +29,6 @@ public class MoneyReceiptService : IMoneyReceiptService
         INumberToWordsService numberToWordsService,
         IClientStatusCalculator statusCalculator,
         IFiscalYearService fiscalYearService,
-        IBusinessProfileService businessProfileService,
         ITenantContext tenantContext,
         TimeProvider timeProvider)
     {
@@ -41,7 +39,6 @@ public class MoneyReceiptService : IMoneyReceiptService
         _timeProvider = timeProvider;
         _statusCalculator = statusCalculator;
         _fiscalYearService = fiscalYearService;
-        _businessProfileService = businessProfileService;
         _tenantContext = tenantContext;
     }
 
@@ -152,6 +149,9 @@ public class MoneyReceiptService : IMoneyReceiptService
 
         var companyId = await GetRequiredCompanyIdAsync(ct);
 
+        var company = await context.Companies.AsNoTracking()
+            .FirstAsync(c => c.Id == companyId, ct);
+
         var receipt = new MoneyReceipt
         {
             Id = Guid.NewGuid(),
@@ -169,7 +169,7 @@ public class MoneyReceiptService : IMoneyReceiptService
             PaymentMethod = request.PaymentMethod,
             ReferenceNo = request.ReferenceNo,
             ReceivedBy = await GetCurrentUserNameAsync(),
-            SellerLogoBase64 = (await _businessProfileService.GetDefaultAsync(ct))?.LogoBase64
+            SellerLogoBase64 = company.LogoBase64
         };
 
         for (int i = 0; i < request.InvoiceIds.Length; i++)

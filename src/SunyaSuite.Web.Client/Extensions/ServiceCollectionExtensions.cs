@@ -70,7 +70,7 @@ public static class ServiceCollectionExtensions
         RegisterClientService<IFiscalYearService, FiscalYearServiceClient>(services);
         RegisterClientService<IDashboardService, DashboardServiceClient>(services);
         RegisterClientService<INotificationPreferenceService, NotificationPreferenceServiceClient>(services);
-        RegisterClientService<IBusinessProfileService, BusinessProfileServiceClient>(services);
+
         RegisterClientService<IInvoicePdfService, InvoicePdfServiceClient>(services);
         RegisterClientService<IReceiptPdfService, ReceiptPdfServiceClient>(services);
         RegisterClientService<IExportService, ExportServiceClient>(services);

@@ -160,7 +160,7 @@ public static class SeedData
         }
     }
 
-    private static async Task SeedTenantDataAsync(ApplicationDbContext context)
+    public static async Task SeedTenantDataAsync(ApplicationDbContext context)
     {
         var company = await EnsureDefaultCompanyAsync(context);
         await SeedFiscalYearsAsync(context, company);

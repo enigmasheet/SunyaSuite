@@ -22,7 +22,6 @@ public class ApplicationDbContext : DbContext
     public DbSet<MoneyReceipt> MoneyReceipts => Set<MoneyReceipt>();
     public DbSet<ReceiptInvoiceAllocation> ReceiptInvoiceAllocations => Set<ReceiptInvoiceAllocation>();
     public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
-    public DbSet<BusinessProfile> BusinessProfiles => Set<BusinessProfile>();
     public DbSet<FiscalYear> FiscalYears => Set<FiscalYear>();
     public DbSet<Invite> Invites => Set<Invite>();
 
