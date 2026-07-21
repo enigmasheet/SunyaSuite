@@ -2,7 +2,7 @@ using SunyaSuite.Application.Interfaces.Tenant;
 using SunyaSuite.Domain.Entities.Tenant;
 using SunyaSuite.Domain.Enums;
 
-namespace SunyaSuite.Application.Services.Tenant;
+namespace SunyaSuite.Infrastructure.Services.Tenant;
 
 public class ClientStatusCalculator : IClientStatusCalculator
 {

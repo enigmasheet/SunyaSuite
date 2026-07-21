@@ -1,14 +1,3 @@
-<style>
-@page {
-    @bottom-right {
-        content: counter(page);
-        font-size: 10pt;
-        color: #555;
-        font-family: "Times New Roman", Times, serif;
-    }
-}
-</style>
-
 ## PROJECT SYNOPSIS
 
 ---
@@ -17,13 +6,11 @@
 
 **Course:** Master of Computer Science
 
-<div align="center">**Multi-Tenant Client Management and Billing System Using Blazor and ASP.NET Core**</div>
+**Multi-Tenant Client Management and Billing System Using Blazor and ASP.NET Core**
 
 **Keywords:** Multi-tenancy; Blazor Server; Invoice Management; Clean Architecture; Nepali Fiscal Year; Entity Framework Core; PostgreSQL
 
 ---
-
-<div style="page-break-after: always;"></div>
 
 ### Introduction
 
@@ -67,6 +54,7 @@ To develop a comprehensive, multi-tenant client management and billing system th
 SunyaSuite is a web-based, multi-tenant billing and client management platform. The system encompasses the complete lifecycle of client engagement: client registration with traffic-light health tracking, project assignment with progress monitoring, invoice generation with VAT and non-VAT billing options, payment receipting with multi-invoice allocation, automated overdue detection and email notification, and audit logging of all data mutations. The system supports both the Gregorian (AD) and Nepali Bikram Sambat (BS) calendar systems for fiscal year management.
 
 **Included:**
+
 - Multi-tenant organization management with per-tenant database isolation.
 - Company and branch entity management within each organization.
 - Full client CRUD with cascading soft-delete across related projects and invoices.
@@ -80,6 +68,7 @@ SunyaSuite is a web-based, multi-tenant billing and client management platform. 
 - Role-based access control (SystemAdmin, SystemStaff, OrgOwner, OrgAdmin, OrgMember).
 
 **Excluded:**
+
 - Mobile application (iOS/Android) — the system is designed for desktop browser access.
 - Real-time payment gateway integration — payments are recorded manually as receipts.
 - Inventory or stock management functionality.
@@ -87,6 +76,7 @@ SunyaSuite is a web-based, multi-tenant billing and client management platform. 
 - Direct bank reconciliation or general ledger integration.
 
 **Intended Users:**
+
 - System administrators responsible for managing organizations and user accounts.
 - Organization owners and administrators who configure companies, branches, and fiscal years.
 - Organization members (staff) who perform day-to-day client, project, invoice, and receipt management.
@@ -128,6 +118,7 @@ The design of SunyaSuite draws on six overlapping bodies of literature: multi-te
 The project follows an iterative development methodology grounded in Agile principles. The system was constructed incrementally across distinct feature phases: (1) foundation, authentication, and data model; (2) client CRUD and traffic-light status; (3) project tracking; (4) invoicing with line items; (5) PDF generation, dashboard, and background services; (6) reports, audit logging, and email; and (7) testing and hardening. Each phase delivered a working, testable increment before proceeding to the subsequent phase. This approach facilitated continuous feedback integration and mitigated the integration risk commonly associated with waterfall-style development.
 
 **Programming Language and Frameworks:**
+
 - **Language:** C# 13 (.NET 10 SDK 10.0.301) with nullable reference types and implicit usings enabled.
 - **Frontend Framework:** Blazor Server with MudBlazor 9.6 component library for the user interface.
 - **Backend Framework:** ASP.NET Core 10 with controller-based REST endpoints and JWT Bearer token authentication.
@@ -152,7 +143,7 @@ The project follows an iterative development methodology grounded in Agile princ
 #### Hardware Requirements
 
 | Component | Minimum Specification |
-|---|---|
+| --- | --- |
 | Processor | Intel Core i3 (10th generation or higher) / AMD equivalent |
 | RAM | 4 GB (8 GB recommended for concurrent multi-user access) |
 | Storage | 128 GB free disk space (SSD strongly recommended) |
@@ -163,7 +154,7 @@ For production server deployment, a cloud-based virtual machine with 2 virtual C
 #### Software Requirements
 
 | Component | Specification |
-|---|---|
+| --- | --- |
 | Operating System | Windows 10/11, Windows Server 2019 or later, Ubuntu 22.04 LTS or later, or macOS 13 Ventura or later |
 | Runtime Environment | .NET 10 Runtime (SDK 10.0.301 for development) |
 | Database Management System | PostgreSQL 16 or later |
@@ -176,23 +167,29 @@ For production server deployment, a cloud-based virtual machine with 2 virtual C
 
 ### System Architecture and System Design
 
-**Figure 1 — Clean Architecture Layer Diagram (UML Package Notation)**
-*[Placeholder: Insert Figure 1 — Clean Architecture Layer Diagram here]*
+**Figure 1 — Clean Architecture Layer Diagram**
 
-**Figure 2 — Three-Tier Deployment Architecture (UML Deployment Diagram)**
-*[Placeholder: Insert Figure 2 — Three-Tier Deployment Architecture here]*
+*\[Placeholder: Insert Figure 1 — Clean Architecture Layer Diagram here\]*
 
-**Figure 3 — Invoice Creation Data Flow (UML Activity Diagram with Swimlanes)**
-*[Placeholder: Insert Figure 3 — Invoice Creation Data Flow Diagram here]*
+**Figure 2 — Three-Tier Deployment Architecture** 
 
-**Figure 4 — Entity-Relationship Diagram (Crow's Foot Notation)**
-*[Placeholder: Insert Figure 4 — Entity-Relationship Diagram here]*
+*\[Placeholder: Insert Figure 2 — Three-Tier Deployment Architecture here\]*
 
-**Figure 5 — Use Case Diagram (UML Notation)**
-*[Placeholder: Insert Figure 5 — Use Case Diagram here]*
+**Figure 3 — Invoice Creation Data Flow**
 
-**Figure 6 — Core Class Diagram (UML Notation)**
-*[Placeholder: Insert Figure 6 — Core Class Diagram here]*
+*\[Placeholder: Insert Figure 3 — Invoice Creation Data Flow Diagram here\]*
+
+**Figure 4 — Entity-Relationship Diagram**
+
+*\[Placeholder: Insert Figure 4 — Entity-Relationship Diagram here\]*
+
+**Figure 5 — Use Case Diagram**
+
+*\[Placeholder: Insert Figure 5 — Use Case Diagram here\]*
+
+**Figure 6 — Core Class Diagram**
+
+*\[Placeholder: Insert Figure 6 — Core Class Diagram here\]*
 
 ---
 
@@ -236,13 +233,13 @@ For production server deployment, a cloud-based virtual machine with 2 virtual C
 ### Project Timeline
 
 | Phase | Week 1–2 | Week 3–4 | Week 5–6 | Week 7–8 | Week 9–10 | Week 11–12 |
-|---|---|---|---|---|---|---|
-| Requirement Analysis | ████████ | | | | | |
-| System Design | | ████████ | | | | |
-| Implementation and Coding | | | ████████ | ████████ | | |
-| Testing and Debugging | | | | | ████████ | |
-| Documentation and Report Writing | | | | | | ████████ |
-| Final Presentation and Submission | | | | | | ████████ |
+| --- | --- | --- | --- | --- | --- | --- |
+| Requirement Analysis | ████████ |  |  |  |  |  |
+| System Design |  | ████████ |  |  |  |  |
+| Implementation and Coding |  |  | ████████ | ████████ |  |  |
+| Testing and Debugging |  |  |  |  | ████████ |  |
+| Documentation and Report Writing |  |  |  |  |  | ████████ |
+| Final Presentation and Submission |  |  |  |  |  | ████████ |
 
 *Figure 7: Twelve-week project timeline indicating the duration and sequencing of major project phases.*
 

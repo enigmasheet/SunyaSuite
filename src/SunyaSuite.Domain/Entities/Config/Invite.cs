@@ -1,9 +1,10 @@
-namespace SunyaSuite.Domain.Entities.Tenant;
+namespace SunyaSuite.Domain.Entities.Config;
 
 public class Invite
 {
     public Guid Id { get; set; }
-    public Guid CompanyId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public Guid? CompanyId { get; set; }
     public string Code { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
     public bool IsUsed { get; set; }

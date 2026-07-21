@@ -184,9 +184,9 @@ public class MoneyReceiptService : IMoneyReceiptService
             receipt.Allocations.Add(allocation);
 
             var invoice = invoices.First(inv => inv.Id == request.InvoiceIds[i]);
-            invoice.AmountPaid += request.AllocatedAmounts[i];
+            invoice.RecordPayment(request.AllocatedAmounts[i]);
 
-            if (invoice.AmountPaid >= invoice.Total && invoice.Status != InvoiceStatus.Paid)
+            if (invoice.IsFullyPaid && invoice.Status != InvoiceStatus.Paid)
             {
                 invoice.Status = InvoiceStatus.Paid;
 
@@ -202,6 +202,119 @@ public class MoneyReceiptService : IMoneyReceiptService
 
         AuditLogHelper.Add(context, companyId, userId, "MoneyReceiptCreated", "MoneyReceipt", receipt.Id.ToString(),
             $"{receipt.ReceiptNumber}: {totalAmount:C} via {request.PaymentMethod}", _timeProvider);
+
+        await context.SaveChangesAsync(ct);
+
+        await context.Entry(receipt).Reference(r => r.FiscalYearInfo).LoadAsync(ct);
+
+        return MapToListItem(receipt);
+    }
+
+    public async Task<MoneyReceiptListItemDto> UpdateAsync(UpdateMoneyReceiptRequest request, CancellationToken ct = default)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync(ct);
+
+        var userId = await GetCurrentUserIdAsync();
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
+
+        if (request.InvoiceIds.Length == 0)
+            throw new InvalidOperationException("At least one invoice must be selected.");
+        if (request.InvoiceIds.Length != request.AllocatedAmounts.Length)
+            throw new InvalidOperationException("Each invoice must have a corresponding allocated amount.");
+
+        var totalAmount = request.AllocatedAmounts.Sum();
+        if (totalAmount <= 0)
+            throw new InvalidOperationException("Total amount must be greater than zero.");
+
+        var receipt = await context.MoneyReceipts
+            .Include(r => r.Allocations)
+                .ThenInclude(a => a.Invoice)
+                .ThenInclude(i => i.Client)
+                .ThenInclude(c => c.Invoices)
+            .AsSplitQuery()
+            .FirstOrDefaultAsync(r => r.Id == request.Id, ct);
+
+        if (receipt is null)
+            throw new KeyNotFoundException($"MoneyReceipt {request.Id} not found.");
+        if (receipt.IsDeleted)
+            throw new InvalidOperationException("Cannot update a deleted receipt.");
+
+        var fy = await context.FiscalYears
+            .FirstAsync(f => f.Id == receipt.FiscalYearId, ct);
+
+        if (!fy.IsOpen)
+            throw new InvalidOperationException($"Fiscal year {fy.YearName} is closed. Cannot update receipts.");
+
+        // Revert old allocations
+        foreach (var oldAllocation in receipt.Allocations)
+        {
+            var invoice = oldAllocation.Invoice;
+            invoice.ReversePayment(oldAllocation.AllocatedAmount);
+
+            if (invoice.Status == InvoiceStatus.Paid && !invoice.IsFullyPaid)
+            {
+                invoice.Status = InvoiceStatus.Sent;
+                invoice.Client.Status = _statusCalculator.Calculate(invoice.Client.Invoices);
+            }
+        }
+
+        receipt.Allocations.Clear();
+
+        // Load new invoices
+        var newInvoices = await context.Invoices
+            .Include(i => i.Client)
+            .ThenInclude(c => c.Invoices)
+            .Where(i => request.InvoiceIds.Contains(i.Id))
+            .ToListAsync(ct);
+
+        if (newInvoices.Count != request.InvoiceIds.Length)
+            throw new KeyNotFoundException("One or more invoices not found.");
+
+        foreach (var invoice in newInvoices)
+        {
+            if (invoice.IsDeleted)
+                throw new InvalidOperationException($"Invoice {invoice.InvoiceNumber} is deleted.");
+            if (invoice.Status == InvoiceStatus.Draft)
+                throw new InvalidOperationException($"Cannot allocate to draft invoice {invoice.InvoiceNumber}.");
+        }
+
+        // Apply new allocations
+        for (int i = 0; i < request.InvoiceIds.Length; i++)
+        {
+            var allocation = new ReceiptInvoiceAllocation
+            {
+                Id = Guid.NewGuid(),
+                MoneyReceiptId = receipt.Id,
+                InvoiceId = request.InvoiceIds[i],
+                AllocatedAmount = request.AllocatedAmounts[i]
+            };
+            receipt.Allocations.Add(allocation);
+
+            var invoice = newInvoices.First(inv => inv.Id == request.InvoiceIds[i]);
+            invoice.RecordPayment(request.AllocatedAmounts[i]);
+
+            if (invoice.IsFullyPaid && invoice.Status != InvoiceStatus.Paid)
+            {
+                invoice.Status = InvoiceStatus.Paid;
+
+                AuditLogHelper.Add(context, receipt.CompanyId, userId, "StatusChanged", "Invoice", invoice.Id.ToString(),
+                    $"{invoice.InvoiceNumber}: → Paid (auto via receipt update)", _timeProvider);
+
+                invoice.Client.Status = _statusCalculator.Calculate(invoice.Client.Invoices);
+            }
+        }
+
+        receipt.ReceivedFromName = request.ReceivedFromName;
+        receipt.ReceivedFromPan = request.ReceivedFromPan;
+        receipt.ReceivedFromAddress = request.ReceivedFromAddress;
+        receipt.AmountReceived = totalAmount;
+        receipt.AmountInWords = _numberToWordsService.ToNepaliWords(totalAmount);
+        receipt.PaymentMethod = request.PaymentMethod;
+        receipt.ReferenceNo = request.ReferenceNo;
+
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+        AuditLogHelper.Add(context, companyId, userId, "MoneyReceiptUpdated", "MoneyReceipt", receipt.Id.ToString(),
+            $"{receipt.ReceiptNumber}: updated to {totalAmount:C} via {request.PaymentMethod}", _timeProvider);
 
         await context.SaveChangesAsync(ct);
 
@@ -233,9 +346,9 @@ public class MoneyReceiptService : IMoneyReceiptService
         foreach (var allocation in receipt.Allocations)
         {
             var invoice = allocation.Invoice;
-            invoice.AmountPaid -= allocation.AllocatedAmount;
+            invoice.ReversePayment(allocation.AllocatedAmount);
 
-            if (invoice.Status == InvoiceStatus.Paid && invoice.AmountPaid < invoice.Total)
+            if (invoice.Status == InvoiceStatus.Paid && !invoice.IsFullyPaid)
             {
                 invoice.Status = InvoiceStatus.Sent;
 
@@ -278,9 +391,9 @@ public class MoneyReceiptService : IMoneyReceiptService
         foreach (var allocation in receipt.Allocations)
         {
             var invoice = allocation.Invoice;
-            invoice.AmountPaid += allocation.AllocatedAmount;
+            invoice.RecordPayment(allocation.AllocatedAmount);
 
-            if (invoice.AmountPaid >= invoice.Total && invoice.Status != InvoiceStatus.Paid)
+            if (invoice.IsFullyPaid && invoice.Status != InvoiceStatus.Paid)
             {
                 invoice.Status = InvoiceStatus.Paid;
 

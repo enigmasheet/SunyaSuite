@@ -108,7 +108,7 @@ public class BranchService : IBranchService
     public async Task RestoreAsync(Guid id, CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
-        var branch = await context.Branches.FindAsync([id], ct);
+        var branch = await context.Branches.IgnoreQueryFilters().Include(b => b.Company).FirstOrDefaultAsync(b => b.Id == id, ct);
         if (branch is null)
             throw new KeyNotFoundException($"Branch {id} not found.");
 
@@ -125,6 +125,7 @@ public class BranchService : IBranchService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
         return await context.Branches
+            .IgnoreQueryFilters()
             .AsNoTracking()
             .Include(b => b.Company)
             .Where(b => b.IsDeleted)

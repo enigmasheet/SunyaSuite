@@ -90,7 +90,8 @@ public static class ServiceCollectionExtensions
         services.AddAuthorizationBuilder()
         .AddPolicy(PolicyNames.SystemAdminOnly, p => p.RequireRole(RoleNames.SystemAdmin))
         .AddPolicy(PolicyNames.OrgAdminOrAbove, p => p.AddRequirements(new OrgAdminRequirement()))
-            .AddPolicy(PolicyNames.OrgMemberOrAbove, p => p.AddRequirements(new OrgMemberRequirement()));
+        .AddPolicy(PolicyNames.OrgMemberOrAbove, p => p.AddRequirements(new OrgMemberRequirement()))
+        .AddPolicy(PolicyNames.OrgViewerOrAbove, p => p.AddRequirements(new OrgViewerRequirement()));
 
         return services;
     }

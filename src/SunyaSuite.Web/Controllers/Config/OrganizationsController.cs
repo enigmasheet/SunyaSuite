@@ -13,10 +13,12 @@ namespace SunyaSuite.Web.Api.Controllers.Config;
 public class OrganizationsController : ControllerBase
 {
     private readonly IOrganizationService _orgService;
+    private readonly ITenantContext _tenantContext;
 
-    public OrganizationsController(IOrganizationService orgService)
+    public OrganizationsController(IOrganizationService orgService, ITenantContext tenantContext)
     {
         _orgService = orgService;
+        _tenantContext = tenantContext;
     }
 
     [HttpGet("my")]
@@ -82,9 +84,12 @@ public class OrganizationsController : ControllerBase
     public record AssignOrgRequest(Guid OrganizationId, string Role);
 
     [HttpPost("users/{userId}/orgs")]
-    [Authorize(Policy = PolicyNames.SystemAdminOnly)]
+    [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
     public async Task<ActionResult> AssignToOrganization(string userId, [FromBody] AssignOrgRequest request, CancellationToken ct)
     {
+        if (!IsTenantOrg(request.OrganizationId))
+            return Forbid();
+
         try
         {
             await _orgService.AssignToOrganizationAsync(userId, request.OrganizationId, request.Role, ct);
@@ -97,9 +102,12 @@ public class OrganizationsController : ControllerBase
     }
 
     [HttpPut("users/{userId}/orgs/{orgId:guid}")]
-    [Authorize(Policy = PolicyNames.SystemAdminOnly)]
+    [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
     public async Task<ActionResult> UpdateOrganizationRole(string userId, Guid orgId, [FromBody] AssignOrgRequest request, CancellationToken ct)
     {
+        if (!IsTenantOrg(orgId))
+            return Forbid();
+
         try
         {
             await _orgService.UpdateOrganizationRoleAsync(userId, orgId, request.Role, ct);
@@ -112,25 +120,34 @@ public class OrganizationsController : ControllerBase
     }
 
     [HttpDelete("users/{userId}/orgs/{orgId:guid}")]
-    [Authorize(Policy = PolicyNames.SystemAdminOnly)]
+    [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
     public async Task<ActionResult> RemoveFromOrganization(string userId, Guid orgId, CancellationToken ct)
     {
+        if (!IsTenantOrg(orgId))
+            return Forbid();
+
         await _orgService.RemoveFromOrganizationAsync(userId, orgId, ct);
         return NoContent();
     }
 
     [HttpGet("{orgId:guid}/users")]
-    [Authorize(Policy = PolicyNames.SystemAdminOnly)]
+    [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
     public async Task<ActionResult<List<OrganizationUserDto>>> GetOrgUsers(Guid orgId, CancellationToken ct)
     {
+        if (!IsTenantOrg(orgId))
+            return Forbid();
+
         var users = await _orgService.GetOrgUsersAsync(orgId, ct);
         return Ok(users);
     }
 
     [HttpPost("{orgId:guid}/users")]
-    [Authorize(Policy = PolicyNames.SystemAdminOnly)]
+    [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
     public async Task<ActionResult<UserDto>> CreateOrgUser(Guid orgId, [FromBody] CreateOrgUserRequest request)
     {
+        if (!IsTenantOrg(orgId))
+            return Forbid();
+
         var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         if (userId is null)
             return Unauthorized();
@@ -208,9 +225,12 @@ public class OrganizationsController : ControllerBase
     public record UpdateOrgUserDefaultsRequest(Guid? DefaultCompanyId, Guid? DefaultBranchId);
 
     [HttpPut("{orgId:guid}/users/{userId}/defaults")]
-    [Authorize(Policy = PolicyNames.SystemAdminOnly)]
+    [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
     public async Task<ActionResult> UpdateOrgUserDefaults(Guid orgId, string userId, [FromBody] UpdateOrgUserDefaultsRequest request, CancellationToken ct)
     {
+        if (!IsTenantOrg(orgId))
+            return Forbid();
+
         try
         {
             await _orgService.UpdateOrgUserDefaultsAsync(orgId, userId, request.DefaultCompanyId, request.DefaultBranchId);
@@ -223,9 +243,12 @@ public class OrganizationsController : ControllerBase
     }
 
     [HttpPut("{orgId:guid}/users/{userId}/role")]
-    [Authorize(Policy = PolicyNames.SystemAdminOnly)]
+    [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
     public async Task<ActionResult> UpdateOrgUserRole(Guid orgId, string userId, [FromBody] ChangeOrgRoleRequest request, CancellationToken ct)
     {
+        if (!IsTenantOrg(orgId))
+            return Forbid();
+
         try
         {
             await _orgService.UpdateOrgUserRoleAsync(orgId, userId, request.Role);
@@ -235,5 +258,12 @@ public class OrganizationsController : ControllerBase
         {
             return NotFound();
         }
+    }
+
+    private bool IsTenantOrg(Guid orgId)
+    {
+        if (User.IsInRole(RoleNames.SystemAdmin))
+            return true;
+        return _tenantContext.HasTenant && _tenantContext.OrganizationId == orgId;
     }
 }

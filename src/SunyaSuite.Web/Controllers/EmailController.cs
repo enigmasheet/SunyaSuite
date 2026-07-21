@@ -7,7 +7,7 @@ namespace SunyaSuite.Web.Api.Controllers;
 
 [ApiController]
 [Route("api/email")]
-[Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
+[Authorize(Policy = PolicyNames.OrgViewerOrAbove)]
 public class EmailController : ControllerBase
 {
     private readonly IEmailService _emailService;
@@ -20,6 +20,7 @@ public class EmailController : ControllerBase
     public record SendRequest(string To, string Subject, string HtmlBody);
 
     [HttpPost]
+    [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
     public async Task<ActionResult> Send([FromBody] SendRequest request, CancellationToken ct = default)
     {
         await _emailService.SendAsync(request.To, request.Subject, request.HtmlBody, ct);
@@ -27,6 +28,7 @@ public class EmailController : ControllerBase
     }
 
     [HttpPost("with-attachment")]
+    [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
     public async Task<ActionResult> SendWithAttachment(CancellationToken ct = default)
     {
         var file = Request.Form.Files.GetFile("attachment");

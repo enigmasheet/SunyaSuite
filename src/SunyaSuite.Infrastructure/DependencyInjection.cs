@@ -5,7 +5,6 @@ using Microsoft.Extensions.DependencyInjection;
 using SunyaSuite.Application.Interfaces;
 using SunyaSuite.Application.Interfaces.Config;
 using SunyaSuite.Application.Interfaces.Tenant;
-using SunyaSuite.Application.Services.Tenant;
 using SunyaSuite.Application.Settings;
 using SunyaSuite.Infrastructure.Data.Config;
 using SunyaSuite.Infrastructure.Data.Tenant;
@@ -35,7 +34,8 @@ public static class DependencyInjection
         services.AddDbContextFactory<ApplicationDbContext>(options =>
             options.UseNpgsql(configuration.GetConnectionString("TemplateConnection"),
                 npgsqlOptions => npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(10), errorCodesToAdd: null))
-               .ConfigureWarnings(w => w.Ignore(CoreEventId.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning)));
+               .ConfigureWarnings(w => w.Ignore(CoreEventId.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning))
+               .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
 
         // Scoped factory â€” resolves tenant-specific connection string per request
         services.AddScoped<ITenantContext, TenantContext>();

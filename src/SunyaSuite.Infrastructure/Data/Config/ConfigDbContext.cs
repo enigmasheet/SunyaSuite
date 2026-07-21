@@ -15,6 +15,7 @@ public class ConfigDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<Organization> Organizations => Set<Organization>();
     public DbSet<OrganizationUser> OrganizationUsers => Set<OrganizationUser>();
+    public DbSet<Invite> Invites => Set<Invite>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -36,6 +37,8 @@ public class ConfigDbContext : IdentityDbContext<ApplicationUser>
                     user.CreatedAt = utcNow;
                 if (entry.Entity is OrganizationUser ou && ou.JoinedAt == default)
                     ou.JoinedAt = utcNow;
+                if (entry.Entity is Invite invite && invite.CreatedAt == default)
+                    invite.CreatedAt = utcNow;
             }
 
             foreach (var property in entry.Properties)

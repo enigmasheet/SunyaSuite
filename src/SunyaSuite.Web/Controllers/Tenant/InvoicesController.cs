@@ -10,7 +10,7 @@ namespace SunyaSuite.Web.Api.Controllers.Tenant;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
+[Authorize(Policy = PolicyNames.OrgViewerOrAbove)]
 public class InvoicesController : ControllerBase
 {
     private readonly IInvoiceService _invoiceService;
@@ -52,6 +52,7 @@ public class InvoicesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
     public async Task<ActionResult<InvoiceListItemDto>> Create([FromBody] CreateInvoiceRequest request, CancellationToken ct = default)
     {
         try
@@ -66,6 +67,7 @@ public class InvoicesController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
     public async Task<ActionResult<InvoiceListItemDto>> Update(Guid id, [FromBody] UpdateInvoiceRequest request, CancellationToken ct = default)
     {
         if (id != request.Id)
@@ -87,6 +89,7 @@ public class InvoicesController : ControllerBase
     }
 
     [HttpPatch("{id}/status")]
+    [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
     public async Task<ActionResult> UpdateStatus(Guid id, [FromBody] InvoiceStatus status, CancellationToken ct = default)
     {
         await _invoiceService.UpdateStatusAsync(id, status, ct);
@@ -94,6 +97,7 @@ public class InvoicesController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
     public async Task<ActionResult> Delete(Guid id, CancellationToken ct = default)
     {
         try
@@ -123,6 +127,7 @@ public class InvoicesController : ControllerBase
     }
 
     [HttpPost("{id}/restore")]
+    [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
     public async Task<ActionResult> Restore(Guid id, CancellationToken ct = default)
     {
         await _invoiceService.RestoreAsync(id, ct);
@@ -130,6 +135,7 @@ public class InvoicesController : ControllerBase
     }
 
     [HttpDelete("{id}/permanent")]
+    [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
     public async Task<ActionResult> PermanentDelete(Guid id, CancellationToken ct = default)
     {
         await _invoiceService.PermanentDeleteAsync(id, ct);

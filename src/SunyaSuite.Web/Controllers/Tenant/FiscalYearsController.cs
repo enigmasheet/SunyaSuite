@@ -8,7 +8,7 @@ namespace SunyaSuite.Web.Api.Controllers.Tenant;
 
 [ApiController]
 [Route("api/fiscal-years")]
-[Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
+[Authorize(Policy = PolicyNames.OrgViewerOrAbove)]
 public class FiscalYearsController : ControllerBase
 {
     private readonly IFiscalYearService _fiscalYearService;
@@ -51,6 +51,7 @@ public class FiscalYearsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
     public async Task<ActionResult<FiscalYearListItemDto>> Create([FromBody] CreateFiscalYearRequest request, CancellationToken ct = default)
     {
         var result = await _fiscalYearService.CreateAsync(request, ct);
@@ -58,6 +59,7 @@ public class FiscalYearsController : ControllerBase
     }
 
     [HttpPost("{id}/toggle-open")]
+    [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
     public async Task<ActionResult> ToggleOpen(Guid id, CancellationToken ct = default)
     {
         await _fiscalYearService.ToggleOpenAsync(id, ct);
@@ -65,6 +67,7 @@ public class FiscalYearsController : ControllerBase
     }
 
     [HttpPost("{id}/set-current")]
+    [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
     public async Task<ActionResult> SetCurrent(Guid id, CancellationToken ct = default)
     {
         await _fiscalYearService.SetCurrentAsync(id, ct);

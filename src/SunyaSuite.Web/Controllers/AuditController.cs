@@ -8,7 +8,7 @@ namespace SunyaSuite.Web.Api.Controllers;
 
 [ApiController]
 [Route("api/audit")]
-[Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
+[Authorize(Policy = PolicyNames.OrgViewerOrAbove)]
 public class AuditController : ControllerBase
 {
     private readonly IAuditService _auditService;
@@ -49,7 +49,7 @@ public class AuditController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
+    [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
     public async Task<ActionResult> Log([FromBody] LogRequest request, CancellationToken ct = default)
     {
         await _auditService.LogAsync(request.UserId, request.Action, request.EntityName, request.EntityId, request.Details, ct);

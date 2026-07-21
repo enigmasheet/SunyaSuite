@@ -7,7 +7,7 @@ namespace SunyaSuite.Web.Api.Controllers;
 
 [ApiController]
 [Route("api/export")]
-[Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
+[Authorize(Policy = PolicyNames.OrgViewerOrAbove)]
 public class ExportController : ControllerBase
 {
     private readonly IExportService _exportService;

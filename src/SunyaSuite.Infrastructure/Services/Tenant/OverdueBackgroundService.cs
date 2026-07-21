@@ -126,40 +126,72 @@ public class OverdueBackgroundService : BackgroundService
             .GetRequiredService<IDbContextFactory<ApplicationDbContext>>()
             .CreateDbContextAsync(ct);
 
-        var overdueInvoices = await context.Invoices
-            .Include(i => i.Client)
-            .Where(i => !i.IsDeleted && i.Status == InvoiceStatus.Sent && i.DueDate < DateOnly.FromDateTime(_timeProvider.GetUtcNow().UtcDateTime))
-            .Take(500)
+        var companyIds = await context.Companies
+            .Where(c => c.IsActive && !c.IsDeleted)
+            .Select(c => c.Id)
             .ToListAsync(ct);
 
-        if (overdueInvoices.Count == 0) return;
+        if (companyIds.Count == 0) return;
 
-        var auditLogs = new List<AuditLog>(overdueInvoices.Count);
         var statusCalculator = scope.ServiceProvider.GetRequiredService<IClientStatusCalculator>();
+        var today = DateOnly.FromDateTime(_timeProvider.GetUtcNow().UtcDateTime);
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        var allOverdueInvoices = new List<Invoice>();
 
-        foreach (var invoice in overdueInvoices)
+        foreach (var companyId in companyIds)
         {
-            invoice.Status = InvoiceStatus.Overdue;
-            invoice.Client.Status = statusCalculator.Calculate(invoice.Client.Invoices);
+            var companyInvoices = await context.Invoices
+                .Include(i => i.Client)
+                .Where(i => i.CompanyId == companyId
+                    && !i.IsDeleted
+                    && i.Status == InvoiceStatus.Sent
+                    && i.DueDate < today)
+                .Take(500)
+                .ToListAsync(ct);
 
-            auditLogs.Add(new AuditLog
+            foreach (var invoice in companyInvoices)
             {
-                Id = Guid.NewGuid(),
-                UserId = "System",
-                Action = "StatusChanged",
-                EntityName = "Invoice",
-                EntityId = invoice.Id.ToString(),
-                Timestamp = _timeProvider.GetUtcNow().UtcDateTime,
-                Details = $"{invoice.InvoiceNumber}: Sent → Overdue (background)"
-            });
+                invoice.Status = InvoiceStatus.Overdue;
+            }
+
+            // Recalculate client statuses for this company after all invoice updates
+            var affectedClients = companyInvoices
+                .Select(i => i.Client)
+                .Distinct()
+                .ToList();
+
+            foreach (var client in affectedClients)
+            {
+                var clientInvoices = await context.Invoices
+                    .Where(i => i.ClientId == client.Id && !i.IsDeleted)
+                    .ToListAsync(ct);
+
+                client.Status = statusCalculator.Calculate(clientInvoices);
+            }
+
+            allOverdueInvoices.AddRange(companyInvoices);
         }
+
+        if (allOverdueInvoices.Count == 0) return;
+
+        var auditLogs = allOverdueInvoices.Select(invoice => new AuditLog
+        {
+            Id = Guid.NewGuid(),
+            CompanyId = invoice.CompanyId,
+            UserId = "System",
+            Action = "StatusChanged",
+            EntityName = "Invoice",
+            EntityId = invoice.Id.ToString(),
+            Timestamp = now,
+            Details = $"{invoice.InvoiceNumber}: Sent → Overdue (background)"
+        }).ToList();
 
         context.AuditLogs.AddRange(auditLogs);
         await context.SaveChangesAsync(ct);
 
         var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
         var emailSemaphore = new SemaphoreSlim(5);
-        var emailTasks = overdueInvoices.Select(async invoice =>
+        var emailTasks = allOverdueInvoices.Select(async invoice =>
         {
             await emailSemaphore.WaitAsync(ct);
             try

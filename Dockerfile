@@ -26,13 +26,13 @@ COPY Directory.Packages.props Directory.Build.props ./
 COPY src/SunyaSuite.Domain/SunyaSuite.Domain.csproj src/SunyaSuite.Domain/
 COPY src/SunyaSuite.Application/SunyaSuite.Application.csproj src/SunyaSuite.Application/
 COPY src/SunyaSuite.Infrastructure/SunyaSuite.Infrastructure.csproj src/SunyaSuite.Infrastructure/
-COPY src/SunyaSuite.Web/SunyaSuite.Web.csproj src/SunyaSuite.Web/
+COPY src/SunyaSuite.Web/SunyaSuite.Web.Api.csproj src/SunyaSuite.Web/
 RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
-    dotnet restore src/SunyaSuite.Web/SunyaSuite.Web.csproj -r linux-x64
+    dotnet restore src/SunyaSuite.Web/SunyaSuite.Web.Api.csproj -r linux-x64
 
 COPY . .
 RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
-    dotnet publish src/SunyaSuite.Web/SunyaSuite.Web.csproj \
+    dotnet publish src/SunyaSuite.Web/SunyaSuite.Web.Api.csproj \
     -c $CONFIGURATION \
     -o /app/publish \
     -p:RuntimeIdentifier=linux-x64
@@ -47,9 +47,9 @@ COPY Directory.Packages.props Directory.Build.props ./
 COPY src/SunyaSuite.Domain/SunyaSuite.Domain.csproj src/SunyaSuite.Domain/
 COPY src/SunyaSuite.Application/SunyaSuite.Application.csproj src/SunyaSuite.Application/
 COPY src/SunyaSuite.Infrastructure/SunyaSuite.Infrastructure.csproj src/SunyaSuite.Infrastructure/
-COPY src/SunyaSuite.Web/SunyaSuite.Web.csproj src/SunyaSuite.Web/
-RUN dotnet restore src/SunyaSuite.Web/SunyaSuite.Web.csproj
+COPY src/SunyaSuite.Web/SunyaSuite.Web.Api.csproj src/SunyaSuite.Web/
+RUN dotnet restore src/SunyaSuite.Web/SunyaSuite.Web.Api.csproj
 
 ENV ASPNETCORE_URLS=http://+:8080
 ENV ASPNETCORE_ENVIRONMENT=Development
-ENTRYPOINT ["dotnet", "run", "--no-launch-profile", "-c", "Debug", "--project", "src/SunyaSuite.Web/SunyaSuite.Web.csproj"]
+ENTRYPOINT ["dotnet", "run", "--no-launch-profile", "-c", "Debug", "--project", "src/SunyaSuite.Web/SunyaSuite.Web.Api.csproj"]

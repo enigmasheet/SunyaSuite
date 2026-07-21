@@ -107,15 +107,15 @@ public class AuthController : ControllerBase
             return BadRequest(new { message = firstError });
         }
 
-        var (role, _) = await _inviteService.ConsumeInviteAsync(request.InviteCode, request.Email);
+        var (role, _, organizationId) = await _inviteService.ConsumeInviteAsync(request.InviteCode, request.Email);
         await _userManager.AddToRoleAsync(user, role);
 
         // Auto-confirm email (email sending is no-op in dev)
         var confirmToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
         await _userManager.ConfirmEmailAsync(user, confirmToken);
 
-        // Assign user to default organization
-        await AssignToDefaultOrganizationAsync(user.Id);
+        // Assign user to the invite's organization
+        await AssignToOrganizationAsync(user.Id, organizationId);
 
         return Ok(new MessageResponse("Account created successfully. You can now sign in."));
     }
@@ -202,23 +202,19 @@ public class AuthController : ControllerBase
             .ToListAsync();
     }
 
-    private async Task AssignToDefaultOrganizationAsync(string userId)
+    private async Task AssignToOrganizationAsync(string userId, Guid organizationId)
     {
         await using var configDb = await _configFactory.CreateDbContextAsync();
-        var defaultOrg = await configDb.Organizations
-            .FirstOrDefaultAsync(o => o.Slug == "default");
-
-        if (defaultOrg is null) return;
 
         var exists = await configDb.OrganizationUsers
-            .AnyAsync(ou => ou.UserId == userId && ou.OrganizationId == defaultOrg.Id);
+            .AnyAsync(ou => ou.UserId == userId && ou.OrganizationId == organizationId);
 
         if (!exists)
         {
             configDb.OrganizationUsers.Add(new OrganizationUser
             {
                 Id = Guid.NewGuid(),
-                OrganizationId = defaultOrg.Id,
+                OrganizationId = organizationId,
                 UserId = userId,
                 Role = OrgRoles.Member,
                 JoinedAt = _timeProvider.GetUtcNow().UtcDateTime

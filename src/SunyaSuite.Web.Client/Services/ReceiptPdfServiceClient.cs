@@ -13,7 +13,7 @@ public class ReceiptPdfServiceClient : IReceiptPdfService
 
     public async Task<byte[]> GeneratePdfAsync(MoneyReceiptDetailDto receipt, CopyType copyType = CopyType.Original, DateDisplayPreference preference = DateDisplayPreference.Gregorian, CancellationToken ct = default)
     {
-        var response = await _http.PostAsJsonAsync($"{ApiEndpoints.ReceiptPdf}/generate", new { receipt, copyType, preference }, ct);
+        var response = await _http.PostAsJsonAsync($"{ApiEndpoints.ReceiptPdf}/generate", new { receiptId = receipt.Id, copyType, preference }, ct);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadAsByteArrayAsync(ct);
     }

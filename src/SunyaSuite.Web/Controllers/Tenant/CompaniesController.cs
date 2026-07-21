@@ -8,7 +8,7 @@ namespace SunyaSuite.Web.Controllers.Tenant;
 
 [ApiController]
 [Route("api/companies")]
-[Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
+[Authorize(Policy = PolicyNames.OrgViewerOrAbove)]
 public class CompaniesController : ControllerBase
 {
     private readonly ICompanyService _companyService;
@@ -49,6 +49,7 @@ public class CompaniesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
     public async Task<ActionResult<CompanyDto>> Create([FromBody] CreateCompanyRequest request, CancellationToken ct = default)
     {
         try
@@ -63,6 +64,7 @@ public class CompaniesController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
     public async Task<ActionResult<CompanyDto>> Update(Guid id, [FromBody] UpdateCompanyRequest request, CancellationToken ct = default)
     {
         if (id != request.Id)
@@ -84,6 +86,7 @@ public class CompaniesController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
     public async Task<ActionResult> Delete(Guid id, CancellationToken ct = default)
     {
         try
@@ -102,6 +105,7 @@ public class CompaniesController : ControllerBase
     }
 
     [HttpPatch("{id}/restore")]
+    [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
     public async Task<ActionResult> Restore(Guid id, CancellationToken ct = default)
     {
         try

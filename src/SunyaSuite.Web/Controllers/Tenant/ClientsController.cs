@@ -9,7 +9,7 @@ namespace SunyaSuite.Web.Api.Controllers.Tenant;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
+[Authorize(Policy = PolicyNames.OrgViewerOrAbove)]
 public class ClientsController : ControllerBase
 {
     private readonly IClientService _clientService;
@@ -49,6 +49,7 @@ public class ClientsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
     public async Task<ActionResult<ClientListItemDto>> Create([FromBody] CreateClientRequest request, CancellationToken ct = default)
     {
         try
@@ -63,6 +64,7 @@ public class ClientsController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
     public async Task<ActionResult<ClientListItemDto>> Update(Guid id, [FromBody] UpdateClientRequest request, CancellationToken ct = default)
     {
         if (id != request.Id)
@@ -84,6 +86,7 @@ public class ClientsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
     public async Task<ActionResult> Delete(Guid id, CancellationToken ct = default)
     {
         try
@@ -113,6 +116,7 @@ public class ClientsController : ControllerBase
     }
 
     [HttpPost("{id}/restore")]
+    [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
     public async Task<ActionResult> Restore(Guid id, CancellationToken ct = default)
     {
         await _clientService.RestoreAsync(id, ct);
@@ -120,6 +124,7 @@ public class ClientsController : ControllerBase
     }
 
     [HttpDelete("{id}/permanent")]
+    [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
     public async Task<ActionResult> PermanentDelete(Guid id, CancellationToken ct = default)
     {
         await _clientService.PermanentDeleteAsync(id, ct);

@@ -8,7 +8,7 @@ namespace SunyaSuite.Web.Api.Controllers.Tenant;
 
 [ApiController]
 [Route("api/dashboard")]
-[Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
+[Authorize(Policy = PolicyNames.OrgViewerOrAbove)]
 public class DashboardController : ControllerBase
 {
     private readonly IDashboardService _dashboardService;
