@@ -54,7 +54,7 @@ public class AuditService : IAuditService
         var companyId = await GetRequiredCompanyIdAsync(ct);
 
         var query = context.AuditLogs
-            .Where(a => a.CompanyId == companyId);
+            .ForCompany(companyId);
 
         if (filter is not null)
         {
@@ -108,7 +108,7 @@ public class AuditService : IAuditService
         var companyId = await GetRequiredCompanyIdAsync(ct);
 
         return await context.AuditLogs
-            .Where(a => a.CompanyId == companyId)
+            .ForCompany(companyId)
             .Select(a => a.Action)
             .Distinct()
             .OrderBy(a => a)
@@ -122,7 +122,7 @@ public class AuditService : IAuditService
         var companyId = await GetRequiredCompanyIdAsync(ct);
 
         return await context.AuditLogs
-            .Where(a => a.CompanyId == companyId)
+            .ForCompany(companyId)
             .Select(a => a.EntityName)
             .Distinct()
             .OrderBy(e => e)

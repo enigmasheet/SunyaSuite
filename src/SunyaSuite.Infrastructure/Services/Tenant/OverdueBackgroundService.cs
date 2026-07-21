@@ -142,8 +142,7 @@ public class OverdueBackgroundService : BackgroundService
         {
             var companyInvoices = await context.Invoices
                 .Include(i => i.Client)
-                .Where(i => i.CompanyId == companyId
-                    && !i.IsDeleted
+                .ForCompany(companyId).Where(i => !i.IsDeleted
                     && i.Status == InvoiceStatus.Sent
                     && i.DueDate < today)
                 .Take(500)

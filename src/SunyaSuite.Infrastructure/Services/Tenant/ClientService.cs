@@ -47,7 +47,7 @@ public class ClientService : IClientService
 
         return await context.Clients
             .AsNoTracking()
-            .Where(c => c.CompanyId == companyId && !c.IsDeleted)
+            .ForCompany(companyId).Where(c => !c.IsDeleted)
             .OrderBy(c => c.Name)
             .Select(c => new ClientOptionDto(c.Id, c.Name, c.PanNumber, c.Address))
             .ToListAsync(ct);
@@ -76,7 +76,7 @@ public class ClientService : IClientService
 
         var query = context.Clients
             .AsNoTracking()
-            .Where(c => c.CompanyId == companyId && !c.IsDeleted)
+            .ForCompany(companyId).Where(c => !c.IsDeleted)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
@@ -235,7 +235,7 @@ public class ClientService : IClientService
         var query = context.Clients
             .IgnoreQueryFilters()
             .AsNoTracking()
-            .Where(c => c.CompanyId == companyId && c.IsDeleted)
+            .ForCompany(companyId).Where(c => c.IsDeleted)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(searchTerm))

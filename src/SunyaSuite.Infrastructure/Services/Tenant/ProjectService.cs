@@ -44,7 +44,7 @@ public class ProjectService : IProjectService
         var query = context.Projects
             .Include(p => p.Client)
             .AsNoTracking()
-            .Where(p => p.CompanyId == companyId && !p.IsDeleted)
+            .ForCompany(companyId).Where(p => !p.IsDeleted)
             .AsQueryable();
 
         if (clientId.HasValue)
@@ -78,7 +78,7 @@ public class ProjectService : IProjectService
         var query = context.Projects
             .Include(p => p.Client)
             .AsNoTracking()
-            .Where(p => p.CompanyId == companyId && !p.IsDeleted)
+            .ForCompany(companyId).Where(p => !p.IsDeleted)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(searchTerm))

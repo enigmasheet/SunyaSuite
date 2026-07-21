@@ -71,7 +71,7 @@ public class MoneyReceiptService : IMoneyReceiptService
         var query = context.MoneyReceipts
             .Include(r => r.FiscalYearInfo)
             .AsNoTracking()
-            .Where(r => r.CompanyId == companyId && !r.IsDeleted)
+            .ForCompany(companyId).Where(r => !r.IsDeleted)
             .AsQueryable();
 
         if (fiscalYearId.HasValue)
