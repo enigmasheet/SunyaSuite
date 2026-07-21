@@ -196,7 +196,7 @@ public class AuthController : ControllerBase
                 Id = ou.Organization.Id,
                 Name = ou.Organization.Name,
                 Slug = ou.Organization.Slug,
-                ConnectionString = ou.Organization.ConnectionString,
+                HasSeparateDatabase = ou.Organization.ConnectionString != null,
                 Role = ou.Role
             })
             .ToListAsync();

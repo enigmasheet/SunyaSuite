@@ -4,6 +4,7 @@ using SunyaSuite.Application.DTOs;
 using SunyaSuite.Application.DTOs.Config;
 using SunyaSuite.Application.Interfaces.Config;
 using SunyaSuite.Domain.Constants;
+using SunyaSuite.Domain.Enums;
 using System.Security.Claims;
 
 namespace SunyaSuite.Web.Api.Controllers.Config;
@@ -42,6 +43,10 @@ public class InvitesController : ControllerBase
     {
         if (!IsOrgAccessible(request.OrganizationId))
             return Forbid();
+
+        var validRoles = new[] { OrgRoles.Owner, OrgRoles.OrgAdmin, OrgRoles.Member, OrgRoles.Viewer };
+        if (!validRoles.Contains(request.Role))
+            return BadRequest(new { error = $"Invalid role '{request.Role}'. Must be one of: {string.Join(", ", validRoles)}." });
 
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
         var invite = await _inviteService.CreateAsync(request.OrganizationId, request.Role, request.ExpiresInHours, userId, ct);

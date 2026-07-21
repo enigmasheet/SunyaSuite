@@ -186,6 +186,14 @@ public class OrganizationsController : ControllerBase
         }
     }
 
+    [HttpGet("deleted")]
+    [Authorize(Policy = PolicyNames.SystemAdminOnly)]
+    public async Task<ActionResult<List<OrganizationDto>>> GetDeleted(CancellationToken ct)
+    {
+        var result = await _orgService.GetDeletedAsync(ct);
+        return Ok(result);
+    }
+
     [HttpDelete("{orgId:guid}")]
     [Authorize(Policy = PolicyNames.SystemAdminOnly)]
     public async Task<ActionResult> Delete(Guid orgId)
@@ -193,6 +201,25 @@ public class OrganizationsController : ControllerBase
         try
         {
             await _orgService.DeleteAsync(orgId);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = ex.Message });
+        }
+    }
+
+    [HttpPatch("{orgId:guid}/restore")]
+    [Authorize(Policy = PolicyNames.SystemAdminOnly)]
+    public async Task<ActionResult> Restore(Guid orgId, CancellationToken ct)
+    {
+        try
+        {
+            await _orgService.RestoreAsync(orgId, ct);
             return NoContent();
         }
         catch (KeyNotFoundException)

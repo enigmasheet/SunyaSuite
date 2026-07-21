@@ -1,6 +1,8 @@
+using SunyaSuite.Domain.Interfaces;
+
 namespace SunyaSuite.Domain.Entities.Tenant;
 
-public class Branch
+public class Branch : ICompanyScoped
 {
     public Guid Id { get; set; }
     public Guid CompanyId { get; set; }

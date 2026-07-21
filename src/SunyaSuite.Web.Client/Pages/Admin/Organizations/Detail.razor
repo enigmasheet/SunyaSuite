@@ -40,7 +40,7 @@ else
                     <MudItem xs="12" sm="6">
                         <MudText Typo="Typo.body2" Class="text-secondary">Database</MudText>
                         <MudText Typo="Typo.body1">
-                            @if (!string.IsNullOrEmpty(_org.ConnectionString))
+                            @if (_org.HasSeparateDatabase)
                             {
                                 <MudChip T="string" Size="Size.Small" Color="Color.Info">Separate Database</MudChip>
                             }

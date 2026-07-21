@@ -1,16 +1,20 @@
 using Microsoft.EntityFrameworkCore;
 using SunyaSuite.Domain.Entities.Tenant;
+using SunyaSuite.Domain.Interfaces;
 
 namespace SunyaSuite.Infrastructure.Data.Tenant;
 
 public class ApplicationDbContext : DbContext
 {
     private readonly TimeProvider _timeProvider;
+    private Guid _currentCompanyId;
 
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, TimeProvider timeProvider) : base(options)
     {
         _timeProvider = timeProvider;
     }
+
+    public void SetCompanyId(Guid companyId) => _currentCompanyId = companyId;
 
     public DbSet<Company> Companies => Set<Company>();
     public DbSet<Branch> Branches => Set<Branch>();
@@ -42,6 +46,9 @@ public class ApplicationDbContext : DbContext
         {
             if (entry.State is EntityState.Added)
             {
+                if (entry.Entity is ICompanyScoped scoped && scoped.CompanyId == Guid.Empty && _currentCompanyId != Guid.Empty)
+                    scoped.CompanyId = _currentCompanyId;
+
                 if (entry.Entity is Client client && client.CreatedAt == default)
                     client.CreatedAt = utcNow;
                 if (entry.Entity is AuditLog log && log.Timestamp == default)
@@ -52,6 +59,13 @@ public class ApplicationDbContext : DbContext
                     company.CreatedAt = utcNow;
                 if (entry.Entity is Branch branch && branch.CreatedAt == default)
                     branch.CreatedAt = utcNow;
+            }
+
+            if (entry.State is EntityState.Modified && entry.Entity is ICompanyScoped modified)
+            {
+                var originalCompanyId = entry.OriginalValues.GetValue<Guid>(nameof(ICompanyScoped.CompanyId));
+                if (_currentCompanyId != Guid.Empty && originalCompanyId != _currentCompanyId)
+                    throw new InvalidOperationException("Cannot modify data from a different company.");
             }
 
             foreach (var property in entry.Properties)

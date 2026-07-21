@@ -41,7 +41,7 @@
             <MudText Typo="Typo.body2">@context.Slug</MudText>
         </MudTd>
         <MudTd DataLabel="Database">
-            @if (!string.IsNullOrEmpty(context.ConnectionString))
+            @if (context.HasSeparateDatabase)
             {
                 <MudChip T="string" Size="Size.Small" Color="Color.Tertiary">Separate</MudChip>
             }

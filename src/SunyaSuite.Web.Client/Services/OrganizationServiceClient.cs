@@ -64,6 +64,12 @@ public class OrganizationServiceClient : IOrganizationService
         return (await response.Content.ReadFromJsonAsync<OrganizationDto>())!;
     }
 
+    public async Task<List<OrganizationDto>> GetDeletedAsync(CancellationToken ct = default) =>
+        await _http.GetFromJsonAsync<List<OrganizationDto>>($"{ApiEndpoints.Organizations}/deleted", ct) ?? [];
+
+    public async Task RestoreAsync(Guid id, CancellationToken ct = default) =>
+        (await _http.PatchAsync($"{ApiEndpoints.Organizations}/{id}/restore", null, ct)).EnsureSuccessStatusCode();
+
     public async Task DeleteAsync(Guid id) =>
         (await _http.DeleteAsync($"{ApiEndpoints.Organizations}/{id}")).EnsureSuccessStatusCode();
 

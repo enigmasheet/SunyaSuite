@@ -6,7 +6,7 @@
       "composeLaunchServiceName": "web",
       "serviceActions": {
         "db": "StartWithoutDebugging",
-        "web": "StartDebugging"
+        "webClient": "StartDebugging"
       }
     }
   }

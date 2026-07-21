@@ -86,7 +86,7 @@
             <MudText Typo="Typo.body2" Class="mt-2">
                 Owner "@_ownerFirstName @_ownerLastName" (@_ownerEmail) has been created and assigned as Owner.
             </MudText>
-            @if (_createdOrg.ConnectionString is not null)
+            @if (_createdOrg.HasSeparateDatabase)
             {
                 <MudText Typo="Typo.body2" Class="mt-2">A dedicated database has been provisioned and seeded.</MudText>
             }

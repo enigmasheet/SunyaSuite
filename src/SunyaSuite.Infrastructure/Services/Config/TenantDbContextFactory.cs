@@ -33,7 +33,10 @@ public class TenantDbContextFactory : IDbContextFactory<ApplicationDbContext>
                 npgsqlOptions => npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(10), errorCodesToAdd: null));
         }
 
-        return new ApplicationDbContext(optionsBuilder.Options, _timeProvider);
+        var ctx = new ApplicationDbContext(optionsBuilder.Options, _timeProvider);
+        if (_tenantContext.CompanyId.HasValue)
+            ctx.SetCompanyId(_tenantContext.CompanyId.Value);
+        return ctx;
     }
 
     public async ValueTask<ApplicationDbContext> CreateDbContextAsync(CancellationToken ct = default)
@@ -52,6 +55,9 @@ public class TenantDbContextFactory : IDbContextFactory<ApplicationDbContext>
             }
         }
 
-        return new ApplicationDbContext(optionsBuilder.Options, _timeProvider);
+        var ctx = new ApplicationDbContext(optionsBuilder.Options, _timeProvider);
+        if (_tenantContext.CompanyId.HasValue)
+            ctx.SetCompanyId(_tenantContext.CompanyId.Value);
+        return ctx;
     }
 }
