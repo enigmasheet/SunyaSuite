@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using FluentValidation;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -69,6 +70,9 @@ public static class DependencyInjection
         services.AddScoped<ISystemDashboardService, SystemDashboardService>();
         services.AddScoped<DatabaseResetService>();
         services.AddHostedService<ApplyTenantMigrationsService>();
+
+        services.AddValidatorsFromAssemblyContaining<Application.DTOs.Tenant.CreateClientRequest>(
+            ServiceLifetime.Scoped);
 
         return services;
     }

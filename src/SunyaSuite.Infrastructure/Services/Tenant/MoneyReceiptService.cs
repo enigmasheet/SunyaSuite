@@ -49,11 +49,14 @@ public class MoneyReceiptService : IMoneyReceiptService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
         var receipt = await context.MoneyReceipts
             .Include(r => r.FiscalYearInfo)
             .Include(r => r.Allocations)
                 .ThenInclude(a => a.Invoice)
             .AsSplitQuery()
+            .ForCompany(companyId)
             .FirstOrDefaultAsync(r => r.Id == id, ct);
 
         return receipt is null ? null : MapToDetail(receipt);
@@ -130,9 +133,12 @@ public class MoneyReceiptService : IMoneyReceiptService
         if (totalAmount <= 0)
             throw new InvalidOperationException("Total amount must be greater than zero.");
 
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
         var invoices = await context.Invoices
             .Include(i => i.Client)
             .ThenInclude(c => c.Invoices)
+            .ForCompany(companyId)
             .Where(i => request.InvoiceIds.Contains(i.Id))
             .ToListAsync(ct);
 
@@ -146,8 +152,6 @@ public class MoneyReceiptService : IMoneyReceiptService
             if (invoice.Status == InvoiceStatus.Draft)
                 throw new InvalidOperationException($"Cannot record receipt against draft invoice {invoice.InvoiceNumber}.");
         }
-
-        var companyId = await GetRequiredCompanyIdAsync(ct);
 
         var company = await context.Companies.AsNoTracking()
             .FirstAsync(c => c.Id == companyId, ct);
@@ -174,6 +178,12 @@ public class MoneyReceiptService : IMoneyReceiptService
 
         for (int i = 0; i < request.InvoiceIds.Length; i++)
         {
+            var invoice = invoices.First(inv => inv.Id == request.InvoiceIds[i]);
+            var remainingBalance = invoice.Total - invoice.AmountPaid;
+            if (request.AllocatedAmounts[i] > remainingBalance)
+                throw new InvalidOperationException(
+                    $"Allocated amount {request.AllocatedAmounts[i]} exceeds remaining balance {remainingBalance} for invoice {invoice.InvoiceNumber}.");
+
             var allocation = new ReceiptInvoiceAllocation
             {
                 Id = Guid.NewGuid(),
@@ -183,7 +193,6 @@ public class MoneyReceiptService : IMoneyReceiptService
             };
             receipt.Allocations.Add(allocation);
 
-            var invoice = invoices.First(inv => inv.Id == request.InvoiceIds[i]);
             invoice.RecordPayment(request.AllocatedAmounts[i]);
 
             if (invoice.IsFullyPaid && invoice.Status != InvoiceStatus.Paid)
@@ -214,6 +223,7 @@ public class MoneyReceiptService : IMoneyReceiptService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
+        var companyId = await GetRequiredCompanyIdAsync(ct);
         var userId = await GetCurrentUserIdAsync();
         var now = _timeProvider.GetUtcNow().UtcDateTime;
 
@@ -232,6 +242,7 @@ public class MoneyReceiptService : IMoneyReceiptService
                 .ThenInclude(i => i.Client)
                 .ThenInclude(c => c.Invoices)
             .AsSplitQuery()
+            .ForCompany(companyId)
             .FirstOrDefaultAsync(r => r.Id == request.Id, ct);
 
         if (receipt is null)
@@ -264,6 +275,7 @@ public class MoneyReceiptService : IMoneyReceiptService
         var newInvoices = await context.Invoices
             .Include(i => i.Client)
             .ThenInclude(c => c.Invoices)
+            .ForCompany(companyId)
             .Where(i => request.InvoiceIds.Contains(i.Id))
             .ToListAsync(ct);
 
@@ -281,6 +293,12 @@ public class MoneyReceiptService : IMoneyReceiptService
         // Apply new allocations
         for (int i = 0; i < request.InvoiceIds.Length; i++)
         {
+            var invoice = newInvoices.First(inv => inv.Id == request.InvoiceIds[i]);
+            var remainingBalance = invoice.Total - invoice.AmountPaid;
+            if (request.AllocatedAmounts[i] > remainingBalance)
+                throw new InvalidOperationException(
+                    $"Allocated amount {request.AllocatedAmounts[i]} exceeds remaining balance {remainingBalance} for invoice {invoice.InvoiceNumber}.");
+
             var allocation = new ReceiptInvoiceAllocation
             {
                 Id = Guid.NewGuid(),
@@ -290,7 +308,6 @@ public class MoneyReceiptService : IMoneyReceiptService
             };
             receipt.Allocations.Add(allocation);
 
-            var invoice = newInvoices.First(inv => inv.Id == request.InvoiceIds[i]);
             invoice.RecordPayment(request.AllocatedAmounts[i]);
 
             if (invoice.IsFullyPaid && invoice.Status != InvoiceStatus.Paid)
@@ -312,7 +329,6 @@ public class MoneyReceiptService : IMoneyReceiptService
         receipt.PaymentMethod = request.PaymentMethod;
         receipt.ReferenceNo = request.ReferenceNo;
 
-        var companyId = await GetRequiredCompanyIdAsync(ct);
         AuditLogHelper.Add(context, companyId, userId, "MoneyReceiptUpdated", "MoneyReceipt", receipt.Id.ToString(),
             $"{receipt.ReceiptNumber}: updated to {totalAmount:C} via {request.PaymentMethod}", _timeProvider);
 
@@ -327,12 +343,15 @@ public class MoneyReceiptService : IMoneyReceiptService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
         var receipt = await context.MoneyReceipts
             .Include(r => r.Allocations)
                 .ThenInclude(a => a.Invoice)
                 .ThenInclude(i => i.Client)
                 .ThenInclude(c => c.Invoices)
             .AsSplitQuery()
+            .ForCompany(companyId)
             .FirstOrDefaultAsync(r => r.Id == id, ct);
 
         if (receipt is null)
@@ -360,7 +379,6 @@ public class MoneyReceiptService : IMoneyReceiptService
         receipt.IsDeleted = true;
         receipt.DeletedAt = _timeProvider.GetUtcNow().UtcDateTime;
 
-        var companyId = await GetRequiredCompanyIdAsync(ct);
         AuditLogHelper.Add(context, companyId, userId, "MoneyReceiptDeleted", "MoneyReceipt", id.ToString(),
             receipt.ReceiptNumber, _timeProvider);
 
@@ -371,6 +389,8 @@ public class MoneyReceiptService : IMoneyReceiptService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
         var receipt = await context.MoneyReceipts
             .IgnoreQueryFilters()
             .Include(r => r.Allocations)
@@ -378,6 +398,7 @@ public class MoneyReceiptService : IMoneyReceiptService
                 .ThenInclude(i => i.Client)
                 .ThenInclude(c => c.Invoices)
             .AsSplitQuery()
+            .ForCompany(companyId)
             .FirstOrDefaultAsync(r => r.Id == id, ct);
 
         if (receipt is null)
@@ -405,7 +426,6 @@ public class MoneyReceiptService : IMoneyReceiptService
         receipt.IsDeleted = false;
         receipt.DeletedAt = null;
 
-        var companyId = await GetRequiredCompanyIdAsync(ct);
         AuditLogHelper.Add(context, companyId, userId, "MoneyReceiptRestored", "MoneyReceipt", id.ToString(),
             receipt.ReceiptNumber, _timeProvider);
 
@@ -448,9 +468,12 @@ public class MoneyReceiptService : IMoneyReceiptService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
         var receipt = await context.MoneyReceipts
             .IgnoreQueryFilters()
             .Include(r => r.Allocations)
+            .ForCompany(companyId)
             .FirstOrDefaultAsync(r => r.Id == id, ct);
 
         if (receipt is null)
@@ -461,7 +484,6 @@ public class MoneyReceiptService : IMoneyReceiptService
 
         context.MoneyReceipts.Remove(receipt);
 
-        var companyId = await GetRequiredCompanyIdAsync(ct);
         AuditLogHelper.Add(context, companyId, userId, "MoneyReceiptPermanentDeleted", "MoneyReceipt", id.ToString(),
             receiptNumber, _timeProvider);
 
