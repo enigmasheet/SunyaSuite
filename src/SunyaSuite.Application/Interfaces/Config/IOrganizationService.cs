@@ -17,6 +17,8 @@ public interface IOrganizationService
     Task<UserDto> CreateUserForOrganizationAsync(Guid organizationId, CreateOrgUserRequest request, string adminUserId);
     Task<OrganizationDto> UpdateAsync(Guid id, UpdateOrganizationRequest request);
     Task DeleteAsync(Guid id);
+    Task RestoreAsync(Guid id, CancellationToken ct = default);
+    Task<List<OrganizationDto>> GetDeletedAsync(CancellationToken ct = default);
     Task ToggleActiveAsync(Guid id);
     Task UpdateOrgUserRoleAsync(Guid orgId, string userId, string role);
     Task UpdateOrgUserDefaultsAsync(Guid orgId, string userId, Guid? companyId, Guid? branchId);

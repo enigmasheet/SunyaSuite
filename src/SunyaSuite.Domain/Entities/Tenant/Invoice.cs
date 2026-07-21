@@ -1,8 +1,9 @@
 using SunyaSuite.Domain.Enums;
+using SunyaSuite.Domain.Interfaces;
 
 namespace SunyaSuite.Domain.Entities.Tenant;
 
-public class Invoice
+public class Invoice : ICompanyScoped
 {
     public Guid Id { get; set; }
     public Guid CompanyId { get; set; }

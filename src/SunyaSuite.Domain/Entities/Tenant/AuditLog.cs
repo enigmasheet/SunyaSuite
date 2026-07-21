@@ -1,6 +1,8 @@
+using SunyaSuite.Domain.Interfaces;
+
 namespace SunyaSuite.Domain.Entities.Tenant;
 
-public class AuditLog
+public class AuditLog : ICompanyScoped
 {
     public Guid Id { get; set; }
     public Guid CompanyId { get; set; }

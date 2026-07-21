@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using SunyaSuite.Application.Settings;
+using SunyaSuite.Domain.Constants;
 using SunyaSuite.Domain.Entities.Config;
 using SunyaSuite.Infrastructure.Data.Config;
 using System.IdentityModel.Tokens.Jwt;
@@ -43,13 +44,14 @@ public class JwtTokenService
         claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
 
         await using var configDb = await _configFactory.CreateDbContextAsync();
-        var orgRoles = await configDb.OrganizationUsers
+        var orgRoleData = await configDb.OrganizationUsers
             .AsNoTracking()
             .Where(ou => ou.UserId == user.Id)
-            .Select(ou => ou.Role)
+            .Select(ou => new { ou.OrganizationId, ou.Role })
             .ToListAsync();
 
-        claims.AddRange(orgRoles.Select(r => new Claim(ClaimTypes.Role, r)));
+        foreach (var data in orgRoleData)
+            claims.Add(new Claim(ClaimNames.OrgRole, $"{data.OrganizationId}:{data.Role}"));
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_settings.Secret));
         var expiresAt = _timeProvider.GetUtcNow().UtcDateTime.AddMinutes(_settings.ExpirationInMinutes);

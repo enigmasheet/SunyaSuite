@@ -75,6 +75,18 @@ public class JwtAuthenticationStateProvider : AuthenticationStateProvider
                     }
                     break;
 
+                case "org_role":
+                    if (value.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var role in value.EnumerateArray())
+                            claims.Add(new Claim("org_role", role.GetString() ?? ""));
+                    }
+                    else
+                    {
+                        claims.Add(new Claim("org_role", value.GetString() ?? ""));
+                    }
+                    break;
+
                 case "exp":
                 case "iss":
                 case "aud":
