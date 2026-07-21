@@ -23,6 +23,7 @@ public static class ServiceCollectionExtensions
             options.AddPolicy(PolicyNames.SystemAdminOnly, p => p.RequireRole(RoleNames.SystemAdmin));
             options.AddPolicy(PolicyNames.OrgAdminOrAbove, p => p.RequireRole(OrgRoles.Owner, OrgRoles.OrgAdmin));
             options.AddPolicy(PolicyNames.OrgMemberOrAbove, p => p.RequireRole(OrgRoles.Owner, OrgRoles.OrgAdmin, OrgRoles.Member));
+            options.AddPolicy(PolicyNames.OrgViewerOrAbove, p => p.RequireRole(OrgRoles.Owner, OrgRoles.OrgAdmin, OrgRoles.Member, OrgRoles.Viewer));
         });
 
         return services;

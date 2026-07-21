@@ -14,5 +14,7 @@ public class BranchConfiguration : IEntityTypeConfiguration<Branch>
         builder.Property(x => x.Address).HasMaxLength(500);
         builder.Property(x => x.Phone).HasMaxLength(50);
         builder.HasIndex(x => new { x.CompanyId, x.Slug }).IsUnique();
+
+        builder.HasQueryFilter(x => !x.IsDeleted);
     }
 }

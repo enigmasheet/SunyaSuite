@@ -13,5 +13,6 @@ public class OrganizationConfiguration : IEntityTypeConfiguration<Organization>
         builder.Property(x => x.Slug).HasMaxLength(100).IsRequired();
         builder.Property(x => x.ConnectionString).HasMaxLength(500).IsRequired(false);
         builder.HasIndex(x => x.Slug).IsUnique();
+        builder.HasQueryFilter(x => x.DeletedAt == null);
     }
 }

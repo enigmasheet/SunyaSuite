@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SunyaSuite.Infrastructure.Data.Config;
@@ -11,9 +12,11 @@ using SunyaSuite.Infrastructure.Data.Config;
 namespace SunyaSuite.Infrastructure.Data.Migrations.ConfigDb
 {
     [DbContext(typeof(ConfigDbContext))]
-    partial class ConfigDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260721045900_AddInvitesToConfig")]
+    partial class AddInvitesToConfig
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

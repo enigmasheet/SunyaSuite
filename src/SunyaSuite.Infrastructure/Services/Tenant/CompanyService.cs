@@ -94,7 +94,7 @@ public class CompanyService : ICompanyService
     public async Task RestoreAsync(Guid id, CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
-        var company = await context.Companies.FindAsync([id], ct);
+        var company = await context.Companies.IgnoreQueryFilters().FirstOrDefaultAsync(c => c.Id == id, ct);
         if (company is null)
             throw new KeyNotFoundException($"Company {id} not found.");
 
@@ -111,6 +111,7 @@ public class CompanyService : ICompanyService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
         return await context.Companies
+            .IgnoreQueryFilters()
             .AsNoTracking()
             .Where(c => c.IsDeleted)
             .OrderByDescending(c => c.DeletedAt)

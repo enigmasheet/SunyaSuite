@@ -30,7 +30,7 @@ public class Invoice
     public bool IsDeleted { get; set; }
     public DateTime? DeletedAt { get; set; }
 
-    public decimal AmountPaid { get; set; }
+    public decimal AmountPaid { get; private set; }
     public Guid FiscalYearId { get; set; }
     public Guid? ProjectId { get; set; }
     public string? ProjectRemark { get; set; }
@@ -60,4 +60,22 @@ public class Invoice
             Total = Subtotal - DiscountAmount;
         }
     }
+
+    public void RecordPayment(decimal amount)
+    {
+        if (amount <= 0)
+            throw new ArgumentOutOfRangeException(nameof(amount), "Payment amount must be positive.");
+
+        AmountPaid += amount;
+    }
+
+    public void ReversePayment(decimal amount)
+    {
+        if (amount <= 0)
+            throw new ArgumentOutOfRangeException(nameof(amount), "Reversal amount must be positive.");
+
+        AmountPaid -= amount;
+    }
+
+    public bool IsFullyPaid => AmountPaid >= Total;
 }

@@ -31,6 +31,13 @@ public class MoneyReceiptServiceClient : IMoneyReceiptService
         return (await response.Content.ReadFromJsonAsync<MoneyReceiptListItemDto>(cancellationToken: ct))!;
     }
 
+    public async Task<MoneyReceiptListItemDto> UpdateAsync(UpdateMoneyReceiptRequest request, CancellationToken ct = default)
+    {
+        var response = await _http.PutAsJsonAsync($"{ApiEndpoints.MoneyReceipts}/{request.Id}", request, ct);
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<MoneyReceiptListItemDto>(cancellationToken: ct))!;
+    }
+
     public async Task DeleteAsync(Guid id, CancellationToken ct = default) =>
         (await _http.DeleteAsync($"{ApiEndpoints.MoneyReceipts}/{id}", ct)).EnsureSuccessStatusCode();
 

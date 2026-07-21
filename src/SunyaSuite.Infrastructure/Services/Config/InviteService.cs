@@ -3,40 +3,36 @@ using Microsoft.Extensions.Options;
 using SunyaSuite.Application.DTOs.Config;
 using SunyaSuite.Application.Interfaces.Config;
 using SunyaSuite.Application.Settings;
-using SunyaSuite.Domain.Entities.Tenant;
-using SunyaSuite.Infrastructure.Data.Tenant;
+using SunyaSuite.Domain.Entities.Config;
+using SunyaSuite.Infrastructure.Data.Config;
 using System.Security.Cryptography;
 
 namespace SunyaSuite.Infrastructure.Services.Config;
 
 public class InviteService : IInviteService
 {
-    private readonly IDbContextFactory<ApplicationDbContext> _contextFactory;
+    private readonly IDbContextFactory<ConfigDbContext> _contextFactory;
     private readonly TimeProvider _timeProvider;
     private readonly IOptions<InviteSettings> _settings;
-    private readonly ITenantContext _tenantContext;
 
     public InviteService(
-        IDbContextFactory<ApplicationDbContext> contextFactory,
+        IDbContextFactory<ConfigDbContext> contextFactory,
         TimeProvider timeProvider,
-        IOptions<InviteSettings> settings,
-        ITenantContext tenantContext)
+        IOptions<InviteSettings> settings)
     {
         _contextFactory = contextFactory;
         _timeProvider = timeProvider;
         _settings = settings;
-        _tenantContext = tenantContext;
     }
 
     public async Task<(List<InviteDto> Items, int Total)> GetPagedAsync(
-        int page, int pageSize, string? searchTerm = null, CancellationToken ct = default)
+        Guid organizationId, int page, int pageSize, string? searchTerm = null, CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
-        var query = context.Invites.AsQueryable();
-
-        if (_tenantContext.CompanyId.HasValue)
-            query = query.Where(i => i.CompanyId == _tenantContext.CompanyId.Value);
+        var query = context.Invites
+            .Where(i => i.OrganizationId == organizationId)
+            .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
             query = query.Where(i => i.Code.Contains(searchTerm) || i.UsedByEmail!.Contains(searchTerm));
@@ -62,7 +58,7 @@ public class InviteService : IInviteService
         return (items, total);
     }
 
-    public async Task<InviteDto> CreateAsync(string role, int? expiresInHours, string createdByUserId, CancellationToken ct = default)
+    public async Task<InviteDto> CreateAsync(Guid organizationId, string role, int? expiresInHours, string createdByUserId, CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
@@ -73,7 +69,7 @@ public class InviteService : IInviteService
         var invite = new Invite
         {
             Id = Guid.NewGuid(),
-            CompanyId = _tenantContext.CompanyId ?? Guid.Empty,
+            OrganizationId = organizationId,
             Code = code,
             Role = role,
             IsUsed = false,
@@ -104,7 +100,7 @@ public class InviteService : IInviteService
         return true;
     }
 
-    public async Task<(string Role, string Code)> ConsumeInviteAsync(string code, string usedByEmail, CancellationToken ct = default)
+    public async Task<(string Role, string Code, Guid OrganizationId)> ConsumeInviteAsync(string code, string usedByEmail, CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
         var invite = await context.Invites.FirstOrDefaultAsync(i => i.Code == code, ct)
@@ -121,7 +117,7 @@ public class InviteService : IInviteService
 
         await context.SaveChangesAsync(ct);
 
-        return (invite.Role, invite.Code);
+        return (invite.Role, invite.Code, invite.OrganizationId);
     }
 
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
@@ -135,7 +131,7 @@ public class InviteService : IInviteService
         }
     }
 
-    private static async Task<string> GenerateUniqueCodeAsync(ApplicationDbContext context, CancellationToken ct)
+    private static async Task<string> GenerateUniqueCodeAsync(ConfigDbContext context, CancellationToken ct)
     {
         string code;
         do

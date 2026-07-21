@@ -23,8 +23,6 @@ public class ApplicationDbContext : DbContext
     public DbSet<ReceiptInvoiceAllocation> ReceiptInvoiceAllocations => Set<ReceiptInvoiceAllocation>();
     public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
     public DbSet<FiscalYear> FiscalYears => Set<FiscalYear>();
-    public DbSet<Invite> Invites => Set<Invite>();
-
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -50,8 +48,6 @@ public class ApplicationDbContext : DbContext
                     log.Timestamp = utcNow;
                 if (entry.Entity is FiscalYear fy && fy.CreatedAt == default)
                     fy.CreatedAt = utcNow;
-                if (entry.Entity is Invite invite && invite.CreatedAt == default)
-                    invite.CreatedAt = utcNow;
                 if (entry.Entity is Company company && company.CreatedAt == default)
                     company.CreatedAt = utcNow;
                 if (entry.Entity is Branch branch && branch.CreatedAt == default)

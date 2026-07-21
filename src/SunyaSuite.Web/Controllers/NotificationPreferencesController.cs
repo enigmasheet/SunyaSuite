@@ -1,13 +1,14 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SunyaSuite.Application.Interfaces.Config;
+using SunyaSuite.Domain.Constants;
 using SunyaSuite.Domain.Entities.Tenant;
 
 namespace SunyaSuite.Web.Api.Controllers;
 
 [ApiController]
 [Route("api/notification-preferences")]
-[Authorize]
+[Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
 public class NotificationPreferencesController : ControllerBase
 {
     private readonly INotificationPreferenceService _notificationPreferenceService;

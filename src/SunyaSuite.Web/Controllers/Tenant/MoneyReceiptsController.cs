@@ -9,7 +9,7 @@ namespace SunyaSuite.Web.Api.Controllers.Tenant;
 
 [ApiController]
 [Route("api/money-receipts")]
-[Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
+[Authorize(Policy = PolicyNames.OrgViewerOrAbove)]
 public class MoneyReceiptsController : ControllerBase
 {
     private readonly IMoneyReceiptService _moneyReceiptService;
@@ -43,6 +43,7 @@ public class MoneyReceiptsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
     public async Task<ActionResult<MoneyReceiptListItemDto>> Create([FromBody] CreateMoneyReceiptRequest request, CancellationToken ct = default)
     {
         try
@@ -56,7 +57,30 @@ public class MoneyReceiptsController : ControllerBase
         }
     }
 
+    [HttpPut("{id}")]
+    [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
+    public async Task<ActionResult<MoneyReceiptListItemDto>> Update(Guid id, [FromBody] UpdateMoneyReceiptRequest request, CancellationToken ct = default)
+    {
+        if (id != request.Id)
+            return BadRequest("Route ID and request ID do not match.");
+
+        try
+        {
+            var receipt = await _moneyReceiptService.UpdateAsync(request, ct);
+            return Ok(receipt);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
     [HttpDelete("{id}")]
+    [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
     public async Task<ActionResult> Delete(Guid id, CancellationToken ct = default)
     {
         try
@@ -86,6 +110,7 @@ public class MoneyReceiptsController : ControllerBase
     }
 
     [HttpPost("{id}/restore")]
+    [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
     public async Task<ActionResult> Restore(Guid id, CancellationToken ct = default)
     {
         await _moneyReceiptService.RestoreAsync(id, ct);
@@ -93,6 +118,7 @@ public class MoneyReceiptsController : ControllerBase
     }
 
     [HttpDelete("{id}/permanent")]
+    [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
     public async Task<ActionResult> PermanentDelete(Guid id, CancellationToken ct = default)
     {
         await _moneyReceiptService.PermanentDeleteAsync(id, ct);

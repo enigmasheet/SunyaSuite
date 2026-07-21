@@ -1,13 +1,14 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SunyaSuite.Application.Interfaces.Config;
+using SunyaSuite.Domain.Constants;
 using SunyaSuite.Domain.Enums;
 
 namespace SunyaSuite.Web.Api.Controllers.Config;
 
 [ApiController]
 [Route("api/user-preferences")]
-[Authorize]
+[Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
 public class UserPreferencesController : ControllerBase
 {
     private readonly IUserPreferenceService _userPreferenceService;

@@ -3,38 +3,48 @@ using Microsoft.AspNetCore.Mvc;
 using SunyaSuite.Application.DTOs;
 using SunyaSuite.Application.DTOs.Config;
 using SunyaSuite.Application.Interfaces.Config;
+using SunyaSuite.Domain.Constants;
 using System.Security.Claims;
 
 namespace SunyaSuite.Web.Api.Controllers.Config;
 
 [ApiController]
 [Route("api/invites")]
-[Authorize(Policy = Domain.Constants.PolicyNames.SystemAdminOnly)]
+[Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
 public class InvitesController : ControllerBase
 {
     private readonly IInviteService _inviteService;
+    private readonly ITenantContext _tenantContext;
 
-    public InvitesController(IInviteService inviteService)
+    public InvitesController(IInviteService inviteService, ITenantContext tenantContext)
     {
         _inviteService = inviteService;
+        _tenantContext = tenantContext;
     }
 
     [HttpGet]
     public async Task<ActionResult<PagedResult<InviteDto>>> GetPaged(
+        [FromQuery] Guid organizationId,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         [FromQuery] string? searchTerm = null,
         CancellationToken ct = default)
     {
-        var (items, total) = await _inviteService.GetPagedAsync(page, pageSize, searchTerm, ct);
+        if (!IsOrgAccessible(organizationId))
+            return Forbid();
+
+        var (items, total) = await _inviteService.GetPagedAsync(organizationId, page, pageSize, searchTerm, ct);
         return Ok(new PagedResult<InviteDto>(items, total));
     }
 
     [HttpPost]
     public async Task<ActionResult<InviteDto>> Create([FromBody] CreateInviteRequest request, CancellationToken ct = default)
     {
+        if (!IsOrgAccessible(request.OrganizationId))
+            return Forbid();
+
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
-        var invite = await _inviteService.CreateAsync(request.Role, request.ExpiresInHours, userId, ct);
+        var invite = await _inviteService.CreateAsync(request.OrganizationId, request.Role, request.ExpiresInHours, userId, ct);
         return Ok(invite);
     }
 
@@ -43,5 +53,12 @@ public class InvitesController : ControllerBase
     {
         await _inviteService.DeleteAsync(id, ct);
         return NoContent();
+    }
+
+    private bool IsOrgAccessible(Guid orgId)
+    {
+        if (User.IsInRole(RoleNames.SystemAdmin))
+            return true;
+        return _tenantContext.HasTenant && _tenantContext.OrganizationId == orgId;
     }
 }

@@ -226,9 +226,11 @@ public class InvoiceService : IInvoiceService
     public async Task<InvoiceListItemDto> UpdateAsync(UpdateInvoiceRequest request, CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
+        var companyId = await GetRequiredCompanyIdAsync(ct);
 
         var existing = await context.Invoices
             .Include(i => i.Items)
+            .Where(i => i.CompanyId == companyId)
             .FirstOrDefaultAsync(i => i.Id == request.Id, ct);
 
         if (existing is null)
@@ -241,6 +243,8 @@ public class InvoiceService : IInvoiceService
             throw new InvalidOperationException("Only draft invoices can be edited.");
 
         var vatRate = await GetVatRateAsync(ct);
+
+        await using var transaction = await context.Database.BeginTransactionAsync(ct);
 
         context.InvoiceItems.RemoveRange(existing.Items);
 
@@ -270,10 +274,10 @@ public class InvoiceService : IInvoiceService
         existing.GrandTotalInWords = _numberToWordsService.ToNepaliWords(existing.Total);
 
         var userId = await GetCurrentUserIdAsync();
-        var companyId = await GetRequiredCompanyIdAsync(ct);
         AuditLogHelper.Add(context, companyId, userId, "Updated", "Invoice", existing.Id.ToString(), existing.InvoiceNumber, _timeProvider);
 
         await context.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
 
         return MapToListItem(existing);
     }

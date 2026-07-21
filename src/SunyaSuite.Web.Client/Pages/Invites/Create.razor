@@ -5,6 +5,7 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
+@inject ITenantContext TenantContext
 
 <PageHeader Title="Create Invite" />
 
@@ -99,7 +100,8 @@
 
         try
         {
-            var invite = await InviteService.CreateAsync(_selectedRole, _expiresInHours, string.Empty);
+            var orgId = TenantContext.OrganizationId;
+            var invite = await InviteService.CreateAsync(orgId, _selectedRole, _expiresInHours, string.Empty);
             _createdInviteCode = invite.Code;
 
             var baseUri = Navigation.BaseUri.TrimEnd('/');

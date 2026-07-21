@@ -8,7 +8,7 @@ namespace SunyaSuite.Web.Controllers.Tenant;
 
 [ApiController]
 [Route("api/branches")]
-[Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
+[Authorize(Policy = PolicyNames.OrgViewerOrAbove)]
 public class BranchesController : ControllerBase
 {
     private readonly IBranchService _branchService;
@@ -46,6 +46,7 @@ public class BranchesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
     public async Task<ActionResult<BranchDto>> Create([FromBody] CreateBranchRequest request, CancellationToken ct = default)
     {
         try
@@ -64,6 +65,7 @@ public class BranchesController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
     public async Task<ActionResult<BranchDto>> Update(Guid id, [FromBody] UpdateBranchRequest request, CancellationToken ct = default)
     {
         if (id != request.Id)
@@ -85,6 +87,7 @@ public class BranchesController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
     public async Task<ActionResult> Delete(Guid id, CancellationToken ct = default)
     {
         try
@@ -103,6 +106,7 @@ public class BranchesController : ControllerBase
     }
 
     [HttpPatch("{id}/restore")]
+    [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
     public async Task<ActionResult> Restore(Guid id, CancellationToken ct = default)
     {
         try

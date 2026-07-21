@@ -13,7 +13,7 @@ public class InvoicePdfServiceClient : IInvoicePdfService
 
     public async Task<byte[]> GeneratePdfAsync(InvoiceDetailDto invoice, CopyType copyType = CopyType.Original, DateDisplayPreference preference = DateDisplayPreference.Gregorian, CancellationToken ct = default)
     {
-        var response = await _http.PostAsJsonAsync($"{ApiEndpoints.InvoicePdf}/generate", new { invoice, copyType, preference }, ct);
+        var response = await _http.PostAsJsonAsync($"{ApiEndpoints.InvoicePdf}/generate", new { invoiceId = invoice.Id, copyType, preference }, ct);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadAsByteArrayAsync(ct);
     }

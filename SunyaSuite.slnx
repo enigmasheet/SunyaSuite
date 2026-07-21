@@ -6,4 +6,7 @@
     <Project Path="src/SunyaSuite.Web.Client/SunyaSuite.Web.Client.csproj" />
     <Project Path="src/SunyaSuite.Web/SunyaSuite.Web.Api.csproj" />
   </Folder>
+  <Project Path="docker-compose.dcproj">
+    <Build />
+  </Project>
 </Solution>

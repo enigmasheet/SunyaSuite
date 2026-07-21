@@ -55,6 +55,7 @@ public class InvoicePdfService : IInvoicePdfService
         {
             col.Item().Element(c => ComposeHeader(c, invoice));
             col.Item().PaddingVertical(10).Element(c => ComposeSellerBuyer(c, invoice));
+            col.Item().PaddingVertical(4).Element(c => ComposeProjectInfo(c, invoice));
             col.Item().Element(c => ComposeItemsTable(c, invoice));
             col.Item().PaddingTop(10).AlignRight().Element(c => ComposeTotals(c, invoice));
             col.Item().PaddingTop(8).Element(c => ComposeAmountInWords(c, invoice));
@@ -113,6 +114,32 @@ public class InvoicePdfService : IInvoicePdfService
                 col.Item().Text(invoice.BuyerAddress).FontSize(9);
             if (!string.IsNullOrEmpty(invoice.BuyerPan))
                 col.Item().Text($"PAN: {invoice.BuyerPan}").FontSize(9);
+        });
+    }
+
+    private static void ComposeProjectInfo(IContainer container, InvoiceDetailDto invoice)
+    {
+        if (string.IsNullOrEmpty(invoice.ProjectName) && string.IsNullOrEmpty(invoice.ProjectRemark))
+            return;
+
+        container.Background(Colors.Grey.Lighten5).Padding(6).Column(col =>
+        {
+            if (!string.IsNullOrEmpty(invoice.ProjectName))
+            {
+                col.Item().Row(row =>
+                {
+                    row.AutoItem().Text("Project: ").Bold().FontSize(9);
+                    row.RelativeItem().Text(invoice.ProjectName).FontSize(9);
+                });
+            }
+            if (!string.IsNullOrEmpty(invoice.ProjectRemark))
+            {
+                col.Item().PaddingTop(2).Row(row =>
+                {
+                    row.AutoItem().Text("Remark: ").Bold().FontSize(9);
+                    row.RelativeItem().Text(invoice.ProjectRemark).FontSize(9);
+                });
+            }
         });
     }
 

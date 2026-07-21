@@ -6,6 +6,7 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 @inject TimeProvider TimeProvider
+@inject ITenantContext TenantContext
 
 <PageHeader Title="Invites" />
 
@@ -90,8 +91,9 @@
     {
         try
         {
+            var orgId = TenantContext.OrganizationId;
             var (items, total) = await InviteService.GetPagedAsync(
-                state.Page + 1, state.PageSize, _searchTerm, ct);
+                orgId, state.Page + 1, state.PageSize, _searchTerm, ct);
             return new TableData<InviteDto> { Items = items, TotalItems = total };
         }
         catch (Exception ex)

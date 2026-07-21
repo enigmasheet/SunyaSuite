@@ -10,6 +10,7 @@ namespace SunyaSuite.Web.Api.Auth;
 
 public class OrgAdminRequirement : IAuthorizationRequirement { }
 public class OrgMemberRequirement : IAuthorizationRequirement { }
+public class OrgViewerRequirement : IAuthorizationRequirement { }
 
 public class OrgRoleAuthorizationHandler : AuthorizationHandler<IAuthorizationRequirement>
 {
@@ -28,7 +29,6 @@ public class OrgRoleAuthorizationHandler : AuthorizationHandler<IAuthorizationRe
         AuthorizationHandlerContext context,
         IAuthorizationRequirement requirement)
     {
-        // System admins bypass org-level requirements
         if (context.User.IsInRole(RoleNames.SystemAdmin))
         {
             context.Succeed(requirement);
@@ -66,10 +66,13 @@ public class OrgRoleAuthorizationHandler : AuthorizationHandler<IAuthorizationRe
 
         switch (requirement)
         {
-            case OrgAdminRequirement when role is OrgRoles.Owner or OrgRoles.OrgAdmin:
+            case OrgViewerRequirement when role is OrgRoles.Owner or OrgRoles.OrgAdmin or OrgRoles.Member or OrgRoles.Viewer:
                 context.Succeed(requirement);
                 break;
             case OrgMemberRequirement when role is OrgRoles.Owner or OrgRoles.OrgAdmin or OrgRoles.Member:
+                context.Succeed(requirement);
+                break;
+            case OrgAdminRequirement when role is OrgRoles.Owner or OrgRoles.OrgAdmin:
                 context.Succeed(requirement);
                 break;
         }

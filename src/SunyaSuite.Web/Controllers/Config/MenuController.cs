@@ -12,7 +12,7 @@ namespace SunyaSuite.Web.Api.Controllers.Config;
 
 [ApiController]
 [Route("api/auth/menu")]
-[Authorize]
+[Authorize(Policy = PolicyNames.OrgViewerOrAbove)]
 public class MenuController : ControllerBase
 {
     private readonly ITenantContext _tenantContext;
@@ -46,10 +46,11 @@ public class MenuController : ControllerBase
             }
         }
 
+        var isOrgViewerOrAbove = orgRole is OrgRoles.Owner or OrgRoles.OrgAdmin or OrgRoles.Member or OrgRoles.Viewer;
         var isOrgMemberOrAbove = orgRole is OrgRoles.Owner or OrgRoles.OrgAdmin or OrgRoles.Member;
         var isOrgAdminOrAbove = orgRole is OrgRoles.Owner or OrgRoles.OrgAdmin;
 
-        if (isSystemAdmin || isOrgMemberOrAbove)
+        if (isSystemAdmin || isOrgViewerOrAbove)
         {
             sections.Add(new MenuSectionDto
             {
