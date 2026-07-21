@@ -35,10 +35,10 @@ public class DashboardService : IDashboardService
         var monthStart = new DateOnly(now.Year, now.Month, 1);
         var sixMonthsAgo = monthStart.AddMonths(-5);
 
-        var totalClients = await context.Clients.CountAsync(c => c.CompanyId == companyId && !c.IsDeleted, ct);
-        var activeProjects = await context.Projects.CountAsync(p => p.CompanyId == companyId && !p.IsDeleted && p.Status != ProjectStatus.Completed, ct);
+        var totalClients = await context.Clients.ForCompany(companyId).CountAsync(c => !c.IsDeleted, ct);
+        var activeProjects = await context.Projects.ForCompany(companyId).CountAsync(p => !p.IsDeleted && p.Status != ProjectStatus.Completed, ct);
 
-        var invoiceQuery = context.Invoices.Where(i => i.CompanyId == companyId && !i.IsDeleted);
+        var invoiceQuery = context.Invoices.ForCompany(companyId).Where(i => !i.IsDeleted);
         if (fiscalYearId.HasValue)
             invoiceQuery = invoiceQuery.Where(i => i.FiscalYearId == fiscalYearId.Value);
 
@@ -56,13 +56,13 @@ public class DashboardService : IDashboardService
             .FirstOrDefaultAsync(ct) ?? new { Overdue = 0, Outstanding = 0, Paid = 0, RevenueMonth = 0m, RevenueTotal = 0m };
 
         var clientBreakdown = await context.Clients
-            .Where(c => c.CompanyId == companyId && !c.IsDeleted)
+            .ForCompany(companyId).Where(c => !c.IsDeleted)
             .GroupBy(c => c.Status)
             .Select(g => new StatusBreakdown(g.Key.ToString(), g.Count()))
             .ToListAsync(ct);
 
         var projectBreakdown = await context.Projects
-            .Where(p => p.CompanyId == companyId && !p.IsDeleted)
+            .ForCompany(companyId).Where(p => !p.IsDeleted)
             .GroupBy(p => p.Status)
             .Select(g => new StatusBreakdown(g.Key.ToString(), g.Count()))
             .ToListAsync(ct);
@@ -72,7 +72,7 @@ public class DashboardService : IDashboardService
             .Select(g => new StatusBreakdown(g.Key.ToString(), g.Count()))
             .ToListAsync(ct);
 
-        var monthlyRevenueQuery = context.Invoices.Where(i => i.CompanyId == companyId && !i.IsDeleted && i.Status == InvoiceStatus.Paid && i.IssueDate >= sixMonthsAgo);
+        var monthlyRevenueQuery = context.Invoices.ForCompany(companyId).Where(i => !i.IsDeleted && i.Status == InvoiceStatus.Paid && i.IssueDate >= sixMonthsAgo);
         if (fiscalYearId.HasValue)
             monthlyRevenueQuery = monthlyRevenueQuery.Where(i => i.FiscalYearId == fiscalYearId.Value);
 
@@ -112,7 +112,7 @@ public class DashboardService : IDashboardService
 
         return await context.Invoices
             .Include(i => i.Client)
-            .Where(i => i.CompanyId == companyId && !i.IsDeleted)
+            .ForCompany(companyId).Where(i => !i.IsDeleted)
             .OrderByDescending(i => i.IssueDate)
             .Take(count)
             .Select(i => new RecentInvoiceDto(

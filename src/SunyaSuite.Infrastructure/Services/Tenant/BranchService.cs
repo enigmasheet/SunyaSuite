@@ -46,7 +46,7 @@ public class BranchService : IBranchService
         return await context.Branches
             .AsNoTracking()
             .Include(b => b.Company)
-            .Where(b => b.CompanyId == companyId)
+            .ForCompany(companyId)
             .OrderBy(b => b.Name)
             .Select(b => MapToDto(b))
             .ToListAsync(ct);
@@ -60,7 +60,7 @@ public class BranchService : IBranchService
         if (!companyExists)
             throw new KeyNotFoundException($"Company {request.CompanyId} not found.");
 
-        var slugExists = await context.Branches.AnyAsync(b => b.CompanyId == request.CompanyId && b.Slug == request.Slug, ct);
+        var slugExists = await context.Branches.ForCompany(request.CompanyId).AnyAsync(b => b.Slug == request.Slug, ct);
         if (slugExists)
             throw new InvalidOperationException($"A branch with slug '{request.Slug}' already exists in this company.");
 
@@ -142,8 +142,7 @@ public class BranchService : IBranchService
         if (branch is null)
             throw new KeyNotFoundException($"Branch {request.Id} not found.");
 
-        var slugExists = await context.Branches.AnyAsync(
-            b => b.CompanyId == request.CompanyId && b.Slug == request.Slug && b.Id != request.Id, ct);
+        var slugExists = await context.Branches.ForCompany(request.CompanyId).AnyAsync(b => b.Slug == request.Slug && b.Id != request.Id, ct);
         if (slugExists)
             throw new InvalidOperationException($"A branch with slug '{request.Slug}' already exists in this company.");
 

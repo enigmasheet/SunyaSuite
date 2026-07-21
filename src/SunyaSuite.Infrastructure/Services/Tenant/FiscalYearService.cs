@@ -39,7 +39,7 @@ public class FiscalYearService : IFiscalYearService
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
         var companyId = await GetRequiredCompanyIdAsync(ct);
         var fy = await context.FiscalYears
-            .FirstOrDefaultAsync(f => f.CompanyId == companyId && f.IsCurrent, ct);
+            .ForCompany(companyId).FirstOrDefaultAsync(f => f.IsCurrent, ct);
         return fy is null ? null : MapToDto(fy);
     }
 
@@ -48,7 +48,7 @@ public class FiscalYearService : IFiscalYearService
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
         var companyId = await GetRequiredCompanyIdAsync(ct);
         return await context.FiscalYears
-            .Where(f => f.CompanyId == companyId)
+            .ForCompany(companyId)
             .OrderByDescending(f => f.YearName)
             .Select(f => new FiscalYearListItemDto(f.Id, f.YearName, f.StartDateBS, f.EndDateBS, f.IsOpen, f.IsCurrent))
             .ToListAsync(ct);
@@ -59,7 +59,7 @@ public class FiscalYearService : IFiscalYearService
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
         var companyId = await GetRequiredCompanyIdAsync(ct);
         return await context.FiscalYears
-            .Where(f => f.CompanyId == companyId && f.IsOpen)
+            .ForCompany(companyId).Where(f => f.IsOpen)
             .OrderByDescending(f => f.YearName)
             .Select(f => new FiscalYearListItemDto(f.Id, f.YearName, f.StartDateBS, f.EndDateBS, f.IsOpen, f.IsCurrent))
             .ToListAsync(ct);
@@ -124,7 +124,7 @@ public class FiscalYearService : IFiscalYearService
 
         var companyId = await GetRequiredCompanyIdAsync(ct);
         var current = await context.FiscalYears
-            .FirstOrDefaultAsync(f => f.CompanyId == companyId && f.IsCurrent, ct);
+            .ForCompany(companyId).FirstOrDefaultAsync(f => f.IsCurrent, ct);
         if (current is not null)
         {
             current.IsCurrent = false;

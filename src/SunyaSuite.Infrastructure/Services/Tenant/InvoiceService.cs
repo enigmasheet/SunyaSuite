@@ -92,7 +92,7 @@ public class InvoiceService : IInvoiceService
             .Include(i => i.FiscalYearInfo)
             .Include(i => i.Project)
             .AsNoTracking()
-            .Where(i => i.CompanyId == companyId && !i.IsDeleted)
+            .ForCompany(companyId).Where(i => !i.IsDeleted)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
@@ -230,7 +230,7 @@ public class InvoiceService : IInvoiceService
 
         var existing = await context.Invoices
             .Include(i => i.Items)
-            .Where(i => i.CompanyId == companyId)
+            .ForCompany(companyId)
             .FirstOrDefaultAsync(i => i.Id == request.Id, ct);
 
         if (existing is null)
