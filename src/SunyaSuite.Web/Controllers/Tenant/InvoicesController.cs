@@ -97,7 +97,7 @@ public class InvoicesController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
+    [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
     public async Task<ActionResult> Delete(Guid id, CancellationToken ct = default)
     {
         try
@@ -127,7 +127,7 @@ public class InvoicesController : ControllerBase
     }
 
     [HttpPost("{id}/restore")]
-    [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
+    [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
     public async Task<ActionResult> Restore(Guid id, CancellationToken ct = default)
     {
         await _invoiceService.RestoreAsync(id, ct);
@@ -135,7 +135,7 @@ public class InvoicesController : ControllerBase
     }
 
     [HttpDelete("{id}/permanent")]
-    [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
+    [Authorize(Policy = PolicyNames.SystemAdminOnly)]
     public async Task<ActionResult> PermanentDelete(Guid id, CancellationToken ct = default)
     {
         await _invoiceService.PermanentDeleteAsync(id, ct);

@@ -1,3 +1,16 @@
+## Quick Reference
+
+For comprehensive documentation about this codebase, see the `docs/` folder:
+
+- [CLAUDE.md](docs/CLAUDE.md) — Entry point for AI agents: links to all docs, build commands, dos/don'ts
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) — Solution structure, project references, layering, multi-tenancy
+- [CONVENTIONS.md](docs/CONVENTIONS.md) — Naming, DI, error handling, async, nullable patterns
+- [DOMAIN.md](docs/DOMAIN.md) — Business entities, glossary, business rules
+- [DATA-MODEL.md](docs/DATA-MODEL.md) — DB schema, EF Core mappings, migration workflow
+- [API-CONTRACTS.md](docs/API-CONTRACTS.md) — Endpoints, DTOs, auth, versioning
+- [TESTING.md](docs/TESTING.md) — Test project structure, how to run tests, coverage
+- [DEPENDENCIES.md](docs/DEPENDENCIES.md) — NuGet packages and their purpose
+
 ## Skills
 
 This project uses a project-specific skill that documents architectural conventions, Blazor Server best practices, and .NET 10-specific features. Load it before any code changes:

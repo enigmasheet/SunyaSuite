@@ -63,6 +63,8 @@ public class InvoiceService : IInvoiceService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
         var invoice = await context.Invoices
             .Include(i => i.Client)
             .Include(i => i.Items)
@@ -74,6 +76,7 @@ public class InvoiceService : IInvoiceService
                 .ThenInclude(a => a.MoneyReceipt)
                 .ThenInclude(mr => mr.FiscalYearInfo)
             .AsSplitQuery()
+            .ForCompany(companyId)
             .FirstOrDefaultAsync(i => i.Id == id, ct);
 
         return invoice is null ? null : MapToDetail(invoice);
@@ -294,10 +297,14 @@ public class InvoiceService : IInvoiceService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
         var query = context.Invoices
             .Include(i => i.Client)
+            .Include(i => i.FiscalYearInfo)
             .AsNoTracking()
             .Where(i => !i.IsDeleted && i.Status != InvoiceStatus.Draft)
+            .ForCompany(companyId)
             .AsQueryable();
 
         if (fiscalYearId.HasValue)
@@ -314,9 +321,12 @@ public class InvoiceService : IInvoiceService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
         var existing = await context.Invoices
             .Include(i => i.Client)
             .ThenInclude(c => c.Invoices)
+            .ForCompany(companyId)
             .FirstOrDefaultAsync(i => i.Id == id, ct);
 
         if (existing is null)
@@ -338,7 +348,6 @@ public class InvoiceService : IInvoiceService
             existing.Client.Invoices);
 
         var userId = await GetCurrentUserIdAsync();
-        var companyId = await GetRequiredCompanyIdAsync(ct);
         AuditLogHelper.Add(context, companyId, userId, "StatusChanged", "Invoice", existing.Id.ToString(),
             $"{existing.InvoiceNumber}: {previousStatus} → {status}", _timeProvider);
 
@@ -349,7 +358,9 @@ public class InvoiceService : IInvoiceService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
-        var invoice = await context.Invoices.IgnoreQueryFilters().FirstOrDefaultAsync(i => i.Id == id, ct);
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
+        var invoice = await context.Invoices.IgnoreQueryFilters().ForCompany(companyId).FirstOrDefaultAsync(i => i.Id == id, ct);
         if (invoice is null)
             throw new KeyNotFoundException($"Invoice {id} not found");
 
@@ -362,7 +373,6 @@ public class InvoiceService : IInvoiceService
         invoice.IsDeleted = true;
         invoice.DeletedAt = _timeProvider.GetUtcNow().UtcDateTime;
 
-        var companyId = await GetRequiredCompanyIdAsync(ct);
         AuditLogHelper.Add(context, companyId, userId, "SoftDeleted", "Invoice", id.ToString(), invoiceNumber, _timeProvider);
 
         await context.SaveChangesAsync(ct);
@@ -405,7 +415,9 @@ public class InvoiceService : IInvoiceService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
-        var invoice = await context.Invoices.IgnoreQueryFilters().FirstOrDefaultAsync(i => i.Id == id, ct);
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
+        var invoice = await context.Invoices.IgnoreQueryFilters().ForCompany(companyId).FirstOrDefaultAsync(i => i.Id == id, ct);
         if (invoice is null)
             throw new KeyNotFoundException($"Invoice {id} not found");
 
@@ -417,7 +429,6 @@ public class InvoiceService : IInvoiceService
         invoice.IsDeleted = false;
         invoice.DeletedAt = null;
 
-        var companyId = await GetRequiredCompanyIdAsync(ct);
         AuditLogHelper.Add(context, companyId, userId, "Restored", "Invoice", id.ToString(), invoice.InvoiceNumber, _timeProvider);
 
         await context.SaveChangesAsync(ct);
@@ -427,7 +438,9 @@ public class InvoiceService : IInvoiceService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
-        var invoice = await context.Invoices.IgnoreQueryFilters().FirstOrDefaultAsync(i => i.Id == id, ct);
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
+        var invoice = await context.Invoices.IgnoreQueryFilters().ForCompany(companyId).FirstOrDefaultAsync(i => i.Id == id, ct);
         if (invoice is null)
             throw new KeyNotFoundException($"Invoice {id} not found");
 
@@ -435,7 +448,6 @@ public class InvoiceService : IInvoiceService
         var invoiceNumber = invoice.InvoiceNumber;
 
         context.Invoices.Remove(invoice);
-        var companyId = await GetRequiredCompanyIdAsync(ct);
         AuditLogHelper.Add(context, companyId, userId, "PermanentDeleted", "Invoice", id.ToString(), invoiceNumber, _timeProvider);
 
         await context.SaveChangesAsync(ct);

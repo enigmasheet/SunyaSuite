@@ -1,4 +1,4 @@
-window.readFileAsDataUri = function (file) {
+globalThis.readFileAsDataUri = function (file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result);
@@ -7,12 +7,11 @@ window.readFileAsDataUri = function (file) {
     });
 };
 
-window.downloadFile = function (fileName, base64Content, mimeType) {
-    mimeType = mimeType || 'application/pdf';
+globalThis.downloadFile = function (fileName, base64Content, mimeType = 'application/pdf') {
     const byteCharacters = atob(base64Content);
     const byteNumbers = new Array(byteCharacters.length);
     for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
+        byteNumbers[i] = byteCharacters.codePointAt(i);
     }
     const byteArray = new Uint8Array(byteNumbers);
     const blob = new Blob([byteArray], { type: mimeType });
@@ -22,6 +21,6 @@ window.downloadFile = function (fileName, base64Content, mimeType) {
     a.download = fileName;
     document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
+    a.remove();
     URL.revokeObjectURL(url);
 };
