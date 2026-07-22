@@ -1,7 +1,6 @@
 @page "/organizations/{Id:guid}/users/create"
 @attribute [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
 @inject IOrganizationService OrganizationService
-@inject IUserService UserService
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 
@@ -75,18 +74,8 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
-            _orgRoles = await UserService.GetOrgRolesAsync();
-        }
-        catch
-        {
-            _errorMessage = "Failed to load data.";
-        }
-        finally
-        {
-            _loading = false;
-        }
+        _orgRoles = [..OrgRoles.All];
+        _loading = false;
     }
 
     private async Task Save()

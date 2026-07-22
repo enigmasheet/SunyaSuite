@@ -156,7 +156,7 @@ else
     private async Task OpenAssignDialog()
     {
         var allOrgs = await OrganizationService.GetAllAsync();
-        var orgRoles = await UserService.GetOrgRolesAsync();
+        List<string> orgRoles = [..OrgRoles.All];
 
         var parameters = new DialogParameters
         {

@@ -1,7 +1,6 @@
 @page "/invites/create"
 @attribute [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
 @inject IInviteService InviteService
-@inject IUserService UserService
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
@@ -78,16 +77,10 @@
     private string? _createdInviteCode;
     private string? _createdInviteLink;
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync()
     {
-        try
-        {
-            _allRoles = await UserService.GetOrgRolesAsync();
-        }
-        catch
-        {
-            _errorMessage = "Failed to load roles.";
-        }
+        _allRoles = [..OrgRoles.All];
+        return Task.CompletedTask;
     }
 
     private async Task SaveAsync()
