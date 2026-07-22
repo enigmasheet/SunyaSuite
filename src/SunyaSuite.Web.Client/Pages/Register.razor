@@ -4,6 +4,10 @@
 @inject NavigationManager Navigation
 @inject IHttpClientFactory HttpClientFactory
 
+@{
+    var loginUrl = "/login" + (!string.IsNullOrEmpty(_returnUrl) ? $"?returnUrl={Uri.EscapeDataString(_returnUrl)}" : "");
+}
+
 <PageTitle>Register — SunyaSuite</PageTitle>
 
 <MudCard Class="auth-card" Elevation="0">
@@ -19,7 +23,7 @@
             </MudAlert>
 
             <MudText Typo="Typo.body2" Align="Align.Center">
-                <a href="/login@(!string.IsNullOrEmpty(_returnUrl) ? $"?returnUrl={Uri.EscapeDataString(_returnUrl)}" : "")">Already have an account? Sign in</a>
+                <MudLink Href="@loginUrl">Already have an account? Sign in</MudLink>
             </MudText>
         }
         else if (_success)
@@ -57,7 +61,7 @@
             </MudForm>
 
             <MudText Typo="Typo.body2" Align="Align.Center">
-                <a href="/login@(!string.IsNullOrEmpty(_returnUrl) ? $"?returnUrl={Uri.EscapeDataString(_returnUrl)}" : "")">Already have an account? Sign in</a>
+                <MudLink Href="@loginUrl">Already have an account? Sign in</MudLink>
             </MudText>
         }
     </MudCardContent>

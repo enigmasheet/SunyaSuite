@@ -260,7 +260,7 @@ else
         }
         catch (Exception ex)
         {
-            _errorMessage = $"Failed to create receipt: {ex.Message}";
+            Snackbar.Add($"Failed to create receipt: {ex.Message}", Severity.Error);
         }
     }
 

@@ -2,6 +2,7 @@
 @attribute [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
 @inject ICompanyService CompanyService
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 <PageHeader Title="Companies" />
 
@@ -63,8 +64,6 @@ else
 }
 
 @code {
-    [Inject] private IDialogService DialogService { get; set; } = null!;
-
     private bool _loading = true;
     private string? _errorMessage;
     private List<CompanyDto> _companies = [];

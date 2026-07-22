@@ -200,58 +200,48 @@
 
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
-            var result = await ClientService.GetDeletedPagedAsync(1, 100);
-            _deletedClients = result.Items;
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Failed to load deleted clients: {ex.Message}", Severity.Error);
-        }
-        _loadingClients = false;
+        var clientsTask = LoadClientsAsync();
+        var projectsTask = LoadProjectsAsync();
+        var invoicesTask = LoadInvoicesAsync();
+        var companiesTask = LoadCompaniesAsync();
+        var branchesTask = LoadBranchesAsync();
 
-        try
-        {
-            var resultProjects = await ProjectService.GetDeletedPagedAsync(1, 100);
-            _deletedProjects = resultProjects.Items;
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Failed to load deleted projects: {ex.Message}", Severity.Error);
-        }
-        _loadingProjects = false;
+        await Task.WhenAll(clientsTask, projectsTask, invoicesTask, companiesTask, branchesTask);
+    }
 
-        try
-        {
-            var resultInvoices = await InvoiceService.GetDeletedPagedAsync(1, 100);
-            _deletedInvoices = resultInvoices.Items;
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Failed to load deleted invoices: {ex.Message}", Severity.Error);
-        }
-        _loadingInvoices = false;
+    private async Task LoadClientsAsync()
+    {
+        try { _deletedClients = (await ClientService.GetDeletedPagedAsync(1, 100)).Items; }
+        catch (Exception ex) { Snackbar.Add($"Failed to load deleted clients: {ex.Message}", Severity.Error); }
+        finally { _loadingClients = false; }
+    }
 
-        try
-        {
-            _deletedCompanies = await CompanyService.GetDeletedAsync();
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Failed to load deleted companies: {ex.Message}", Severity.Error);
-        }
-        _loadingCompanies = false;
+    private async Task LoadProjectsAsync()
+    {
+        try { _deletedProjects = (await ProjectService.GetDeletedPagedAsync(1, 100)).Items; }
+        catch (Exception ex) { Snackbar.Add($"Failed to load deleted projects: {ex.Message}", Severity.Error); }
+        finally { _loadingProjects = false; }
+    }
 
-        try
-        {
-            _deletedBranches = await BranchService.GetDeletedAsync();
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Failed to load deleted branches: {ex.Message}", Severity.Error);
-        }
-        _loadingBranches = false;
+    private async Task LoadInvoicesAsync()
+    {
+        try { _deletedInvoices = (await InvoiceService.GetDeletedPagedAsync(1, 100)).Items; }
+        catch (Exception ex) { Snackbar.Add($"Failed to load deleted invoices: {ex.Message}", Severity.Error); }
+        finally { _loadingInvoices = false; }
+    }
+
+    private async Task LoadCompaniesAsync()
+    {
+        try { _deletedCompanies = await CompanyService.GetDeletedAsync(); }
+        catch (Exception ex) { Snackbar.Add($"Failed to load deleted companies: {ex.Message}", Severity.Error); }
+        finally { _loadingCompanies = false; }
+    }
+
+    private async Task LoadBranchesAsync()
+    {
+        try { _deletedBranches = await BranchService.GetDeletedAsync(); }
+        catch (Exception ex) { Snackbar.Add($"Failed to load deleted branches: {ex.Message}", Severity.Error); }
+        finally { _loadingBranches = false; }
     }
 
     private async Task RestoreClient(Guid id)

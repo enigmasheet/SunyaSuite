@@ -5,8 +5,7 @@
 @inject IDialogService DialogService
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
-@inject TimeProvider TimeProvider
-@inject ITenantContext TenantContext
+@inject OrgManager OrgManager
 
 <PageHeader Title="Invites" />
 
@@ -53,7 +52,7 @@
             {
                 <MudChip T="string" Size="Size.Small" Color="Color.Warning">Used</MudChip>
             }
-            else if (context.IsExpiredAsOf(TimeProvider.GetUtcNow().UtcDateTime))
+            else if (context.IsExpiredAsOf(DateTime.UtcNow))
             {
                 <MudChip T="string" Size="Size.Small" Color="Color.Error">Expired</MudChip>
             }
@@ -91,7 +90,7 @@
     {
         try
         {
-            var orgId = TenantContext.OrganizationId;
+            var orgId = (await OrgManager.GetActiveOrgAsync())?.Id ?? Guid.Empty;
             var (items, total) = await InviteService.GetPagedAsync(
                 orgId, state.Page + 1, state.PageSize, _searchTerm, ct);
             return new TableData<InviteDto> { Items = items, TotalItems = total };

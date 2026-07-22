@@ -1,17 +1,12 @@
-globalThis.readFileAsDataUri = function (file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(reader.error);
-        reader.readAsDataURL(file);
-    });
+globalThis.checkLargeScreen = function () {
+    return window.matchMedia('(min-width: 1280px)').matches;
 };
 
 globalThis.downloadFile = function (fileName, base64Content, mimeType = 'application/pdf') {
     const byteCharacters = atob(base64Content);
     const byteNumbers = new Array(byteCharacters.length);
     for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.codePointAt(i);
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
     }
     const byteArray = new Uint8Array(byteNumbers);
     const blob = new Blob([byteArray], { type: mimeType });

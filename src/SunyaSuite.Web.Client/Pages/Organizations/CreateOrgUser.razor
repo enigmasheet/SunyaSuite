@@ -9,13 +9,7 @@
 <ErrorAlert Message="@_errorMessage"
             OnDismiss="@(() => _errorMessage = null)" />
 
-@if (_loading)
-{
-    <LoadingSkeleton Variant="SkeletonVariant.Form" />
-}
-else
-{
-    <FormCard MaxWidth="600px">
+<FormCard MaxWidth="600px">
         <MudForm @ref="_form" @bind-IsValid="_isValid">
             <MudGrid>
                 <MudItem xs="12" sm="6">
@@ -54,12 +48,10 @@ else
                          OnSave="@(async () => await Save())" />
         </MudForm>
     </FormCard>
-}
 
 @code {
     [Parameter] public Guid Id { get; set; }
 
-    private bool _loading = true;
     private bool _saving;
     private bool _isValid;
     private MudForm _form = null!;
@@ -72,10 +64,9 @@ else
     private string _password = string.Empty;
     private string _orgRole = string.Empty;
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
         _orgRoles = [..OrgRoles.All];
-        _loading = false;
     }
 
     private async Task Save()

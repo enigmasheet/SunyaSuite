@@ -105,14 +105,13 @@ else
 
         try
         {
-            _errorMessage = null;
             await BranchService.CreateAsync(request);
             Snackbar.Add("Branch created successfully.", Severity.Success);
             Navigation.NavigateTo("/admin/branches");
         }
         catch (Exception ex)
         {
-            _errorMessage = $"Failed to create branch: {ex.Message}";
+            Snackbar.Add($"Failed to create branch: {ex.Message}", Severity.Error);
         }
     }
 }
