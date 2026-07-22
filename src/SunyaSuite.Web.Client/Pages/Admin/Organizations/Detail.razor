@@ -95,6 +95,8 @@ else
                               Dense="true" Hover="true" Striped="true"
                               Outlined="true" Elevation="0">
                         <HeaderContent>
+                            <MudTh>Name</MudTh>
+                            <MudTh>Email</MudTh>
                             <MudTh>Role</MudTh>
                             <MudTh>Joined</MudTh>
                             <MudTh>Default Company</MudTh>
@@ -102,6 +104,8 @@ else
                             <MudTh>Actions</MudTh>
                         </HeaderContent>
                         <RowTemplate>
+                            <MudTd DataLabel="Name">@($"{context.UserFirstName} {context.UserLastName}")</MudTd>
+                            <MudTd DataLabel="Email">@context.UserEmail</MudTd>
                             <MudTd DataLabel="Role">
                                 <MudChip T="string" Size="Size.Small" Color="@GetRoleColor(context.Role)">
                                     @context.Role

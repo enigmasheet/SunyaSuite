@@ -189,7 +189,8 @@ public class UserService : IUserService
         {
             OrgRoles.Owner,
             OrgRoles.OrgAdmin,
-            OrgRoles.Member
+            OrgRoles.Member,
+            OrgRoles.Viewer
         };
         return Task.FromResult(roles);
     }

@@ -79,11 +79,21 @@ public class JwtAuthenticationStateProvider : AuthenticationStateProvider
                     if (value.ValueKind == JsonValueKind.Array)
                     {
                         foreach (var role in value.EnumerateArray())
-                            claims.Add(new Claim("org_role", role.GetString() ?? ""));
+                        {
+                            var orgRoleVal = role.GetString() ?? "";
+                            claims.Add(new Claim("org_role", orgRoleVal));
+                            var parts = orgRoleVal.Split(':', 2);
+                            if (parts.Length == 2)
+                                claims.Add(new Claim(ClaimTypes.Role, parts[1]));
+                        }
                     }
                     else
                     {
-                        claims.Add(new Claim("org_role", value.GetString() ?? ""));
+                        var orgRoleVal = value.GetString() ?? "";
+                        claims.Add(new Claim("org_role", orgRoleVal));
+                        var parts = orgRoleVal.Split(':', 2);
+                        if (parts.Length == 2)
+                            claims.Add(new Claim(ClaimTypes.Role, parts[1]));
                     }
                     break;
 
