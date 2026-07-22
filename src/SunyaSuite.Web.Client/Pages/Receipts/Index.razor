@@ -91,10 +91,17 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _fiscalYears = await FiscalYearService.GetAllAsync();
-        var current = _fiscalYears.FirstOrDefault(f => f.IsCurrent);
-        if (current is not null)
-            _fiscalYearId = current.Id;
+        try
+        {
+            _fiscalYears = await FiscalYearService.GetAllAsync();
+            var current = _fiscalYears.FirstOrDefault(f => f.IsCurrent);
+            if (current is not null)
+                _fiscalYearId = current.Id;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load filter data: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task<TableData<MoneyReceiptListItemDto>> ServerReload(TableState state, CancellationToken ct)

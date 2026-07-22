@@ -12,4 +12,6 @@ public record OrganizationUserDto(
     string Role,
     DateTime JoinedAt,
     Guid? DefaultCompanyId,
-    Guid? DefaultBranchId);
+    Guid? DefaultBranchId,
+    string? DefaultCompanyName = null,
+    string? DefaultBranchName = null);

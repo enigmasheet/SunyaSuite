@@ -17,11 +17,13 @@ public class MenuController : ControllerBase
 {
     private readonly ITenantContext _tenantContext;
     private readonly IDbContextFactory<ConfigDbContext> _configFactory;
+    private readonly IConfiguration _configuration;
 
-    public MenuController(ITenantContext tenantContext, IDbContextFactory<ConfigDbContext> configFactory)
+    public MenuController(ITenantContext tenantContext, IDbContextFactory<ConfigDbContext> configFactory, IConfiguration configuration)
     {
         _tenantContext = tenantContext;
         _configFactory = configFactory;
+        _configuration = configuration;
     }
 
     [HttpGet]
@@ -50,7 +52,7 @@ public class MenuController : ControllerBase
         var isOrgMemberOrAbove = orgRole is OrgRoles.Owner or OrgRoles.OrgAdmin or OrgRoles.Member;
         var isOrgAdminOrAbove = orgRole is OrgRoles.Owner or OrgRoles.OrgAdmin;
 
-        if (isSystemAdmin || isOrgViewerOrAbove)
+        if (isOrgViewerOrAbove)
         {
             sections.Add(new MenuSectionDto
             {
@@ -68,11 +70,13 @@ public class MenuController : ControllerBase
 
         if (isSystemAdmin || isOrgAdminOrAbove)
         {
+            var orgId = _tenantContext.OrganizationId;
             sections.Add(new MenuSectionDto
             {
                 SectionTitle = "Organization",
                 Items =
                 [
+                    new MenuItemDto { Label = "Users", Icon = "People", Href = $"/organizations/{orgId}/users" },
                     new MenuItemDto { Label = "Companies", Icon = "Business", Href = "/admin/companies" },
                     new MenuItemDto { Label = "Branches", Icon = "AccountTree", Href = "/admin/branches" },
                     new MenuItemDto { Label = "Fiscal Years", Icon = "CalendarMonth", Href = "/admin/fiscal-years" },
@@ -83,18 +87,32 @@ public class MenuController : ControllerBase
 
         if (isSystemAdmin)
         {
+            var seqUrl = _configuration["Seq:Url"];
+            var items = new List<MenuItemDto>
+            {
+                new() { Label = "Reports", Icon = "Assessment", Href = "/reports" },
+                new() { Label = "Users", Icon = "Person", Href = "/users" },
+                new() { Label = "Trash", Icon = "DeleteSweep", Href = "/trash" },
+                new() { Label = "Organizations", Icon = "Business", Href = "/admin/organizations" },
+                new() { Label = "Dashboard", Icon = "Dashboard", Href = "/admin/dashboard" },
+                new() { Label = "Roles", Icon = "Badge", Href = "/admin/roles" },
+            };
+
+            if (!string.IsNullOrEmpty(seqUrl))
+            {
+                items.Add(new MenuItemDto
+                {
+                    Label = "Seq Logs",
+                    Icon = "MonitorHeart",
+                    Href = seqUrl,
+                    IsExternal = true
+                });
+            }
+
             sections.Add(new MenuSectionDto
             {
                 SectionTitle = "System Admin",
-                Items =
-                [
-                    new MenuItemDto { Label = "Reports", Icon = "Assessment", Href = "/reports" },
-                    new MenuItemDto { Label = "Users", Icon = "Person", Href = "/users" },
-                    new MenuItemDto { Label = "Trash", Icon = "DeleteSweep", Href = "/trash" },
-                    new MenuItemDto { Label = "Organizations", Icon = "Business", Href = "/admin/organizations" },
-                    new MenuItemDto { Label = "Dashboard", Icon = "Dashboard", Href = "/admin/dashboard" },
-                    new MenuItemDto { Label = "Roles", Icon = "Badge", Href = "/admin/roles" },
-                ]
+                Items = items
             });
         }
 

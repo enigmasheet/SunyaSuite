@@ -20,8 +20,22 @@
 @code {
     protected override async Task OnInitializedAsync()
     {
-        await TokenManager.ClearTokenAsync();
-        await OrgManager.ClearAsync();
-        await AuthStateProvider.NotifyAuthenticationStateChanged();
+        try
+        {
+            await TokenManager.ClearTokenAsync();
+        }
+        catch { }
+
+        try
+        {
+            await OrgManager.ClearAsync();
+        }
+        catch { }
+
+        try
+        {
+            await AuthStateProvider.NotifyAuthenticationStateChanged();
+        }
+        catch { }
     }
 }

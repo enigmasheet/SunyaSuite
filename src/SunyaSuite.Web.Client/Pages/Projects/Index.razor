@@ -113,7 +113,14 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _allClients = await ClientService.GetClientOptionsAsync();
+        try
+        {
+            _allClients = await ClientService.GetClientOptionsAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load filter data: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task<TableData<ProjectListItemDto>> ServerReload(TableState state, CancellationToken ct)

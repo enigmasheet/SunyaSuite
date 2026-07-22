@@ -33,10 +33,10 @@
         </MudForm>
 
         <MudText Typo="Typo.body2" Align="Align.Center" Class="mb-2">
-            <a href="/Account/Register@(!string.IsNullOrEmpty(_returnUrl) ? $"?returnUrl={Uri.EscapeDataString(_returnUrl)}" : "")">Don't have an account? Register</a>
+            <MudLink Href="@_registerUrl">Don't have an account? Register</MudLink>
         </MudText>
         <MudText Typo="Typo.body2" Align="Align.Center">
-            <a href="/Account/ForgotPassword">Forgot password?</a>
+            <MudLink Href="/Account/ForgotPassword">Forgot password?</MudLink>
         </MudText>
     </MudCardContent>
 </MudCard>
@@ -50,6 +50,7 @@
     private string[] _errors = [];
     private string _errorMessage = "";
     private string? _returnUrl;
+    private string _registerUrl = "/Account/Register";
 
     protected override void OnInitialized()
     {
@@ -59,7 +60,10 @@
         {
             var kv = part.Split('=', 2);
             if (kv.Length == 2 && kv[0].Equals("returnUrl", StringComparison.OrdinalIgnoreCase))
+            {
                 _returnUrl = Uri.UnescapeDataString(kv[1]);
+                _registerUrl = $"/Account/Register?returnUrl={Uri.EscapeDataString(_returnUrl)}";
+            }
         }
     }
 
@@ -78,6 +82,8 @@
         _loading = true;
         _errorMessage = "";
 
+        AuthResponse? result = null;
+
         try
         {
             var http = HttpClientFactory.CreateClient("Api");
@@ -85,22 +91,7 @@
 
             if (response.IsSuccessStatusCode)
             {
-                var result = await response.Content.ReadFromJsonAsync<AuthResponse>();
-                if (result is not null)
-                {
-                    await TokenManager.SetTokenAsync(result.Token, result.ExpiresAt);
-                    if (result.Organizations is { Count: > 0 })
-                    {
-                        await OrgManager.SetOrganizationsAsync(result.Organizations);
-                        // Set the first org as active (or previously selected)
-                        var activeSlug = await OrgManager.GetActiveSlugAsync();
-                        if (string.IsNullOrEmpty(activeSlug) || !result.Organizations.Any(o => o.Slug == activeSlug))
-                            activeSlug = result.Organizations[0].Slug;
-                        await OrgManager.SetActiveSlugAsync(activeSlug);
-                    }
-                    await AuthStateProvider.NotifyAuthenticationStateChanged();
-                    Navigation.NavigateTo("/", forceLoad: true);
-                }
+                result = await response.Content.ReadFromJsonAsync<AuthResponse>();
             }
             else
             {
@@ -123,6 +114,21 @@
         {
             _loading = false;
         }
+
+        if (result is null) return;
+
+        await TokenManager.SetTokenAsync(result.Token, result.ExpiresAt);
+        if (result.Organizations is { Count: > 0 })
+        {
+            await OrgManager.SetOrganizationsAsync(result.Organizations);
+            var activeSlug = await OrgManager.GetActiveSlugAsync();
+            if (string.IsNullOrEmpty(activeSlug) || !result.Organizations.Any(o => o.Slug == activeSlug))
+                activeSlug = result.Organizations[0].Slug;
+            await OrgManager.SetActiveSlugAsync(activeSlug);
+        }
+
+        await AuthStateProvider.NotifyAuthenticationStateChanged();
+        Navigation.NavigateTo("/", forceLoad: true);
     }
 
     private record AuthResponse(string Token, DateTime ExpiresAt, string UserId, string Email, IList<string> Roles, List<OrganizationDto>? Organizations);

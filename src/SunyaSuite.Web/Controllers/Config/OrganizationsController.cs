@@ -55,7 +55,7 @@ public class OrganizationsController : ControllerBase
         try
         {
             var org = await _orgService.CreateAsync(request, userId);
-            return CreatedAtAction(nameof(GetById), new { orgId = org.Id }, org);
+            return CreatedAtAction(nameof(GetById), new { id = org.Id }, org);
         }
         catch (InvalidOperationException ex)
         {
@@ -63,11 +63,11 @@ public class OrganizationsController : ControllerBase
         }
     }
 
-    [HttpGet("{orgId:guid}")]
+    [HttpGet("{id}")]
     [Authorize(Policy = PolicyNames.SystemAdminOnly)]
-    public async Task<ActionResult<OrganizationDto>> GetById(Guid orgId, CancellationToken ct)
+    public async Task<ActionResult<OrganizationDto>> GetById(Guid id, CancellationToken ct = default)
     {
-        var org = await _orgService.GetByIdAsync(orgId, ct);
+        var org = await _orgService.GetByIdAsync(id, ct);
         if (org is null)
             return NotFound();
         return Ok(org);
@@ -75,7 +75,7 @@ public class OrganizationsController : ControllerBase
 
     [HttpGet("users/{userId}/orgs")]
     [Authorize(Policy = PolicyNames.SystemAdminOnly)]
-    public async Task<ActionResult<List<OrganizationUserDto>>> GetUserOrganizations(string userId, CancellationToken ct)
+    public async Task<ActionResult<List<OrganizationUserDto>>> GetUserOrganizations(string userId, CancellationToken ct = default)
     {
         var result = await _orgService.GetUserOrganizationsAsync(userId, ct);
         return Ok(result);
@@ -101,16 +101,16 @@ public class OrganizationsController : ControllerBase
         }
     }
 
-    [HttpPut("users/{userId}/orgs/{orgId:guid}")]
+    [HttpPut("users/{userId}/orgs/{id}")]
     [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
-    public async Task<ActionResult> UpdateOrganizationRole(string userId, Guid orgId, [FromBody] AssignOrgRequest request, CancellationToken ct)
+    public async Task<ActionResult> UpdateOrganizationRole(string userId, Guid id, [FromBody] AssignOrgRequest request, CancellationToken ct = default)
     {
-        if (!IsTenantOrg(orgId))
+        if (!IsTenantOrg(id))
             return Forbid();
 
         try
         {
-            await _orgService.UpdateOrganizationRoleAsync(userId, orgId, request.Role, ct);
+            await _orgService.UpdateOrganizationRoleAsync(userId, id, request.Role, ct);
             return NoContent();
         }
         catch (KeyNotFoundException)
@@ -119,33 +119,33 @@ public class OrganizationsController : ControllerBase
         }
     }
 
-    [HttpDelete("users/{userId}/orgs/{orgId:guid}")]
+    [HttpDelete("users/{userId}/orgs/{id}")]
     [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
-    public async Task<ActionResult> RemoveFromOrganization(string userId, Guid orgId, CancellationToken ct)
+    public async Task<ActionResult> RemoveFromOrganization(string userId, Guid id, CancellationToken ct = default)
     {
-        if (!IsTenantOrg(orgId))
+        if (!IsTenantOrg(id))
             return Forbid();
 
-        await _orgService.RemoveFromOrganizationAsync(userId, orgId, ct);
+        await _orgService.RemoveFromOrganizationAsync(userId, id, ct);
         return NoContent();
     }
 
-    [HttpGet("{orgId:guid}/users")]
+    [HttpGet("{id}/users")]
     [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
-    public async Task<ActionResult<List<OrganizationUserDto>>> GetOrgUsers(Guid orgId, CancellationToken ct)
+    public async Task<ActionResult<List<OrganizationUserDto>>> GetOrgUsers(Guid id, CancellationToken ct = default)
     {
-        if (!IsTenantOrg(orgId))
+        if (!IsTenantOrg(id))
             return Forbid();
 
-        var users = await _orgService.GetOrgUsersAsync(orgId, ct);
+        var users = await _orgService.GetOrgUsersAsync(id, ct);
         return Ok(users);
     }
 
-    [HttpPost("{orgId:guid}/users")]
+    [HttpPost("{id}/users")]
     [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
-    public async Task<ActionResult<UserDto>> CreateOrgUser(Guid orgId, [FromBody] CreateOrgUserRequest request)
+    public async Task<ActionResult<UserDto>> CreateOrgUser(Guid id, [FromBody] CreateOrgUserRequest request)
     {
-        if (!IsTenantOrg(orgId))
+        if (!IsTenantOrg(id))
             return Forbid();
 
         var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -154,7 +154,7 @@ public class OrganizationsController : ControllerBase
 
         try
         {
-            var user = await _orgService.CreateUserForOrganizationAsync(orgId, request, userId);
+            var user = await _orgService.CreateUserForOrganizationAsync(id, request);
             return Ok(user);
         }
         catch (InvalidOperationException ex)
@@ -167,13 +167,13 @@ public class OrganizationsController : ControllerBase
         }
     }
 
-    [HttpPut("{orgId:guid}")]
+    [HttpPut("{id}")]
     [Authorize(Policy = PolicyNames.SystemAdminOnly)]
-    public async Task<ActionResult<OrganizationDto>> Update(Guid orgId, [FromBody] UpdateOrganizationRequest request, CancellationToken ct)
+    public async Task<ActionResult<OrganizationDto>> Update(Guid id, [FromBody] UpdateOrganizationRequest request, CancellationToken ct = default)
     {
         try
         {
-            var org = await _orgService.UpdateAsync(orgId, request);
+            var org = await _orgService.UpdateAsync(id, request);
             return Ok(org);
         }
         catch (KeyNotFoundException)
@@ -194,13 +194,13 @@ public class OrganizationsController : ControllerBase
         return Ok(result);
     }
 
-    [HttpDelete("{orgId:guid}")]
+    [HttpDelete("{id}")]
     [Authorize(Policy = PolicyNames.SystemAdminOnly)]
-    public async Task<ActionResult> Delete(Guid orgId)
+    public async Task<ActionResult> Delete(Guid id)
     {
         try
         {
-            await _orgService.DeleteAsync(orgId);
+            await _orgService.DeleteAsync(id);
             return NoContent();
         }
         catch (KeyNotFoundException)
@@ -213,13 +213,13 @@ public class OrganizationsController : ControllerBase
         }
     }
 
-    [HttpPatch("{orgId:guid}/restore")]
+    [HttpPost("{id}/restore")]
     [Authorize(Policy = PolicyNames.SystemAdminOnly)]
-    public async Task<ActionResult> Restore(Guid orgId, CancellationToken ct)
+    public async Task<ActionResult> Restore(Guid id, CancellationToken ct = default)
     {
         try
         {
-            await _orgService.RestoreAsync(orgId, ct);
+            await _orgService.RestoreAsync(id, ct);
             return NoContent();
         }
         catch (KeyNotFoundException)
@@ -232,13 +232,13 @@ public class OrganizationsController : ControllerBase
         }
     }
 
-    [HttpPatch("{orgId:guid}/toggle-active")]
+    [HttpPost("{id}/toggle-active")]
     [Authorize(Policy = PolicyNames.SystemAdminOnly)]
-    public async Task<ActionResult> ToggleActive(Guid orgId)
+    public async Task<ActionResult> ToggleActive(Guid id, CancellationToken ct = default)
     {
         try
         {
-            await _orgService.ToggleActiveAsync(orgId);
+            await _orgService.ToggleActiveAsync(id, ct);
             return NoContent();
         }
         catch (KeyNotFoundException)
@@ -251,16 +251,16 @@ public class OrganizationsController : ControllerBase
 
     public record UpdateOrgUserDefaultsRequest(Guid? DefaultCompanyId, Guid? DefaultBranchId);
 
-    [HttpPut("{orgId:guid}/users/{userId}/defaults")]
+    [HttpPut("{id}/users/{userId}/defaults")]
     [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
-    public async Task<ActionResult> UpdateOrgUserDefaults(Guid orgId, string userId, [FromBody] UpdateOrgUserDefaultsRequest request, CancellationToken ct)
+    public async Task<ActionResult> UpdateOrgUserDefaults(Guid id, string userId, [FromBody] UpdateOrgUserDefaultsRequest request, CancellationToken ct = default)
     {
-        if (!IsTenantOrg(orgId))
+        if (!IsTenantOrg(id))
             return Forbid();
 
         try
         {
-            await _orgService.UpdateOrgUserDefaultsAsync(orgId, userId, request.DefaultCompanyId, request.DefaultBranchId);
+            await _orgService.UpdateOrgUserDefaultsAsync(id, userId, request.DefaultCompanyId, request.DefaultBranchId);
             return NoContent();
         }
         catch (KeyNotFoundException)
@@ -269,16 +269,16 @@ public class OrganizationsController : ControllerBase
         }
     }
 
-    [HttpPut("{orgId:guid}/users/{userId}/role")]
+    [HttpPut("{id}/users/{userId}/role")]
     [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
-    public async Task<ActionResult> UpdateOrgUserRole(Guid orgId, string userId, [FromBody] ChangeOrgRoleRequest request, CancellationToken ct)
+    public async Task<ActionResult> UpdateOrgUserRole(Guid id, string userId, [FromBody] ChangeOrgRoleRequest request, CancellationToken ct = default)
     {
-        if (!IsTenantOrg(orgId))
+        if (!IsTenantOrg(id))
             return Forbid();
 
         try
         {
-            await _orgService.UpdateOrgUserRoleAsync(orgId, userId, request.Role);
+            await _orgService.UpdateOrgUserRoleAsync(id, userId, request.Role);
             return NoContent();
         }
         catch (KeyNotFoundException)
@@ -287,10 +287,10 @@ public class OrganizationsController : ControllerBase
         }
     }
 
-    private bool IsTenantOrg(Guid orgId)
+    private bool IsTenantOrg(Guid id)
     {
         if (User.IsInRole(RoleNames.SystemAdmin))
             return true;
-        return _tenantContext.HasTenant && _tenantContext.OrganizationId == orgId;
+        return _tenantContext.HasTenant && _tenantContext.OrganizationId == id;
     }
 }

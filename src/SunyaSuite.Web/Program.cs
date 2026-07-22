@@ -8,6 +8,7 @@ try
 {
     var builder = WebApplication.CreateBuilder(args);
     builder.ConfigureSerilog();
+    builder.ConfigureOpenTelemetry();
     QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
     builder.Services.AddControllers();

@@ -11,16 +11,26 @@
     </ErrorContent>
     <ChildContent>
         <CascadingAuthenticationState>
-        <Router AppAssembly="@typeof(App).Assembly">
-            <Found Context="routeData">
-                <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
-                    <NotAuthorized>
-                        <RedirectToLogin />
-                    </NotAuthorized>
-                </AuthorizeRouteView>
-                <FocusOnNavigate RouteData="@routeData" Selector="h1" />
-            </Found>
-        </Router>
+<Router AppAssembly="@typeof(App).Assembly">
+    <Found Context="routeData">
+        <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+            <NotAuthorized>
+                <RedirectToLogin />
+            </NotAuthorized>
+        </AuthorizeRouteView>
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="@typeof(MainLayout)">
+            <MudContainer MaxWidth="MaxWidth.Small" Class="d-flex flex-column align-center py-16">
+                <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="@Size.Large" Color="@Color.Default" Class="mb-4" />
+                <MudText Typo="Typo.h3" Align="@Align.Center" Class="mb-2">Page not found</MudText>
+                <MudText Typo="Typo.body1" Align="@Align.Center" Class="mb-4">The page you are looking for does not exist.</MudText>
+                <MudButton Variant="@Variant.Filled" Color="@Color.Primary" Href="/">Go Home</MudButton>
+            </MudContainer>
+        </LayoutView>
+    </NotFound>
+</Router>
     </CascadingAuthenticationState>
     </ChildContent>
 </ErrorBoundary>

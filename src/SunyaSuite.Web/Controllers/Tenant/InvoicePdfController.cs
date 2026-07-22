@@ -23,7 +23,7 @@ public class InvoicePdfController : ControllerBase
     public record GenerateRequest(Guid InvoiceId, CopyType CopyType, DateDisplayPreference Preference);
 
     [HttpPost("generate")]
-    public async Task<IActionResult> Generate([FromBody] GenerateRequest request, CancellationToken ct)
+    public async Task<IActionResult> Generate([FromBody] GenerateRequest request, CancellationToken ct = default)
     {
         var invoice = await _invoiceService.GetByIdAsync(request.InvoiceId, ct);
         if (invoice is null)

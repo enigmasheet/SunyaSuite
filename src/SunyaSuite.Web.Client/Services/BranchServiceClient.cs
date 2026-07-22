@@ -40,5 +40,8 @@ public class BranchServiceClient : IBranchService
         (await _http.DeleteAsync($"{ApiEndpoints.Branches}/{id}", ct)).EnsureSuccessStatusCode();
 
     public async Task RestoreAsync(Guid id, CancellationToken ct = default) =>
-        (await _http.PatchAsync($"{ApiEndpoints.Branches}/{id}/restore", null, ct)).EnsureSuccessStatusCode();
+        (await _http.PostAsync($"{ApiEndpoints.Branches}/{id}/restore", null, ct)).EnsureSuccessStatusCode();
+
+    public async Task ToggleActiveAsync(Guid id, CancellationToken ct = default) =>
+        (await _http.PostAsync($"{ApiEndpoints.Branches}/{id}/toggle-active", null, ct)).EnsureSuccessStatusCode();
 }

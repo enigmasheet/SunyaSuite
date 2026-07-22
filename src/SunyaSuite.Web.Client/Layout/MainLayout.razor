@@ -72,16 +72,17 @@
         {
             _isNavigating = true;
             StateHasChanged();
+            _ = ResetNavigatingAsync();
         };
     }
 
-    protected override void OnAfterRender(bool firstRender)
+    private async Task ResetNavigatingAsync()
     {
-        if (_isNavigating)
-        {
-            _isNavigating = false;
-            StateHasChanged();
-        }
+        // Yield to let the current render complete, then hide the progress bar
+        await Task.Yield();
+        await Task.Delay(300);
+        _isNavigating = false;
+        await InvokeAsync(StateHasChanged);
     }
 
     protected override async Task OnInitializedAsync()

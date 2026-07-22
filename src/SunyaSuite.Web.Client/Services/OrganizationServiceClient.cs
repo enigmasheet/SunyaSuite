@@ -61,7 +61,7 @@ public class OrganizationServiceClient : IOrganizationService
     public async Task<List<OrganizationUserDto>> GetOrgUsersAsync(Guid organizationId, CancellationToken ct = default) =>
         await _http.GetFromJsonAsync<List<OrganizationUserDto>>($"{ApiEndpoints.Organizations}/{organizationId}/users", ct) ?? [];
 
-    public async Task<UserDto> CreateUserForOrganizationAsync(Guid organizationId, CreateOrgUserRequest request, string adminUserId)
+    public async Task<UserDto> CreateUserForOrganizationAsync(Guid organizationId, CreateOrgUserRequest request)
     {
         var response = await _http.PostAsJsonAsync($"{ApiEndpoints.Organizations}/{organizationId}/users", request);
         response.EnsureSuccessStatusCode();
@@ -79,13 +79,13 @@ public class OrganizationServiceClient : IOrganizationService
         await _http.GetFromJsonAsync<List<OrganizationDto>>($"{ApiEndpoints.Organizations}/deleted", ct) ?? [];
 
     public async Task RestoreAsync(Guid id, CancellationToken ct = default) =>
-        (await _http.PatchAsync($"{ApiEndpoints.Organizations}/{id}/restore", null, ct)).EnsureSuccessStatusCode();
+        (await _http.PostAsync($"{ApiEndpoints.Organizations}/{id}/restore", null, ct)).EnsureSuccessStatusCode();
 
     public async Task DeleteAsync(Guid id) =>
         (await _http.DeleteAsync($"{ApiEndpoints.Organizations}/{id}")).EnsureSuccessStatusCode();
 
-    public async Task ToggleActiveAsync(Guid id) =>
-        (await _http.PatchAsync($"{ApiEndpoints.Organizations}/{id}/toggle-active", null)).EnsureSuccessStatusCode();
+    public async Task ToggleActiveAsync(Guid id, CancellationToken ct = default) =>
+        (await _http.PostAsync($"{ApiEndpoints.Organizations}/{id}/toggle-active", null, ct)).EnsureSuccessStatusCode();
 
     public async Task UpdateOrgUserRoleAsync(Guid orgId, string userId, string role) =>
         (await _http.PutAsJsonAsync($"{ApiEndpoints.Organizations}/{orgId}/users/{userId}/role", new { role })).EnsureSuccessStatusCode();

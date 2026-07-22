@@ -21,5 +21,6 @@ internal static class ApiEndpoints
     public const string Organizations = "api/organizations";
     public const string Companies = "api/companies";
     public const string Branches = "api/branches";
+    public const string AdminDashboard = "api/admin/dashboard";
     public const string Menu = "api/auth/menu";
 }

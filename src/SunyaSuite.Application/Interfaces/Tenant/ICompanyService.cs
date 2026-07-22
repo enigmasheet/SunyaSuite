@@ -12,4 +12,5 @@ public interface ICompanyService
     Task SoftDeleteAsync(Guid id, CancellationToken ct = default);
     Task RestoreAsync(Guid id, CancellationToken ct = default);
     Task<List<CompanyDto>> GetDeletedAsync(CancellationToken ct = default);
+    Task ToggleActiveAsync(Guid id, CancellationToken ct = default);
 }

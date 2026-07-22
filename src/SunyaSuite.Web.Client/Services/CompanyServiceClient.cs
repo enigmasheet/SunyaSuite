@@ -40,5 +40,8 @@ public class CompanyServiceClient : ICompanyService
         (await _http.DeleteAsync($"{ApiEndpoints.Companies}/{id}", ct)).EnsureSuccessStatusCode();
 
     public async Task RestoreAsync(Guid id, CancellationToken ct = default) =>
-        (await _http.PatchAsync($"{ApiEndpoints.Companies}/{id}/restore", null, ct)).EnsureSuccessStatusCode();
+        (await _http.PostAsync($"{ApiEndpoints.Companies}/{id}/restore", null, ct)).EnsureSuccessStatusCode();
+
+    public async Task ToggleActiveAsync(Guid id, CancellationToken ct = default) =>
+        (await _http.PostAsync($"{ApiEndpoints.Companies}/{id}/toggle-active", null, ct)).EnsureSuccessStatusCode();
 }

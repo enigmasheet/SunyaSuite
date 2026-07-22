@@ -48,12 +48,19 @@ public class InvitesController : ControllerBase
         if (!validRoles.Contains(request.Role))
             return BadRequest(new { error = $"Invalid role '{request.Role}'. Must be one of: {string.Join(", ", validRoles)}." });
 
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
-        var invite = await _inviteService.CreateAsync(request.OrganizationId, request.Role, request.ExpiresInHours, userId, ct);
-        return Ok(invite);
+        try
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "system";
+            var invite = await _inviteService.CreateAsync(request.OrganizationId, request.Role, request.ExpiresInHours, userId, ct);
+            return CreatedAtAction(nameof(GetPaged), new { organizationId = invite.OrganizationId }, invite);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = ex.Message });
+        }
     }
 
-    [HttpDelete("{id:guid}")]
+    [HttpDelete("{id}")]
     public async Task<ActionResult> Delete(Guid id, CancellationToken ct = default)
     {
         await _inviteService.DeleteAsync(id, ct);
