@@ -1,0 +1,125 @@
+@page "/organizations/{Id:guid}/users/create"
+@attribute [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
+@inject IOrganizationService OrganizationService
+@inject IUserService UserService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageHeader Title="Create User" Subtitle="for organization" />
+
+<ErrorAlert Message="@_errorMessage"
+            OnDismiss="@(() => _errorMessage = null)" />
+
+@if (_loading)
+{
+    <LoadingSkeleton Variant="SkeletonVariant.Form" />
+}
+else
+{
+    <FormCard MaxWidth="600px">
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_firstName" Label="First Name" Required="true" RequiredError="First name is required" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_lastName" Label="Last Name" Required="true" RequiredError="Last name is required" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_email" Label="Email" Required="true" RequiredError="Email is required"
+                                  Validation="@(new Func<string, string?>(v => string.IsNullOrWhiteSpace(v) || v.Contains('@') ? null : "Enter a valid email"))" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_password" Label="Password" InputType="InputType.Password"
+                                  Required="true" RequiredError="Password is required" />
+                </MudItem>
+                <MudItem xs="12" Class="mt-4">
+                    <MudSelect @bind-Value="_orgRole"
+                               Label="Organization Role"
+                               Required="true"
+                               RequiredError="Organization role is required"
+                               For="@(() => _orgRole)">
+                        @foreach (var role in _orgRoles)
+                        {
+                            <MudSelectItem Value="@role" @key="role">@role</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+
+            <FormActions SaveLabel="Create User"
+                         SavingText="Creating..."
+                         CancelHref="@($"/organizations/{Id}/users")"
+                         Disabled="@(!_isValid)"
+                         Saving="@_saving"
+                         OnSave="@(async () => await Save())" />
+        </MudForm>
+    </FormCard>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private bool _loading = true;
+    private bool _saving;
+    private bool _isValid;
+    private MudForm _form = null!;
+    private string? _errorMessage;
+    private List<string> _orgRoles = [];
+
+    private string _firstName = string.Empty;
+    private string _lastName = string.Empty;
+    private string _email = string.Empty;
+    private string _password = string.Empty;
+    private string _orgRole = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _orgRoles = await UserService.GetOrgRolesAsync();
+        }
+        catch
+        {
+            _errorMessage = "Failed to load data.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task Save()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid) return;
+
+        _saving = true;
+        _errorMessage = null;
+
+        try
+        {
+            var request = new CreateOrgUserRequest
+            {
+                Email = _email,
+                Password = _password,
+                FirstName = _firstName,
+                LastName = _lastName,
+                Roles = [],
+                OrgRole = _orgRole
+            };
+
+            await OrganizationService.CreateUserForOrganizationAsync(Id, request, "");
+            Snackbar.Add("User created and assigned to organization.", Severity.Success);
+            Navigation.NavigateTo($"/organizations/{Id}/users");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to create user: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

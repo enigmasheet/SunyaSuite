@@ -35,17 +35,28 @@ public class OrganizationServiceClient : IOrganizationService
         return (await response.Content.ReadFromJsonAsync<OrganizationDto>())!;
     }
 
-    public Task<List<OrganizationUserDto>> GetUserOrganizationsAsync(string userId, CancellationToken ct = default) =>
-        throw new NotSupportedException("Use GetOrgUsersAsync from client side.");
+    public async Task<List<OrganizationUserDto>> GetUserOrganizationsAsync(string userId, CancellationToken ct = default) =>
+        await _http.GetFromJsonAsync<List<OrganizationUserDto>>($"{ApiEndpoints.Organizations}/users/{userId}/orgs", ct) ?? [];
 
-    public Task AssignToOrganizationAsync(string userId, Guid organizationId, string role, CancellationToken ct = default) =>
-        throw new NotSupportedException("User assignment is only supported server-side.");
+    public async Task AssignToOrganizationAsync(string userId, Guid organizationId, string role, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsJsonAsync($"{ApiEndpoints.Organizations}/users/{userId}/orgs",
+            new { organizationId, role }, ct);
+        response.EnsureSuccessStatusCode();
+    }
 
-    public Task UpdateOrganizationRoleAsync(string userId, Guid organizationId, string role, CancellationToken ct = default) =>
-        throw new NotSupportedException("Role update is only supported server-side.");
+    public async Task UpdateOrganizationRoleAsync(string userId, Guid organizationId, string role, CancellationToken ct = default)
+    {
+        var response = await _http.PutAsJsonAsync($"{ApiEndpoints.Organizations}/users/{userId}/orgs/{organizationId}",
+            new { organizationId, role }, ct);
+        response.EnsureSuccessStatusCode();
+    }
 
-    public Task RemoveFromOrganizationAsync(string userId, Guid organizationId, CancellationToken ct = default) =>
-        throw new NotSupportedException("User removal is only supported server-side.");
+    public async Task RemoveFromOrganizationAsync(string userId, Guid organizationId, CancellationToken ct = default)
+    {
+        var response = await _http.DeleteAsync($"{ApiEndpoints.Organizations}/users/{userId}/orgs/{organizationId}", ct);
+        response.EnsureSuccessStatusCode();
+    }
 
     public async Task<List<OrganizationUserDto>> GetOrgUsersAsync(Guid organizationId, CancellationToken ct = default) =>
         await _http.GetFromJsonAsync<List<OrganizationUserDto>>($"{ApiEndpoints.Organizations}/{organizationId}/users", ct) ?? [];
