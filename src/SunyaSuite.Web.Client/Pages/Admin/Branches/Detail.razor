@@ -67,11 +67,18 @@ else
                 </MudGrid>
             </MudPaper>
 
-            <MudButton Variant="Variant.Filled" Color="Color.Error"
-                       StartIcon="@Icons.Material.Filled.Delete"
-                       OnClick="@PromptDelete">
-                Delete Branch
-            </MudButton>
+            <div class="d-flex gap-4">
+                <MudButton Variant="Variant.Filled" Color="Color.Warning"
+                           StartIcon="@Icons.Material.Filled.ToggleOn"
+                           OnClick="@PromptToggleActive">
+                    @(_branch.IsActive ? "Deactivate" : "Activate")
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Error"
+                           StartIcon="@Icons.Material.Filled.Delete"
+                           OnClick="@PromptDelete">
+                    Delete Branch
+                </MudButton>
+            </div>
         </MudItem>
     </MudGrid>
 }
@@ -96,6 +103,35 @@ else
         finally
         {
             _loading = false;
+        }
+    }
+
+    private async Task PromptToggleActive()
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+            _branch!.IsActive ? "Deactivate Branch" : "Activate Branch",
+            new DialogParameters
+            {
+                { "Message", _branch.IsActive
+                    ? $"Deactivate \"{_branch.Name}\"?"
+                    : $"Activate \"{_branch.Name}\"?" },
+                { "ConfirmText", _branch.IsActive ? "Deactivate" : "Activate" }
+            },
+            new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            try
+            {
+                await BranchService.ToggleActiveAsync(Id);
+                Snackbar.Add(_branch.IsActive ? "Branch deactivated." : "Branch activated.", Severity.Success);
+                _branch = await BranchService.GetByIdAsync(Id);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to toggle status: {ex.Message}", Severity.Error);
+            }
         }
     }
 

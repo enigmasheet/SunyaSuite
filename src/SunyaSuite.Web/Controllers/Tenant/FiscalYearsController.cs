@@ -54,8 +54,15 @@ public class FiscalYearsController : ControllerBase
     [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
     public async Task<ActionResult<FiscalYearListItemDto>> Create([FromBody] CreateFiscalYearRequest request, CancellationToken ct = default)
     {
-        var result = await _fiscalYearService.CreateAsync(request, ct);
-        return Ok(result);
+        try
+        {
+            var result = await _fiscalYearService.CreateAsync(request, ct);
+            return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 
     [HttpPost("{id}/toggle-open")]

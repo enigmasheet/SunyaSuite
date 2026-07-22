@@ -60,3 +60,4 @@ services:
 
 volumes:
   pgdata:
+  # //todo add seq

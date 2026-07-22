@@ -45,6 +45,7 @@ public class InviteService : IInviteService
             .Select(i => new InviteDto
             {
                 Id = i.Id,
+                OrganizationId = i.OrganizationId,
                 Code = i.Code,
                 Role = i.Role,
                 IsUsed = i.IsUsed,
@@ -160,6 +161,7 @@ public class InviteService : IInviteService
     private static InviteDto MapToDto(Invite invite) => new()
     {
         Id = invite.Id,
+        OrganizationId = invite.OrganizationId,
         Code = invite.Code,
         Role = invite.Role,
         IsUsed = invite.IsUsed,

@@ -63,7 +63,7 @@ else
             </MudGrid>
 
             <FormActions SaveLabel="Save Changes"
-                         CancelHref="/admin/branches"
+                         CancelHref="@($"/admin/branches/{Id}")"
                          Disabled="@(!_isValid)"
                          OnSave="@(async () => await SaveAsync())" />
         </MudForm>
@@ -138,7 +138,7 @@ else
         {
             await BranchService.UpdateAsync(request);
             Snackbar.Add("Branch updated successfully.", Severity.Success);
-            Navigation.NavigateTo("/admin/branches");
+            Navigation.NavigateTo($"/admin/branches/{Id}");
         }
         catch (Exception ex)
         {

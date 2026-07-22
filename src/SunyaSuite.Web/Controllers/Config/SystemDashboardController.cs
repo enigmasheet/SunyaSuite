@@ -19,7 +19,7 @@ public class SystemDashboardController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<SystemDashboardStats>> GetStats(CancellationToken ct)
+    public async Task<ActionResult<SystemDashboardStats>> GetStats(CancellationToken ct = default)
     {
         var stats = await _dashboardService.GetStatsAsync(ct);
         return Ok(stats);

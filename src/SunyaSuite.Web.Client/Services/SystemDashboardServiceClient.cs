@@ -11,6 +11,6 @@ public class SystemDashboardServiceClient : ISystemDashboardService
     public SystemDashboardServiceClient(HttpClient http) => _http = http;
 
     public async Task<SystemDashboardStats> GetStatsAsync(CancellationToken ct = default) =>
-        await _http.GetFromJsonAsync<SystemDashboardStats>("api/admin/dashboard", ct)
+        await _http.GetFromJsonAsync<SystemDashboardStats>(ApiEndpoints.AdminDashboard, ct)
         ?? new SystemDashboardStats();
 }

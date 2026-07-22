@@ -9,7 +9,7 @@ using SunyaSuite.Domain.Enums;
 namespace SunyaSuite.Web.Api.Controllers.Tenant;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/invoices")]
 [Authorize(Policy = PolicyNames.OrgViewerOrAbove)]
 public class InvoicesController : ControllerBase
 {
@@ -88,11 +88,13 @@ public class InvoicesController : ControllerBase
         }
     }
 
-    [HttpPatch("{id}/status")]
+    public record UpdateStatusRequest(InvoiceStatus Status);
+
+    [HttpPost("{id}/status")]
     [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
-    public async Task<ActionResult> UpdateStatus(Guid id, [FromBody] InvoiceStatus status, CancellationToken ct = default)
+    public async Task<ActionResult> UpdateStatus(Guid id, [FromBody] UpdateStatusRequest request, CancellationToken ct = default)
     {
-        await _invoiceService.UpdateStatusAsync(id, status, ct);
+        await _invoiceService.UpdateStatusAsync(id, request.Status, ct);
         return NoContent();
     }
 

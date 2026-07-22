@@ -29,26 +29,41 @@
                 Logout
             </MudNavLink>
         }
-        else if (_menuSections is { Count: > 0 })
+        else
         {
-            @for (int i = 0; i < _menuSections.Count; i++)
+            @if (_menuSections is { Count: > 0 })
             {
-                var section = _menuSections[i];
-                @if (section.Items.Count == 0) continue;
-
-                @if (i > 0)
+                @for (int i = 0; i < _menuSections.Count; i++)
                 {
-                    <MudDivider Class="sidebar-divider" />
-                }
-                <div class="sidebar-section-label">@section.SectionTitle</div>
+                    var section = _menuSections[i];
+                    @if (section.Items.Count == 0) continue;
 
-                @foreach (var item in section.Items)
-                {
-                    <MudNavLink Href="@item.Href"
-                                Match="@GetMatch(item.Href)"
-                                Icon="@GetIcon(item.Icon)">
-                        @item.Label
-                    </MudNavLink>
+                    @if (i > 0)
+                    {
+                        <MudDivider Class="sidebar-divider" />
+                    }
+                    <div class="sidebar-section-label">@section.SectionTitle</div>
+
+                    @foreach (var item in section.Items)
+                    {
+                        @if (item.IsExternal)
+                        {
+                            <a href="@item.Href" target="_blank" rel="noopener noreferrer" class="mud-nav-link">
+                                <span class="mud-nav-link-icon">
+                                    <MudIcon Icon="@GetIcon(item.Icon)" />
+                                </span>
+                                <span class="mud-nav-link-text">@item.Label</span>
+                            </a>
+                        }
+                        else
+                        {
+                            <MudNavLink Href="@item.Href"
+                                        Match="@GetMatch(item.Href)"
+                                        Icon="@GetIcon(item.Icon)">
+                                @item.Label
+                            </MudNavLink>
+                        }
+                    }
                 }
             }
 
@@ -80,21 +95,28 @@
 
     private async void OnAuthenticationStateChanged(Task<AuthenticationState> task)
     {
-        var authState = await task;
-        _isAuthenticated = authState.User.Identity?.IsAuthenticated == true;
-
-        if (_isAuthenticated)
+        try
         {
-            MenuService.InvalidateCache();
-            await LoadMenuAsync();
-        }
-        else
-        {
-            _menuSections = null;
-            _menuError = false;
-        }
+            var authState = await task;
+            _isAuthenticated = authState.User.Identity?.IsAuthenticated == true;
 
-        await InvokeAsync(StateHasChanged);
+            if (_isAuthenticated)
+            {
+                MenuService.InvalidateCache();
+                await LoadMenuAsync();
+            }
+            else
+            {
+                _menuSections = null;
+                _menuError = false;
+            }
+
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            // Swallow — async void exceptions crash the WASM runtime
+        }
     }
 
     private async Task LoadMenuAsync()
@@ -133,6 +155,7 @@
         "CalendarMonth" => Icons.Material.Filled.CalendarMonth,
         "History" => Icons.Material.Filled.History,
         "Assessment" => Icons.Material.Filled.Assessment,
+        "MonitorHeart" => Icons.Material.Filled.MonitorHeart,
         "Person" => Icons.Material.Filled.Person,
         "DeleteSweep" => Icons.Material.Filled.DeleteSweep,
         "Badge" => Icons.Material.Filled.Badge,

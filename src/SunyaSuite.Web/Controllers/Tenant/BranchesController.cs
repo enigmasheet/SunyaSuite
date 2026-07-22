@@ -4,7 +4,7 @@ using SunyaSuite.Application.DTOs.Tenant;
 using SunyaSuite.Application.Interfaces.Tenant;
 using SunyaSuite.Domain.Constants;
 
-namespace SunyaSuite.Web.Controllers.Tenant;
+namespace SunyaSuite.Web.Api.Controllers.Tenant;
 
 [ApiController]
 [Route("api/branches")]
@@ -30,6 +30,7 @@ public class BranchesController : ControllerBase
     }
 
     [HttpGet("deleted")]
+    [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
     public async Task<ActionResult<List<BranchDto>>> GetDeleted(CancellationToken ct = default)
     {
         var result = await _branchService.GetDeletedAsync(ct);
@@ -105,7 +106,7 @@ public class BranchesController : ControllerBase
         }
     }
 
-    [HttpPatch("{id}/restore")]
+    [HttpPost("{id}/restore")]
     [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
     public async Task<ActionResult> Restore(Guid id, CancellationToken ct = default)
     {
@@ -121,6 +122,21 @@ public class BranchesController : ControllerBase
         catch (InvalidOperationException ex)
         {
             return Conflict(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("{id}/toggle-active")]
+    [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
+    public async Task<ActionResult> ToggleActive(Guid id, CancellationToken ct = default)
+    {
+        try
+        {
+            await _branchService.ToggleActiveAsync(id, ct);
+            return NoContent();
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
         }
     }
 }

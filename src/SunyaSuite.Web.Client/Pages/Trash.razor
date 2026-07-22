@@ -200,22 +200,57 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var result = await ClientService.GetDeletedPagedAsync(1, 100);
-        _deletedClients = result.Items;
+        try
+        {
+            var result = await ClientService.GetDeletedPagedAsync(1, 100);
+            _deletedClients = result.Items;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load deleted clients: {ex.Message}", Severity.Error);
+        }
         _loadingClients = false;
 
-        var resultProjects = await ProjectService.GetDeletedPagedAsync(1, 100);
-        _deletedProjects = resultProjects.Items;
+        try
+        {
+            var resultProjects = await ProjectService.GetDeletedPagedAsync(1, 100);
+            _deletedProjects = resultProjects.Items;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load deleted projects: {ex.Message}", Severity.Error);
+        }
         _loadingProjects = false;
 
-        var resultInvoices = await InvoiceService.GetDeletedPagedAsync(1, 100);
-        _deletedInvoices = resultInvoices.Items;
+        try
+        {
+            var resultInvoices = await InvoiceService.GetDeletedPagedAsync(1, 100);
+            _deletedInvoices = resultInvoices.Items;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load deleted invoices: {ex.Message}", Severity.Error);
+        }
         _loadingInvoices = false;
 
-        _deletedCompanies = await CompanyService.GetDeletedAsync();
+        try
+        {
+            _deletedCompanies = await CompanyService.GetDeletedAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load deleted companies: {ex.Message}", Severity.Error);
+        }
         _loadingCompanies = false;
 
-        _deletedBranches = await BranchService.GetDeletedAsync();
+        try
+        {
+            _deletedBranches = await BranchService.GetDeletedAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load deleted branches: {ex.Message}", Severity.Error);
+        }
         _loadingBranches = false;
     }
 

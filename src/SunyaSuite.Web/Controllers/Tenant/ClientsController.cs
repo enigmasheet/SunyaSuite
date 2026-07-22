@@ -8,7 +8,7 @@ using SunyaSuite.Domain.Constants;
 namespace SunyaSuite.Web.Api.Controllers.Tenant;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/clients")]
 [Authorize(Policy = PolicyNames.OrgViewerOrAbove)]
 public class ClientsController : ControllerBase
 {

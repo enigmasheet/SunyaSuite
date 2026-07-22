@@ -4,7 +4,7 @@ using SunyaSuite.Application.DTOs.Tenant;
 using SunyaSuite.Application.Interfaces.Tenant;
 using SunyaSuite.Domain.Constants;
 
-namespace SunyaSuite.Web.Controllers.Tenant;
+namespace SunyaSuite.Web.Api.Controllers.Tenant;
 
 [ApiController]
 [Route("api/companies")]
@@ -33,6 +33,7 @@ public class CompaniesController : ControllerBase
     }
 
     [HttpGet("deleted")]
+    [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
     public async Task<ActionResult<List<CompanyDto>>> GetDeleted(CancellationToken ct = default)
     {
         var result = await _companyService.GetDeletedAsync(ct);
@@ -104,7 +105,7 @@ public class CompaniesController : ControllerBase
         }
     }
 
-    [HttpPatch("{id}/restore")]
+    [HttpPost("{id}/restore")]
     [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
     public async Task<ActionResult> Restore(Guid id, CancellationToken ct = default)
     {
@@ -120,6 +121,21 @@ public class CompaniesController : ControllerBase
         catch (InvalidOperationException ex)
         {
             return Conflict(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("{id}/toggle-active")]
+    [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
+    public async Task<ActionResult> ToggleActive(Guid id, CancellationToken ct = default)
+    {
+        try
+        {
+            await _companyService.ToggleActiveAsync(id, ct);
+            return NoContent();
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
         }
     }
 }

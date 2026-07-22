@@ -14,7 +14,7 @@ using System.Security.Claims;
 namespace SunyaSuite.Web.Api.Controllers.Config;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/auth")]
 public class AuthController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;

@@ -4,6 +4,8 @@
 
 <PageHeader Title="Account Settings" />
 
+<ErrorAlert Message="@_errorMessage" />
+
 <MudPaper Elevation="0" Outlined="true" Class="pa-6" Style="max-width: 600px;">
     <MudText Typo="Typo.subtitle2" Class="mb-4">Profile</MudText>
 
@@ -30,10 +32,18 @@
 
 @code {
     private ClaimsPrincipal? _user;
+    private string? _errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
-        var state = await AuthStateProvider.GetAuthenticationStateAsync();
-        _user = state.User;
+        try
+        {
+            var state = await AuthStateProvider.GetAuthenticationStateAsync();
+            _user = state.User;
+        }
+        catch
+        {
+            _errorMessage = "Failed to load user information.";
+        }
     }
 }

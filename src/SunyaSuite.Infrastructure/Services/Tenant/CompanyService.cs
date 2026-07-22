@@ -91,6 +91,17 @@ public class CompanyService : ICompanyService
         await context.SaveChangesAsync(ct);
     }
 
+    public async Task ToggleActiveAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync(ct);
+        var company = await context.Companies.FindAsync([id], ct);
+        if (company is null)
+            throw new KeyNotFoundException($"Company {id} not found.");
+
+        company.IsActive = !company.IsActive;
+        await context.SaveChangesAsync(ct);
+    }
+
     public async Task RestoreAsync(Guid id, CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);

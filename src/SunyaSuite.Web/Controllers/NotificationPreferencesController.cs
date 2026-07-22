@@ -19,10 +19,11 @@ public class NotificationPreferencesController : ControllerBase
     }
 
     [HttpGet("{userId}")]
-    public async Task<ActionResult<List<NotificationPreference>>> GetForUser(string userId, CancellationToken ct = default)
+    public async Task<ActionResult<List<NotificationPreferenceDto>>> GetForUser(string userId, CancellationToken ct = default)
     {
         var preferences = await _notificationPreferenceService.GetForUserAsync(userId, ct);
-        return Ok(preferences);
+        var dtos = preferences.Select(p => new NotificationPreferenceDto(p.Id, p.UserId, p.Type, p.EmailEnabled)).ToList();
+        return Ok(dtos);
     }
 
     public record ToggleRequest(string Type, bool Enabled);
@@ -41,3 +42,5 @@ public class NotificationPreferencesController : ControllerBase
         return NoContent();
     }
 }
+
+public record NotificationPreferenceDto(Guid Id, string UserId, string Type, bool Enabled);

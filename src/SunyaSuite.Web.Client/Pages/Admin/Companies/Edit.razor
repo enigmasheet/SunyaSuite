@@ -90,7 +90,7 @@ else
             </MudGrid>
 
             <FormActions SaveLabel="Save Changes"
-                         CancelHref="/admin/companies"
+                         CancelHref="@($"/admin/companies/{Id}")"
                          Disabled="@(!_isValid)"
                          OnSave="@(async () => await SaveAsync())" />
         </MudForm>
@@ -198,7 +198,7 @@ else
         {
             await CompanyService.UpdateAsync(request);
             Snackbar.Add("Company updated successfully.", Severity.Success);
-            Navigation.NavigateTo("/admin/companies");
+            Navigation.NavigateTo($"/admin/companies/{Id}");
         }
         catch (Exception ex)
         {

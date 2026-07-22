@@ -25,10 +25,12 @@ public class UserPreferencesController : ControllerBase
         return Ok(preference);
     }
 
+    public record SetDateDisplayPreferenceRequest(DateDisplayPreference Preference);
+
     [HttpPost("{userId}")]
-    public async Task<ActionResult> SetDateDisplayPreference(string userId, [FromBody] DateDisplayPreference preference, CancellationToken ct = default)
+    public async Task<ActionResult> SetDateDisplayPreference(string userId, [FromBody] SetDateDisplayPreferenceRequest request, CancellationToken ct = default)
     {
-        await _userPreferenceService.SetDateDisplayPreferenceAsync(userId, preference, ct);
+        await _userPreferenceService.SetDateDisplayPreferenceAsync(userId, request.Preference, ct);
         return NoContent();
     }
 }

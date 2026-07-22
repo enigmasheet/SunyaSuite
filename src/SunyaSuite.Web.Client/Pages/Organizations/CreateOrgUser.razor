@@ -109,7 +109,7 @@ else
                 OrgRole = _orgRole
             };
 
-            await OrganizationService.CreateUserForOrganizationAsync(Id, request, "");
+            await OrganizationService.CreateUserForOrganizationAsync(Id, request);
             Snackbar.Add("User created and assigned to organization.", Severity.Success);
             Navigation.NavigateTo($"/organizations/{Id}/users");
         }

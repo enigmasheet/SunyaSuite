@@ -105,6 +105,17 @@ public class BranchService : IBranchService
         await context.SaveChangesAsync(ct);
     }
 
+    public async Task ToggleActiveAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync(ct);
+        var branch = await context.Branches.FindAsync([id], ct);
+        if (branch is null)
+            throw new KeyNotFoundException($"Branch {id} not found.");
+
+        branch.IsActive = !branch.IsActive;
+        await context.SaveChangesAsync(ct);
+    }
+
     public async Task RestoreAsync(Guid id, CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);

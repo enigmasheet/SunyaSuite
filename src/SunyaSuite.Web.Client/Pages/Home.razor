@@ -244,6 +244,7 @@ else
 
     private async Task LoadData()
     {
+        _errorMessage = null;
         _stats = await DashboardService.GetStatsAsync(_fiscalYearId);
         _recentInvoices = await DashboardService.GetRecentInvoicesAsync(5);
 

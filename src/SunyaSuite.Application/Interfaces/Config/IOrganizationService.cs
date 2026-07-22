@@ -14,12 +14,12 @@ public interface IOrganizationService
     Task UpdateOrganizationRoleAsync(string userId, Guid organizationId, string role, CancellationToken ct = default);
     Task RemoveFromOrganizationAsync(string userId, Guid organizationId, CancellationToken ct = default);
     Task<List<OrganizationUserDto>> GetOrgUsersAsync(Guid organizationId, CancellationToken ct = default);
-    Task<UserDto> CreateUserForOrganizationAsync(Guid organizationId, CreateOrgUserRequest request, string adminUserId);
+    Task<UserDto> CreateUserForOrganizationAsync(Guid organizationId, CreateOrgUserRequest request);
     Task<OrganizationDto> UpdateAsync(Guid id, UpdateOrganizationRequest request);
     Task DeleteAsync(Guid id);
     Task RestoreAsync(Guid id, CancellationToken ct = default);
     Task<List<OrganizationDto>> GetDeletedAsync(CancellationToken ct = default);
-    Task ToggleActiveAsync(Guid id);
+    Task ToggleActiveAsync(Guid id, CancellationToken ct = default);
     Task UpdateOrgUserRoleAsync(Guid orgId, string userId, string role);
     Task UpdateOrgUserDefaultsAsync(Guid orgId, string userId, Guid? companyId, Guid? branchId);
 }

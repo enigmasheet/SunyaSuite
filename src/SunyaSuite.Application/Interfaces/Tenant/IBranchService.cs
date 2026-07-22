@@ -12,4 +12,5 @@ public interface IBranchService
     Task SoftDeleteAsync(Guid id, CancellationToken ct = default);
     Task RestoreAsync(Guid id, CancellationToken ct = default);
     Task<List<BranchDto>> GetDeletedAsync(CancellationToken ct = default);
+    Task ToggleActiveAsync(Guid id, CancellationToken ct = default);
 }

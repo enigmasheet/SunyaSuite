@@ -23,7 +23,7 @@ public class ReceiptPdfController : ControllerBase
     public record GenerateRequest(Guid ReceiptId, CopyType CopyType, DateDisplayPreference Preference);
 
     [HttpPost("generate")]
-    public async Task<IActionResult> Generate([FromBody] GenerateRequest request, CancellationToken ct)
+    public async Task<IActionResult> Generate([FromBody] GenerateRequest request, CancellationToken ct = default)
     {
         var receipt = await _moneyReceiptService.GetByIdAsync(request.ReceiptId, ct);
         if (receipt is null)

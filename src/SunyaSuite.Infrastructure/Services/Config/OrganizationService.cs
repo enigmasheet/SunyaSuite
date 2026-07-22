@@ -18,17 +18,23 @@ namespace SunyaSuite.Infrastructure.Services.Config;
 public class OrganizationService : IOrganizationService
 {
     private readonly IDbContextFactory<ConfigDbContext> _configFactory;
+    private readonly IDbContextFactory<ApplicationDbContext> _tenantFactory;
+    private readonly ITenantContext _tenantContext;
     private readonly DatabaseSettings _databaseSettings;
     private readonly TimeProvider _timeProvider;
     private readonly UserManager<ApplicationUser> _userManager;
 
     public OrganizationService(
         IDbContextFactory<ConfigDbContext> configFactory,
+        IDbContextFactory<ApplicationDbContext> tenantFactory,
+        ITenantContext tenantContext,
         IOptions<DatabaseSettings> databaseSettings,
         TimeProvider timeProvider,
         UserManager<ApplicationUser> userManager)
     {
         _configFactory = configFactory;
+        _tenantFactory = tenantFactory;
+        _tenantContext = tenantContext;
         _databaseSettings = databaseSettings.Value;
         _timeProvider = timeProvider;
         _userManager = userManager;
@@ -123,7 +129,7 @@ public class OrganizationService : IOrganizationService
     public async Task<List<OrganizationUserDto>> GetUserOrganizationsAsync(string userId, CancellationToken ct = default)
     {
         await using var configDb = await _configFactory.CreateDbContextAsync(ct);
-        return await configDb.OrganizationUsers
+        var users = await configDb.OrganizationUsers
             .AsNoTracking()
             .Where(ou => ou.UserId == userId)
             .Select(ou => new OrganizationUserDto(
@@ -140,6 +146,9 @@ public class OrganizationService : IOrganizationService
                 ou.DefaultCompanyId,
                 ou.DefaultBranchId))
             .ToListAsync(ct);
+
+        await ResolveDefaultNamesAsync(users, ct);
+        return users;
     }
 
     public async Task AssignToOrganizationAsync(string userId, Guid organizationId, string role, CancellationToken ct = default)
@@ -299,7 +308,7 @@ public class OrganizationService : IOrganizationService
     public async Task<List<OrganizationUserDto>> GetOrgUsersAsync(Guid organizationId, CancellationToken ct = default)
     {
         await using var configDb = await _configFactory.CreateDbContextAsync(ct);
-        return await configDb.OrganizationUsers
+        var users = await configDb.OrganizationUsers
             .AsNoTracking()
             .Where(ou => ou.OrganizationId == organizationId)
             .Select(ou => new OrganizationUserDto(
@@ -316,9 +325,12 @@ public class OrganizationService : IOrganizationService
                 ou.DefaultCompanyId,
                 ou.DefaultBranchId))
             .ToListAsync(ct);
+
+        await ResolveDefaultNamesAsync(users, ct);
+        return users;
     }
 
-    public async Task<UserDto> CreateUserForOrganizationAsync(Guid organizationId, CreateOrgUserRequest request, string adminUserId)
+    public async Task<UserDto> CreateUserForOrganizationAsync(Guid organizationId, CreateOrgUserRequest request)
     {
         var user = new ApplicationUser
         {
@@ -451,17 +463,17 @@ public class OrganizationService : IOrganizationService
         await configDb.SaveChangesAsync();
     }
 
-    public async Task ToggleActiveAsync(Guid id)
+    public async Task ToggleActiveAsync(Guid id, CancellationToken ct = default)
     {
-        await using var configDb = await _configFactory.CreateDbContextAsync();
+        await using var configDb = await _configFactory.CreateDbContextAsync(ct);
 
-        var org = await configDb.Organizations.FirstOrDefaultAsync(o => o.Id == id);
+        var org = await configDb.Organizations.FirstOrDefaultAsync(o => o.Id == id, ct);
         if (org is null)
             throw new KeyNotFoundException("Organization not found.");
 
         org.IsActive = !org.IsActive;
 
-        await configDb.SaveChangesAsync();
+        await configDb.SaveChangesAsync(ct);
     }
 
     public async Task UpdateOrgUserDefaultsAsync(Guid orgId, string userId, Guid? companyId, Guid? branchId)
@@ -491,6 +503,57 @@ public class OrganizationService : IOrganizationService
         membership.Role = role;
 
         await configDb.SaveChangesAsync();
+    }
+
+    private async Task ResolveDefaultNamesAsync(List<OrganizationUserDto> users, CancellationToken ct)
+    {
+        var companyIds = users
+            .Where(u => u.DefaultCompanyId.HasValue)
+            .Select(u => u.DefaultCompanyId!.Value)
+            .Distinct()
+            .ToList();
+
+        if (companyIds.Count == 0) return;
+
+        try
+        {
+            await using var tenantDb = await _tenantFactory.CreateDbContextAsync(ct);
+
+            var companies = await tenantDb.Companies
+                .AsNoTracking()
+                .Where(c => companyIds.Contains(c.Id))
+                .ToDictionaryAsync(c => c.Id, c => c.Name, ct);
+
+            var branchIds = users
+                .Where(u => u.DefaultBranchId.HasValue)
+                .Select(u => u.DefaultBranchId!.Value)
+                .Distinct()
+                .ToList();
+
+            var branches = branchIds.Count > 0
+                ? await tenantDb.Branches
+                    .AsNoTracking()
+                    .Where(b => branchIds.Contains(b.Id))
+                    .ToDictionaryAsync(b => b.Id, b => b.Name, ct)
+                : [];
+
+            for (var i = 0; i < users.Count; i++)
+            {
+                var user = users[i];
+                var companyName = user.DefaultCompanyId.HasValue
+                    ? companies.GetValueOrDefault(user.DefaultCompanyId.Value)
+                    : null;
+                var branchName = user.DefaultBranchId.HasValue
+                    ? branches.GetValueOrDefault(user.DefaultBranchId.Value)
+                    : null;
+
+                users[i] = user with { DefaultCompanyName = companyName, DefaultBranchName = branchName };
+            }
+        }
+        catch
+        {
+            // Tenant DB not available — leave names as null
+        }
     }
 
     private static string SanitizeDatabaseName(string name)
