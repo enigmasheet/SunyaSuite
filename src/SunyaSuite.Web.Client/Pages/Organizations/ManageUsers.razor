@@ -1,7 +1,6 @@
 @page "/organizations/{Id:guid}/users"
 @attribute [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
 @inject IOrganizationService OrganizationService
-@inject IUserService UserService
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject NavigationManager Navigation
@@ -80,9 +79,10 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        _orgRoles = [..OrgRoles.All];
+
         try
         {
-            _orgRoles = await UserService.GetOrgRolesAsync();
             _users = await OrganizationService.GetOrgUsersAsync(Id);
             _orgName = _users.Count > 0 ? _users[0].OrganizationName : "Organization";
         }

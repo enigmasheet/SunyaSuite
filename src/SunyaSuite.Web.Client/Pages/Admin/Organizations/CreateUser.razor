@@ -115,7 +115,7 @@ else
                 return;
 
             _allRoles = await UserService.GetAllRolesAsync();
-            _orgRoles = await UserService.GetOrgRolesAsync();
+            _orgRoles = [..OrgRoles.All];
         }
         catch
         {

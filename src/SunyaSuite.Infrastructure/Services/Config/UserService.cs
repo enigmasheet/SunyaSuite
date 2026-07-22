@@ -185,14 +185,7 @@ public class UserService : IUserService
 
     public Task<List<string>> GetOrgRolesAsync(CancellationToken ct = default)
     {
-        var roles = new List<string>
-        {
-            OrgRoles.Owner,
-            OrgRoles.OrgAdmin,
-            OrgRoles.Member,
-            OrgRoles.Viewer
-        };
-        return Task.FromResult(roles);
+        return Task.FromResult([..OrgRoles.All]);
     }
 
     public async Task CreateRoleAsync(string roleName, CancellationToken ct = default)
