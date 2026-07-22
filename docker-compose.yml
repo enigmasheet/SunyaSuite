@@ -66,6 +66,8 @@ services:
       - "5342:5341"
     environment:
       - ACCEPT_EULA=Y
+      - SEQ_FIRSTRUN_ADMINPASSWORD=${SEQ_FIRSTRUN_ADMINPASSWORD:?err}
+      - TZ=Asia/Kathmandu
     volumes:
       - seq-data:/data
     restart: unless-stopped

@@ -17,6 +17,6 @@ builder.Services.AddAuthServices();
 builder.Services.AddHttpClients(apiUrl);
 builder.Services.AddMenuService();
 builder.Services.AddAppServiceClients();
-builder.Services.AddSingleton<INepaliDateService, NepaliDateServiceClient>();
+builder.Services.AddSingleton(TimeProvider.System);
 
 await builder.Build().RunAsync();

@@ -58,6 +58,8 @@
     <span class="dismiss">Dismiss</span>
 </div>
 
+@implements IDisposable
+
 @code {
     private bool _drawerOpen;
     private bool _isLargeScreen;
@@ -65,15 +67,22 @@
     private bool _isNavigating;
     private List<OrganizationDto> _orgs = [];
     private string? _activeOrgSlug;
+    private EventHandler<LocationChangedEventArgs>? _onLocationChanged;
 
     protected override void OnInitialized()
     {
-        Navigation.LocationChanged += (_, _) =>
+        _onLocationChanged = (_, _) =>
         {
             _isNavigating = true;
             StateHasChanged();
             _ = ResetNavigatingAsync();
         };
+        Navigation.LocationChanged += _onLocationChanged;
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= _onLocationChanged;
     }
 
     private async Task ResetNavigatingAsync()
@@ -100,7 +109,7 @@
                 var stored = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", "sunya-dark-mode");
                 if (bool.TryParse(stored, out var dark))
                     _isDarkMode = dark;
-                _isLargeScreen = await JSRuntime.InvokeAsync<bool>("eval", "window.matchMedia('(min-width: 1280px)').matches");
+                _isLargeScreen = await JSRuntime.InvokeAsync<bool>("checkLargeScreen");
                 _drawerOpen = _isLargeScreen;
                 StateHasChanged();
             }

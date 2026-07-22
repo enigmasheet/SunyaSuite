@@ -183,11 +183,10 @@ public class UserService : IUserService
         return await _roleManager.Roles.Select(r => r.Name!).ToListAsync(ct);
     }
 
-    public Task<List<string>> GetOrgRolesAsync(CancellationToken ct = default)
+    public async Task<List<string>> GetOrgRolesAsync(CancellationToken ct = default)
     {
-        return Task.FromResult([..OrgRoles.All]);
+        return [.. OrgRoles.All];
     }
-
     public async Task CreateRoleAsync(string roleName, CancellationToken ct = default)
     {
         if (await _roleManager.RoleExistsAsync(roleName))

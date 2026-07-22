@@ -3,6 +3,7 @@
 @inject IBranchService BranchService
 @inject ICompanyService CompanyService
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 <PageHeader Title="Branches" />
 
@@ -79,8 +80,6 @@ else
 }
 
 @code {
-    [Inject] private IDialogService DialogService { get; set; } = null!;
-
     private bool _loading = true;
     private string? _errorMessage;
     private List<BranchDto> _branches = [];

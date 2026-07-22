@@ -89,7 +89,6 @@ else
         if (!_isValid) return;
 
         _saving = true;
-        _errorMessage = null;
 
         try
         {
@@ -100,7 +99,7 @@ else
         }
         catch (Exception ex)
         {
-            _errorMessage = ex.Message;
+            Snackbar.Add(ex.Message, Severity.Error);
         }
         finally
         {

@@ -21,12 +21,12 @@ public class TokenManager
             return null;
         }
 
-        return await _js.InvokeAsync<string?>("localStorage.getItem", TokenKey);
+        return await _js.InvokeAsync<string?>("sessionStorage.getItem", TokenKey);
     }
 
     public async Task<bool> IsTokenExpiredAsync()
     {
-        var expiryStr = await _js.InvokeAsync<string?>("localStorage.getItem", ExpiryKey);
+        var expiryStr = await _js.InvokeAsync<string?>("sessionStorage.getItem", ExpiryKey);
         if (string.IsNullOrEmpty(expiryStr))
             return true;
 
@@ -38,8 +38,8 @@ public class TokenManager
 
     public async Task SetTokenAsync(string token, DateTime expiresAt)
     {
-        await _js.InvokeVoidAsync("localStorage.setItem", TokenKey, token);
-        await _js.InvokeVoidAsync("localStorage.setItem", ExpiryKey, expiresAt.ToString("O"));
+        await _js.InvokeVoidAsync("sessionStorage.setItem", TokenKey, token);
+        await _js.InvokeVoidAsync("sessionStorage.setItem", ExpiryKey, expiresAt.ToString("O"));
     }
 
     public async Task RenewTokenAsync(string token, DateTime expiresAt)
@@ -49,7 +49,7 @@ public class TokenManager
 
     public async Task ClearTokenAsync()
     {
-        await _js.InvokeVoidAsync("localStorage.removeItem", TokenKey);
-        await _js.InvokeVoidAsync("localStorage.removeItem", ExpiryKey);
+        await _js.InvokeVoidAsync("sessionStorage.removeItem", TokenKey);
+        await _js.InvokeVoidAsync("sessionStorage.removeItem", ExpiryKey);
     }
 }

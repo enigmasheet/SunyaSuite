@@ -4,7 +4,7 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
-@inject ITenantContext TenantContext
+@inject OrgManager OrgManager
 
 <PageHeader Title="Create Invite" />
 
@@ -93,7 +93,7 @@
 
         try
         {
-            var orgId = TenantContext.OrganizationId;
+            var orgId = (await OrgManager.GetActiveOrgAsync())?.Id ?? Guid.Empty;
             var invite = await InviteService.CreateAsync(orgId, _selectedRole, _expiresInHours, string.Empty);
             _createdInviteCode = invite.Code;
 

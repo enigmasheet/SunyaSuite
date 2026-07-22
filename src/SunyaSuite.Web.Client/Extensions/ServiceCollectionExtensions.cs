@@ -38,8 +38,6 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient("Renew", client =>
             client.BaseAddress = new Uri(apiUrl));
 
-        services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(apiUrl) });
-
         return services;
     }
 
@@ -78,6 +76,8 @@ public static class ServiceCollectionExtensions
         RegisterClientService<IEmailService, EmailServiceClient>(services);
         RegisterClientService<ICompanyService, CompanyServiceClient>(services);
         RegisterClientService<IBranchService, BranchServiceClient>(services);
+
+        services.AddSingleton<INepaliDateService, NepaliDateServiceClient>();
 
         return services;
     }

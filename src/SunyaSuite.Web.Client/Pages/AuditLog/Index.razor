@@ -2,7 +2,6 @@
 @using SunyaSuite.Application.DTOs
 @attribute [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
 @inject IAuditService AuditService
-@inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 
 <PageHeader Title="Audit Log" />

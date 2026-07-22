@@ -23,7 +23,7 @@ public class OrgManager
     {
         _cachedOrgs = orgs;
         var json = JsonSerializer.Serialize(orgs);
-        await _js.InvokeVoidAsync("localStorage.setItem", OrgsKey, json);
+        await _js.InvokeVoidAsync("sessionStorage.setItem", OrgsKey, json);
     }
 
     public async Task<List<OrganizationDto>> GetOrganizationsAsync()
@@ -31,7 +31,7 @@ public class OrgManager
         if (_cachedOrgs is not null)
             return _cachedOrgs;
 
-        var json = await _js.InvokeAsync<string?>("localStorage.getItem", OrgsKey);
+        var json = await _js.InvokeAsync<string?>("sessionStorage.getItem", OrgsKey);
         if (string.IsNullOrEmpty(json))
             return [];
 
@@ -44,14 +44,14 @@ public class OrgManager
         if (_cachedActiveSlug is not null)
             return _cachedActiveSlug;
 
-        _cachedActiveSlug = await _js.InvokeAsync<string?>("localStorage.getItem", ActiveSlugKey);
+        _cachedActiveSlug = await _js.InvokeAsync<string?>("sessionStorage.getItem", ActiveSlugKey);
         return _cachedActiveSlug;
     }
 
     public async Task SetActiveSlugAsync(string slug)
     {
         _cachedActiveSlug = slug;
-        await _js.InvokeVoidAsync("localStorage.setItem", ActiveSlugKey, slug);
+        await _js.InvokeVoidAsync("sessionStorage.setItem", ActiveSlugKey, slug);
     }
 
     public async Task<OrganizationDto?> GetActiveOrgAsync()
@@ -68,7 +68,7 @@ public class OrgManager
     {
         _cachedOrgs = null;
         _cachedActiveSlug = null;
-        await _js.InvokeVoidAsync("localStorage.removeItem", OrgsKey);
-        await _js.InvokeVoidAsync("localStorage.removeItem", ActiveSlugKey);
+        await _js.InvokeVoidAsync("sessionStorage.removeItem", OrgsKey);
+        await _js.InvokeVoidAsync("sessionStorage.removeItem", ActiveSlugKey);
     }
 }

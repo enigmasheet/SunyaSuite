@@ -6,8 +6,6 @@
 
 <PageHeader Title="Create Client" />
 
-<ErrorAlert Message="@_errorMessage" />
-
 <FormCard>
     <MudForm @ref="_form" @bind-IsValid="_isValid">
         <MudGrid>
@@ -52,7 +50,6 @@
 @code {
     private MudForm _form = null!;
     private bool _isValid;
-    private string? _errorMessage;
 
     private string _name = string.Empty;
     private string _email = string.Empty;
@@ -77,14 +74,13 @@
 
         try
         {
-            _errorMessage = null;
             await ClientService.CreateAsync(request);
             Snackbar.Add("Client created successfully.", Severity.Success);
             Navigation.NavigateTo("/clients");
         }
         catch (Exception ex)
         {
-            _errorMessage = $"Failed to create client: {ex.Message}";
+            Snackbar.Add($"Failed to create client: {ex.Message}", Severity.Error);
         }
     }
 }
