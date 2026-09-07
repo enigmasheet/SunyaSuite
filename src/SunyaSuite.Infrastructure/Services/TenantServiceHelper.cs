@@ -13,6 +13,8 @@ public static class TenantServiceHelper
         ITenantContext tenantContext,
         CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(contextFactory);
+        ArgumentNullException.ThrowIfNull(tenantContext);
         if (tenantContext.CompanyId.HasValue)
             return Task.FromResult(tenantContext.CompanyId.Value);
 
