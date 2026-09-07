@@ -8,20 +8,15 @@ namespace SunyaSuite.Infrastructure.Services;
 
 public static class TenantServiceHelper
 {
-    public static async Task<Guid> GetRequiredCompanyIdAsync(
+    public static Task<Guid> GetRequiredCompanyIdAsync(
         IDbContextFactory<ApplicationDbContext> contextFactory,
         ITenantContext tenantContext,
         CancellationToken ct = default)
     {
         if (tenantContext.CompanyId.HasValue)
-            return tenantContext.CompanyId.Value;
+            return Task.FromResult(tenantContext.CompanyId.Value);
 
-        await using var context = await contextFactory.CreateDbContextAsync(ct);
-        var company = await context.Companies
-            .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.IsActive, ct);
-
-        return company?.Id ?? throw new InvalidOperationException("No active company found.");
+        throw new InvalidOperationException("No company assigned. Please contact your administrator to set a default company.");
     }
 
     public static async Task<string> GetCurrentUserIdAsync(AuthenticationStateProvider authStateProvider)

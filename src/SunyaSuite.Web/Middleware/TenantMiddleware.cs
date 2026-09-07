@@ -7,8 +7,34 @@ namespace SunyaSuite.Web.Api.Middleware;
 
 public class TenantMiddleware(RequestDelegate next)
 {
+    private static readonly HashSet<string> TenantNotRequiredPaths = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "/api/auth/login",
+        "/api/auth/register",
+        "/api/auth/forgot-password",
+        "/api/auth/renew",
+        "/api/auth/change-password",
+        "/api/organizations/my",
+        "/api/organizations/deleted",
+        "/api/admin/dashboard"
+    };
+
+    private static readonly string[] TenantNotRequiredPrefixes =
+    [
+        "/api/users"
+    ];
+
     public async Task InvokeAsync(HttpContext context, ITenantContext tenantContext, IDbContextFactory<ConfigDbContext> configFactory)
     {
+        var path = context.Request.Path.Value ?? string.Empty;
+
+        if (TenantNotRequiredPaths.Contains(path)
+            || TenantNotRequiredPrefixes.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase)))
+        {
+            await next(context);
+            return;
+        }
+
         var tenantHeader = context.Request.Headers["X-Tenant-ID"].FirstOrDefault();
         if (string.IsNullOrEmpty(tenantHeader))
         {

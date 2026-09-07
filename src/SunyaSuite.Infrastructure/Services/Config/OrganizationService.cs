@@ -153,6 +153,9 @@ public class OrganizationService : IOrganizationService
 
     public async Task AssignToOrganizationAsync(string userId, Guid organizationId, string role, CancellationToken ct = default)
     {
+        if (!OrgRoles.All.Contains(role))
+            throw new ArgumentException($"Invalid role '{role}'. Valid roles: {string.Join(", ", OrgRoles.All)}");
+
         await using var configDb = await _configFactory.CreateDbContextAsync(ct);
 
         var exists = await configDb.OrganizationUsers
@@ -178,12 +181,23 @@ public class OrganizationService : IOrganizationService
 
     public async Task UpdateOrganizationRoleAsync(string userId, Guid organizationId, string role, CancellationToken ct = default)
     {
+        if (!OrgRoles.All.Contains(role))
+            throw new ArgumentException($"Invalid role '{role}'. Valid roles: {string.Join(", ", OrgRoles.All)}");
+
         await using var configDb = await _configFactory.CreateDbContextAsync(ct);
 
         var membership = await configDb.OrganizationUsers
             .FirstOrDefaultAsync(ou => ou.UserId == userId && ou.OrganizationId == organizationId, ct);
         if (membership is null)
             throw new KeyNotFoundException("User is not a member of this organization.");
+
+        if (membership.Role == OrgRoles.Owner && role != OrgRoles.Owner)
+        {
+            var ownerCount = await configDb.OrganizationUsers
+                .CountAsync(ou => ou.OrganizationId == organizationId && ou.Role == OrgRoles.Owner, ct);
+            if (ownerCount <= 1)
+                throw new InvalidOperationException("Cannot change the role of the last Owner.");
+        }
 
         membership.Role = role;
         await configDb.SaveChangesAsync(ct);
@@ -197,6 +211,14 @@ public class OrganizationService : IOrganizationService
             .FirstOrDefaultAsync(ou => ou.UserId == userId && ou.OrganizationId == organizationId, ct);
         if (membership is not null)
         {
+            if (membership.Role == OrgRoles.Owner)
+            {
+                var ownerCount = await configDb.OrganizationUsers
+                    .CountAsync(ou => ou.OrganizationId == organizationId && ou.Role == OrgRoles.Owner, ct);
+                if (ownerCount <= 1)
+                    throw new InvalidOperationException("Cannot remove the last Owner from an organization.");
+            }
+
             configDb.OrganizationUsers.Remove(membership);
             await configDb.SaveChangesAsync(ct);
         }
@@ -345,11 +367,14 @@ public class OrganizationService : IOrganizationService
         if (!createResult.Succeeded)
             throw new InvalidOperationException(string.Join("; ", createResult.Errors.Select(e => e.Description)));
 
-        var forbiddenRoles = new[] { RoleNames.SystemAdmin };
-        var invalidRoles = request.Roles.Intersect(forbiddenRoles).ToList();
+        var validSystemRoles = new[] { RoleNames.SystemAdmin };
+        var invalidRoles = request.Roles.Except(validSystemRoles).ToList();
         if (invalidRoles.Count > 0)
             throw new InvalidOperationException(
-                $"Cannot assign system-level role(s): {string.Join(", ", invalidRoles)}.");
+                $"Invalid system role(s): {string.Join(", ", invalidRoles)}. Only SystemAdmin is assignable.");
+
+        if (!OrgRoles.All.Contains(request.OrgRole))
+            throw new ArgumentException($"Invalid org role '{request.OrgRole}'. Valid roles: {string.Join(", ", OrgRoles.All)}");
 
         if (request.Roles.Count > 0)
         {
@@ -485,6 +510,20 @@ public class OrganizationService : IOrganizationService
         if (membership is null)
             throw new KeyNotFoundException("User is not a member of this organization.");
 
+        if (companyId.HasValue)
+        {
+            await using var tenantDb = await _tenantFactory.CreateDbContextAsync();
+            if (!await tenantDb.Companies.AnyAsync(c => c.Id == companyId.Value))
+                throw new KeyNotFoundException($"Company {companyId} not found.");
+        }
+
+        if (branchId.HasValue)
+        {
+            await using var tenantDb = await _tenantFactory.CreateDbContextAsync();
+            if (!await tenantDb.Branches.AnyAsync(b => b.Id == branchId.Value))
+                throw new KeyNotFoundException($"Branch {branchId} not found.");
+        }
+
         membership.DefaultCompanyId = companyId;
         membership.DefaultBranchId = branchId;
 
@@ -493,12 +532,23 @@ public class OrganizationService : IOrganizationService
 
     public async Task UpdateOrgUserRoleAsync(Guid orgId, string userId, string role)
     {
+        if (!OrgRoles.All.Contains(role))
+            throw new ArgumentException($"Invalid role '{role}'. Valid roles: {string.Join(", ", OrgRoles.All)}");
+
         await using var configDb = await _configFactory.CreateDbContextAsync();
 
         var membership = await configDb.OrganizationUsers
             .FirstOrDefaultAsync(ou => ou.OrganizationId == orgId && ou.UserId == userId);
         if (membership is null)
             throw new KeyNotFoundException("User is not a member of this organization.");
+
+        if (membership.Role == OrgRoles.Owner && role != OrgRoles.Owner)
+        {
+            var ownerCount = await configDb.OrganizationUsers
+                .CountAsync(ou => ou.OrganizationId == orgId && ou.Role == OrgRoles.Owner);
+            if (ownerCount <= 1)
+                throw new InvalidOperationException("Cannot change the role of the last Owner.");
+        }
 
         membership.Role = role;
 

@@ -50,8 +50,16 @@ public class TenantDbContextFactory : IDbContextFactory<ApplicationDbContext>
 
             if (_migrated.TryAdd(_tenantContext.ConnectionString, 0))
             {
-                await using var migrator = new ApplicationDbContext(optionsBuilder.Options, _timeProvider);
-                await migrator.Database.MigrateAsync(ct);
+                try
+                {
+                    await using var migrator = new ApplicationDbContext(optionsBuilder.Options, _timeProvider);
+                    await migrator.Database.MigrateAsync(ct);
+                }
+                catch
+                {
+                    _migrated.TryRemove(_tenantContext.ConnectionString, out _);
+                    throw;
+                }
             }
         }
 

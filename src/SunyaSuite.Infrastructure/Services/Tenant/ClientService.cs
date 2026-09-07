@@ -160,8 +160,11 @@ public class ClientService : IClientService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
         var existing = await context.Clients
             .Include(c => c.Invoices)
+            .ForCompany(companyId)
             .FirstOrDefaultAsync(c => c.Id == request.Id, ct);
 
         if (existing is null)
@@ -180,7 +183,6 @@ public class ClientService : IClientService
         existing.PanNumber = request.PanNumber?.Trim();
         existing.Status = _statusCalculator.Calculate(existing.Invoices);
 
-        var companyId = await GetRequiredCompanyIdAsync(ct);
         AuditLogHelper.Add(context, companyId, userId, "Updated", "Client", existing.Id.ToString(), existing.Name, _timeProvider);
 
         await context.SaveChangesAsync(ct);

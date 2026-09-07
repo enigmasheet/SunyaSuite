@@ -59,25 +59,6 @@ public class OrgRoleAuthorizationHandler : AuthorizationHandler<IAuthorizationRe
             return;
         }
 
-        // Fast path: read org role from JWT claim (avoids DB round-trip)
-        var orgRoleClaim = context.User.FindAll(ClaimNames.OrgRole)
-            .Select(c => c.Value.Split(':', 2))
-            .Where(parts => parts.Length == 2
-                && Guid.TryParse(parts[0], out var claimOrgId)
-                && claimOrgId == _tenantContext.OrganizationId)
-            .Select(parts => parts[1])
-            .FirstOrDefault();
-
-        if (orgRoleClaim is not null)
-        {
-            if (OrgRoleMatcher.MatchesRequirement(orgRoleClaim, requirement))
-                context.Succeed(requirement);
-            else
-                context.Fail();
-            return;
-        }
-
-        // Fallback: query DB (handles old tokens without org_role claim)
         await using var configDb = await _configFactory.CreateDbContextAsync();
 
         var orgUser = await configDb.OrganizationUsers
