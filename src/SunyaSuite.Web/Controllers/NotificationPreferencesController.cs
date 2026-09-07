@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SunyaSuite.Application.Interfaces.Config;
 using SunyaSuite.Domain.Constants;
-using SunyaSuite.Domain.Entities.Tenant;
 
 namespace SunyaSuite.Web.Api.Controllers;
 

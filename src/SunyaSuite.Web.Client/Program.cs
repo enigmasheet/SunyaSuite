@@ -1,10 +1,8 @@
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using MudBlazor.Services;
-using SunyaSuite.Application.Interfaces;
 using SunyaSuite.Web.Client;
 using SunyaSuite.Web.Client.Extensions;
-using SunyaSuite.Web.Client.Services;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");

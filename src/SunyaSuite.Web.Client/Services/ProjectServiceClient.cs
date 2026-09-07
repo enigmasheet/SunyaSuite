@@ -16,7 +16,7 @@ public class ProjectServiceClient(HttpClient http) : IProjectService
 
     public async Task<ProjectDetailDto?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
         await http.GetFromJsonAsync<ProjectDetailDto>($"{ApiEndpoints.Projects}/{id}", ct);
-   
+
     public async Task<PagedResult<ProjectListItemDto>> GetPagedAsync(int page, int pageSize, string? sortLabel, string? sortDirection, string? searchTerm = null, ProjectFilterDto? filter = null, CancellationToken ct = default)
     {
         var query = $"{ApiEndpoints.Projects}?page={page}&pageSize={pageSize}";

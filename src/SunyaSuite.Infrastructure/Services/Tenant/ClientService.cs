@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.EntityFrameworkCore;
 using SunyaSuite.Application.DTOs;
 using SunyaSuite.Application.DTOs.Tenant;
-using SunyaSuite.Application.Interfaces;
 using SunyaSuite.Application.Interfaces.Config;
 using SunyaSuite.Application.Interfaces.Tenant;
 using SunyaSuite.Domain.Entities.Tenant;

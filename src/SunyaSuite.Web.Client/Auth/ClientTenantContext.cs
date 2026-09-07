@@ -1,5 +1,4 @@
 using SunyaSuite.Application.Interfaces.Config;
-using SunyaSuite.Web.Client.Auth;
 
 namespace SunyaSuite.Web.Client.Auth;
 
