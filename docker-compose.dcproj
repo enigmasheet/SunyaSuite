@@ -5,4 +5,8 @@
     <DockerTargetOS>Linux</DockerTargetOS>
     <DockerServiceName>web</DockerServiceName>
   </PropertyGroup>
+  <ItemGroup>
+    <None Include=".env" />
+    <None Include=".env.example" />
+  </ItemGroup>
 </Project>

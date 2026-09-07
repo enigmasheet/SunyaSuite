@@ -8,14 +8,9 @@ using SunyaSuite.Domain.Entities.Config;
 
 namespace SunyaSuite.Web.Api.Services.Config;
 
-public class MailKitEmailSender : IEmailSender<ApplicationUser>
+public class MailKitEmailSender(IOptions<EmailSettings> settings) : IEmailSender<ApplicationUser>
 {
-    private readonly EmailSettings _settings;
-
-    public MailKitEmailSender(IOptions<EmailSettings> settings)
-    {
-        _settings = settings.Value;
-    }
+    private readonly EmailSettings _settings = settings.Value;
 
     public async Task SendAsync(string email, string subject, string htmlMessage)
     {
