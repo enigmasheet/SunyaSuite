@@ -80,23 +80,39 @@ else
             </MudAlert>
         }
 
-        <MudSelect T="Guid?" Label="Add Invoice"
-                   Variant="Variant.Outlined"
-                   @bind-Value="_selectedInvoiceId"
-                   Clearable="true"
-                   FullWidth="true"
-                   Class="mb-4">
-            @foreach (var inv in _availableInvoices)
-            {
-                <MudSelectItem T="Guid?" Value="@inv.Id" @key="inv.Id">@inv.InvoiceNumber - @inv.ClientName (Rs. @inv.Total.ToString("N2"))</MudSelectItem>
-            }
-        </MudSelect>
+        @if (_loadingInvoices)
+        {
+            <div class="d-flex align-center mb-4">
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <MudText Typo="Typo.body2" Class="text-secondary">Loading invoices...</MudText>
+            </div>
+        }
+        else if (_availableInvoices.Count == 0)
+        {
+            <MudText Typo="Typo.body2" Class="text-secondary mb-4">
+                No invoices available for receipt. Create and send an invoice first.
+            </MudText>
+        }
+        else
+        {
+            <MudSelect T="Guid?" Label="Add Invoice"
+                       Variant="Variant.Outlined"
+                       @bind-Value="_selectedInvoiceId"
+                       Clearable="true"
+                       FullWidth="true"
+                       Class="mb-4">
+                @foreach (var inv in _availableInvoices)
+                {
+                    <MudSelectItem T="Guid?" Value="@inv.Id" @key="inv.Id">@inv.InvoiceNumber - @inv.ClientName (Rs. @inv.Total.ToString("N2"))</MudSelectItem>
+                }
+            </MudSelect>
 
-        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
-                   Disabled="@(_selectedInvoiceId is null)"
-                   OnClick="@AddInvoice">
-            Add Invoice
-        </MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                       Disabled="@(_selectedInvoiceId is null)"
+                       OnClick="@AddInvoice">
+                Add Invoice
+            </MudButton>
+        }
 
         @if (_selectedInvoices.Count > 0)
         {
@@ -156,6 +172,7 @@ else
     private MudForm _form = null!;
     private bool _isValid;
     private bool _loading = true;
+    private bool _loadingInvoices = true;
     private string? _errorMessage;
     private CreateReceiptModel _model = new();
     private Guid? _selectedInvoiceId;
@@ -176,6 +193,7 @@ else
                 var inv = _availableInvoices.FirstOrDefault(i => i.Id == InvoiceId.Value);
                 if (inv is not null)
                 {
+                    AutoFillPayerInfo(inv);
                     _selectedInvoices.Add(new SelectedInvoiceRow
                     {
                         InvoiceId = inv.Id,
@@ -195,6 +213,7 @@ else
         }
         finally
         {
+            _loadingInvoices = false;
             _loading = false;
         }
     }
@@ -212,6 +231,9 @@ else
         var inv = _availableInvoices.FirstOrDefault(i => i.Id == _selectedInvoiceId.Value);
         if (inv is null) return;
 
+        if (_selectedInvoices.Count == 0)
+            AutoFillPayerInfo(inv);
+
         _selectedInvoices.Add(new SelectedInvoiceRow
         {
             InvoiceId = inv.Id,
@@ -224,6 +246,16 @@ else
         });
 
         _selectedInvoiceId = null;
+    }
+
+    private void AutoFillPayerInfo(InvoiceSelectionDto inv)
+    {
+        if (string.IsNullOrWhiteSpace(_model.ReceivedFromName))
+            _model.ReceivedFromName = inv.ClientName;
+        if (string.IsNullOrWhiteSpace(_model.ReceivedFromPan))
+            _model.ReceivedFromPan = inv.ClientPan;
+        if (string.IsNullOrWhiteSpace(_model.ReceivedFromAddress))
+            _model.ReceivedFromAddress = inv.ClientAddress;
     }
 
     private void RemoveInvoice(Guid invoiceId)

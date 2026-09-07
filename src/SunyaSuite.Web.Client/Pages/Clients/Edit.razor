@@ -51,6 +51,13 @@ else
                     <MudTextField @bind-Value="_address" Label="Address" Lines="3"
                                   For="@(() => _address)" />
                 </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.body2" Class="text-secondary">Status (auto-calculated)</MudText>
+                    <StatusChip Status="@_status">@_status</StatusChip>
+                    <MudText Typo="Typo.caption" Class="text-secondary mt-1" Style="display: block;">
+                        Green = no overdue invoices, Yellow = due within 7 days, Red = overdue.
+                    </MudText>
+                </MudItem>
             </MudGrid>
 
             <FormActions SaveLabel="Save Changes"
@@ -77,6 +84,7 @@ else
     private string _phone = string.Empty;
     private string _address = string.Empty;
     private string? _panNumber;
+    private string _status = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -96,6 +104,7 @@ else
                 _phone = client.Phone;
                 _address = client.Address;
                 _panNumber = client.PanNumber;
+                _status = client.Status;
             }
         }
         catch

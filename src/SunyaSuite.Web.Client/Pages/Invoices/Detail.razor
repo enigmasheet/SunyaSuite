@@ -127,6 +127,10 @@ else
                 </MudButton>
             }
 
+            <MudText Typo="Typo.caption" Class="text-secondary mt-2" Style="display: block;">
+                Draft → Sent → Paid. Sent → Overdue → Paid. Paid is final.
+            </MudText>
+
             <MudSelect T="CopyType" @bind-Value="_copyType" Label="Copy Type"
                        Variant="Variant.Outlined" Class="mt-4" FullWidth="true">
                 @foreach (var ct in Enum.GetValues<CopyType>())
