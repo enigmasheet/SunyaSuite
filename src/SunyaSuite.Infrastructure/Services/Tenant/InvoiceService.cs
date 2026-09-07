@@ -316,7 +316,7 @@ public class InvoiceService : IInvoiceService
         return await query
             .OrderByDescending(i => i.IssueDate)
             .Select(i => new InvoiceSelectionDto(
-                i.Id, i.InvoiceNumber, i.Client.Name, i.Total, i.AmountPaid, i.FiscalYearInfo.YearName))
+                i.Id, i.InvoiceNumber, i.Client.Name, i.Client.PanNumber, i.Client.Address, i.Total, i.AmountPaid, i.FiscalYearInfo.YearName))
             .ToListAsync(ct);
     }
 

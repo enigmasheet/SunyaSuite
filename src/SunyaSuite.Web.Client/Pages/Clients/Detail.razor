@@ -21,6 +21,10 @@ else
         <StatusChip Status="@_client.Status">@_client.Status</StatusChip>
     </MudText>
 
+    <MudText Typo="Typo.caption" Class="text-secondary mt-1 mb-4" Style="display: block;">
+        Status is auto-calculated: Green = no overdue invoices, Yellow = invoice due within 7 days, Red = overdue invoice exists.
+    </MudText>
+
     <MudGrid>
         <MudItem xs="12" md="4">
             <DetailInfoCard Title="Client Details"

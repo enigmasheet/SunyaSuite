@@ -1,5 +1,6 @@
 using SunyaSuite.Application.DTOs;
 using SunyaSuite.Application.DTOs.Tenant;
+using SunyaSuite.Domain.Enums;
 
 namespace SunyaSuite.Application.Interfaces.Tenant;
 
@@ -10,6 +11,7 @@ public interface IProjectService
     Task<PagedResult<ProjectListItemDto>> GetPagedAsync(int page, int pageSize, string? sortLabel, string? sortDirection, string? searchTerm = null, ProjectFilterDto? filter = null, CancellationToken ct = default);
     Task<ProjectListItemDto> CreateAsync(CreateProjectRequest request, CancellationToken ct = default);
     Task<ProjectListItemDto> UpdateAsync(UpdateProjectRequest request, CancellationToken ct = default);
+    Task UpdateStatusAsync(Guid id, ProjectStatus status, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
     Task<PagedResult<DeletedProjectDto>> GetDeletedPagedAsync(int page, int pageSize, string? searchTerm = null, CancellationToken ct = default);
     Task RestoreAsync(Guid id, CancellationToken ct = default);

@@ -2,6 +2,8 @@
 @attribute [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
 @inject IProjectService ProjectService
 @inject IInvoiceService InvoiceService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 <PageHeader Title="@(_project?.Name ?? "Project Details")" />
 
@@ -63,6 +65,36 @@ else
                            Href="@($"/projects/edit/{_project.Id}")">
                     Edit Project
                 </MudButton>
+
+                @if (_project.Status == "NotStarted")
+                {
+                    <MudButton Variant="Variant.Filled" Color="Color.Info"
+                               FullWidth="true" Class="mt-2"
+                               OnClick="@(() => UpdateStatusWithConfirm(ProjectStatus.InProgress))">
+                        Start Project
+                    </MudButton>
+                }
+                else if (_project.Status == "InProgress")
+                {
+                    <MudButton Variant="Variant.Filled" Color="Color.Success"
+                               FullWidth="true" Class="mt-2"
+                               OnClick="@(() => UpdateStatusWithConfirm(ProjectStatus.Completed))">
+                        Complete Project
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Warning"
+                               FullWidth="true" Class="mt-2"
+                               OnClick="@(() => UpdateStatusWithConfirm(ProjectStatus.OnHold))">
+                        Put on Hold
+                    </MudButton>
+                }
+                else if (_project.Status == "OnHold")
+                {
+                    <MudButton Variant="Variant.Filled" Color="Color.Info"
+                               FullWidth="true" Class="mt-2"
+                               OnClick="@(() => UpdateStatusWithConfirm(ProjectStatus.InProgress))">
+                        Resume Project
+                    </MudButton>
+                }
             </MudPaper>
         </MudItem>
         <MudItem xs="12" md="7">
@@ -128,6 +160,10 @@ else
             }
         </div>
     </MudPaper>
+
+    <MudText Typo="Typo.caption" Class="text-secondary mt-2 ml-1">
+        Transitions: Not Started → In Progress → Completed. In Progress ↔ On Hold.
+    </MudText>
 
     <MudPaper Elevation="0" Outlined="true" Class="pa-6 mt-6">
         <MudText Typo="Typo.subtitle2" Class="mb-4">
@@ -239,4 +275,32 @@ else
         "OnHold" => 3,
         _ => -1
     };
+
+    private async Task UpdateStatusWithConfirm(ProjectStatus newStatus)
+    {
+        var parameters = new DialogParameters<ConfirmDialog>
+        {
+            { x => x.Title, $"Change Status to {newStatus}" },
+            { x => x.Message, $"Are you sure you want to change the project status to {newStatus}?" },
+            { x => x.ConfirmText, "Change Status" },
+            { x => x.Icon, Icons.Material.Filled.SwapHoriz },
+            { x => x.Color, Color.Primary }
+        };
+
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("Change Status", parameters);
+        var result = await dialog.Result;
+        if (result is not null && !result.Canceled)
+        {
+            try
+            {
+                await ProjectService.UpdateStatusAsync(Id, newStatus);
+                _project = await ProjectService.GetByIdAsync(Id);
+                Snackbar.Add($"Project status changed to {newStatus}.", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to change status: {ex.Message}", Severity.Error);
+            }
+        }
+    }
 }

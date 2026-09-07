@@ -1,6 +1,7 @@
 using SunyaSuite.Application.DTOs;
 using SunyaSuite.Application.DTOs.Tenant;
 using SunyaSuite.Application.Interfaces.Tenant;
+using SunyaSuite.Domain.Enums;
 using System.Net.Http.Json;
 
 namespace SunyaSuite.Web.Client.Services;
@@ -39,6 +40,9 @@ public class ProjectServiceClient(HttpClient http) : IProjectService
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<ProjectListItemDto>(cancellationToken: ct))!;
     }
+
+    public async Task UpdateStatusAsync(Guid id, ProjectStatus status, CancellationToken ct = default) =>
+        (await http.PatchAsJsonAsync($"{ApiEndpoints.Projects}/{id}/status", new { status }, ct)).EnsureSuccessStatusCode();
 
     public async Task DeleteAsync(Guid id, CancellationToken ct = default) =>
         (await http.DeleteAsync($"{ApiEndpoints.Projects}/{id}", ct)).EnsureSuccessStatusCode();

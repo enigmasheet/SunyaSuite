@@ -190,6 +190,33 @@ public class ProjectService : IProjectService
         return MapToListItem(existing);
     }
 
+    public async Task UpdateStatusAsync(Guid id, ProjectStatus status, CancellationToken ct = default)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync(ct);
+
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
+        var project = await context.Projects
+            .ForCompany(companyId)
+            .FirstOrDefaultAsync(p => p.Id == id, ct);
+
+        if (project is null)
+            throw new KeyNotFoundException($"Project {id} not found");
+
+        if (project.IsDeleted)
+            throw new InvalidOperationException("Cannot update a deleted project.");
+
+        var previousStatus = project.Status;
+        if (previousStatus == status)
+            return;
+
+        project.Status = status;
+
+        var userId = await GetCurrentUserIdAsync();
+        AuditLogHelper.Add(context, companyId, userId, "StatusChanged", "Project", project.Id.ToString(), $"{previousStatus} → {status}", _timeProvider);
+        await context.SaveChangesAsync(ct);
+    }
+
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
