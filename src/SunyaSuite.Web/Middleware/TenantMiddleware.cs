@@ -5,15 +5,8 @@ using System.Security.Claims;
 
 namespace SunyaSuite.Web.Api.Middleware;
 
-public class TenantMiddleware
+public class TenantMiddleware(RequestDelegate next)
 {
-    private readonly RequestDelegate _next;
-
-    public TenantMiddleware(RequestDelegate next)
-    {
-        _next = next;
-    }
-
     public async Task InvokeAsync(HttpContext context, ITenantContext tenantContext, IDbContextFactory<ConfigDbContext> configFactory)
     {
         var tenantHeader = context.Request.Headers["X-Tenant-ID"].FirstOrDefault();
@@ -49,6 +42,6 @@ public class TenantMiddleware
             }
         }
 
-        await _next(context);
+        await next(context);
     }
 }
