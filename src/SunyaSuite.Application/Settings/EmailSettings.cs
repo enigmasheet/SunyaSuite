@@ -1,5 +1,3 @@
-using System.Text.Json.Serialization;
-
 namespace SunyaSuite.Application.Settings;
 
 public class EmailSettings
