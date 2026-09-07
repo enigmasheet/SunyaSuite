@@ -2,6 +2,7 @@ using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SunyaSuite.Application.Interfaces;
+using SunyaSuite.Application.Interfaces.Config;
 using SunyaSuite.Domain.Enums;
 using SunyaSuite.Infrastructure.Data.Tenant;
 
@@ -11,21 +12,29 @@ public class ExportService : IExportService
 {
     private const int MaxExportRows = 10000;
     private readonly IDbContextFactory<ApplicationDbContext> _contextFactory;
+    private readonly ITenantContext _tenantContext;
     private readonly ILogger<ExportService> _logger;
     private readonly TimeProvider _timeProvider;
 
-    public ExportService(IDbContextFactory<ApplicationDbContext> contextFactory, ILogger<ExportService> logger, TimeProvider timeProvider)
+    public ExportService(IDbContextFactory<ApplicationDbContext> contextFactory, ITenantContext tenantContext, ILogger<ExportService> logger, TimeProvider timeProvider)
     {
         _contextFactory = contextFactory;
+        _tenantContext = tenantContext;
         _logger = logger;
         _timeProvider = timeProvider;
     }
+
+    private Task<Guid> GetRequiredCompanyIdAsync(CancellationToken ct = default)
+        => TenantServiceHelper.GetRequiredCompanyIdAsync(_contextFactory, _tenantContext, ct);
 
     public async Task<byte[]> ExportClientsAsync(CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
         var query = context.Clients
+            .ForCompany(companyId)
             .Where(c => !c.IsDeleted)
             .OrderByDescending(c => c.CreatedAt);
 
@@ -69,8 +78,11 @@ public class ExportService : IExportService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
         var projects = await context.Projects
             .Include(p => p.Client)
+            .ForCompany(companyId)
             .Where(p => !p.IsDeleted)
             .OrderByDescending(p => p.Deadline)
             .Take(MaxExportRows)
@@ -108,9 +120,12 @@ public class ExportService : IExportService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
         var invoices = await context.Invoices
             .Include(i => i.Client)
             .Include(i => i.Items)
+            .ForCompany(companyId)
             .Where(i => !i.IsDeleted)
             .OrderByDescending(i => i.IssueDate)
             .Take(MaxExportRows)
@@ -156,29 +171,35 @@ public class ExportService : IExportService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
         var now = _timeProvider.GetUtcNow().UtcDateTime;
         var monthStart = new DateOnly(now.Year, now.Month, 1);
-        var totalClients = await context.Clients.CountAsync(c => !c.IsDeleted, ct);
-        var activeProjects = await context.Projects.CountAsync(p => !p.IsDeleted && p.Status != ProjectStatus.Completed, ct);
+        var totalClients = await context.Clients.ForCompany(companyId).CountAsync(c => !c.IsDeleted, ct);
+        var activeProjects = await context.Projects.ForCompany(companyId).CountAsync(p => !p.IsDeleted && p.Status != ProjectStatus.Completed, ct);
 
-        var paidInvoices = await context.Invoices.CountAsync(i => !i.IsDeleted && i.Status == InvoiceStatus.Paid, ct);
-        var overdueInvoices = await context.Invoices.CountAsync(i => !i.IsDeleted && i.Status == InvoiceStatus.Overdue, ct);
-        var outstandingInvoices = await context.Invoices.CountAsync(
+        var paidInvoices = await context.Invoices.ForCompany(companyId).CountAsync(i => !i.IsDeleted && i.Status == InvoiceStatus.Paid, ct);
+        var overdueInvoices = await context.Invoices.ForCompany(companyId).CountAsync(i => !i.IsDeleted && i.Status == InvoiceStatus.Overdue, ct);
+        var outstandingInvoices = await context.Invoices.ForCompany(companyId).CountAsync(
             i => !i.IsDeleted && (i.Status == InvoiceStatus.Sent || i.Status == InvoiceStatus.Overdue), ct);
         var revenueMonth = await context.Invoices
+            .ForCompany(companyId)
             .Where(i => !i.IsDeleted && i.Status == InvoiceStatus.Paid && i.IssueDate >= monthStart)
             .SumAsync(i => (decimal?)i.Total, ct) ?? 0m;
         var revenueTotal = await context.Invoices
+            .ForCompany(companyId)
             .Where(i => !i.IsDeleted && i.Status == InvoiceStatus.Paid)
             .SumAsync(i => (decimal?)i.Total, ct) ?? 0m;
 
         var clientBreakdown = await context.Clients
+            .ForCompany(companyId)
             .Where(c => !c.IsDeleted)
             .GroupBy(c => c.Status)
             .Select(g => new { Status = g.Key.ToString(), Count = g.Count() })
             .ToListAsync(ct);
 
         var projectBreakdown = await context.Projects
+            .ForCompany(companyId)
             .Where(p => !p.IsDeleted)
             .GroupBy(p => p.Status)
             .Select(g => new { Status = g.Key.ToString(), Count = g.Count() })

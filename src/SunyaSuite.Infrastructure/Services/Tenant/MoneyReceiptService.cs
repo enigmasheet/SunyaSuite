@@ -437,10 +437,13 @@ public class MoneyReceiptService : IMoneyReceiptService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
         var query = context.MoneyReceipts
             .IgnoreQueryFilters()
             .Include(r => r.FiscalYearInfo)
             .AsNoTracking()
+            .ForCompany(companyId)
             .Where(r => r.IsDeleted)
             .AsQueryable();
 
@@ -478,6 +481,9 @@ public class MoneyReceiptService : IMoneyReceiptService
 
         if (receipt is null)
             throw new KeyNotFoundException($"MoneyReceipt {id} not found");
+
+        if (!receipt.IsDeleted)
+            throw new InvalidOperationException("Cannot permanently delete an active receipt. Soft-delete it first.");
 
         var userId = await GetCurrentUserIdAsync();
         var receiptNumber = receipt.ReceiptNumber;

@@ -113,15 +113,37 @@ public class MoneyReceiptsController : ControllerBase
     [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
     public async Task<ActionResult> Restore(Guid id, CancellationToken ct = default)
     {
-        await _moneyReceiptService.RestoreAsync(id, ct);
-        return NoContent();
+        try
+        {
+            await _moneyReceiptService.RestoreAsync(id, ct);
+            return NoContent();
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 
     [HttpDelete("{id}/permanent")]
     [Authorize(Policy = PolicyNames.SystemAdminOnly)]
     public async Task<ActionResult> PermanentDelete(Guid id, CancellationToken ct = default)
     {
-        await _moneyReceiptService.PermanentDeleteAsync(id, ct);
-        return NoContent();
+        try
+        {
+            await _moneyReceiptService.PermanentDeleteAsync(id, ct);
+            return NoContent();
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 }

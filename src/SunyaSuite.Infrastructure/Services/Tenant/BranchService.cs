@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SunyaSuite.Application.DTOs.Tenant;
+using SunyaSuite.Application.Interfaces.Config;
 using SunyaSuite.Application.Interfaces.Tenant;
 using SunyaSuite.Domain.Entities.Tenant;
 using SunyaSuite.Infrastructure.Data.Tenant;
@@ -9,22 +10,30 @@ namespace SunyaSuite.Infrastructure.Services.Tenant;
 public class BranchService : IBranchService
 {
     private readonly IDbContextFactory<ApplicationDbContext> _contextFactory;
+    private readonly ITenantContext _tenantContext;
     private readonly TimeProvider _timeProvider;
 
     public BranchService(
         IDbContextFactory<ApplicationDbContext> contextFactory,
+        ITenantContext tenantContext,
         TimeProvider timeProvider)
     {
         _contextFactory = contextFactory;
+        _tenantContext = tenantContext;
         _timeProvider = timeProvider;
     }
+
+    private Task<Guid> GetRequiredCompanyIdAsync(CancellationToken ct = default)
+        => TenantServiceHelper.GetRequiredCompanyIdAsync(_contextFactory, _tenantContext, ct);
 
     public async Task<BranchDto?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
+        var companyId = await GetRequiredCompanyIdAsync(ct);
         var branch = await context.Branches
             .AsNoTracking()
             .Include(b => b.Company)
+            .ForCompany(companyId)
             .FirstOrDefaultAsync(b => b.Id == id, ct);
         return branch is null ? null : MapToDto(branch);
     }
@@ -32,9 +41,11 @@ public class BranchService : IBranchService
     public async Task<List<BranchDto>> GetAllAsync(CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
+        var companyId = await GetRequiredCompanyIdAsync(ct);
         return await context.Branches
             .AsNoTracking()
             .Include(b => b.Company)
+            .ForCompany(companyId)
             .OrderBy(b => b.Name)
             .Select(b => MapToDto(b))
             .ToListAsync(ct);
@@ -91,7 +102,8 @@ public class BranchService : IBranchService
     public async Task SoftDeleteAsync(Guid id, CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
-        var branch = await context.Branches.FindAsync([id], ct);
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+        var branch = await context.Branches.ForCompany(companyId).FirstOrDefaultAsync(b => b.Id == id, ct);
         if (branch is null)
             throw new KeyNotFoundException($"Branch {id} not found.");
 
@@ -108,7 +120,8 @@ public class BranchService : IBranchService
     public async Task ToggleActiveAsync(Guid id, CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
-        var branch = await context.Branches.FindAsync([id], ct);
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+        var branch = await context.Branches.ForCompany(companyId).FirstOrDefaultAsync(b => b.Id == id, ct);
         if (branch is null)
             throw new KeyNotFoundException($"Branch {id} not found.");
 
@@ -119,7 +132,8 @@ public class BranchService : IBranchService
     public async Task RestoreAsync(Guid id, CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
-        var branch = await context.Branches.IgnoreQueryFilters().Include(b => b.Company).FirstOrDefaultAsync(b => b.Id == id, ct);
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+        var branch = await context.Branches.IgnoreQueryFilters().Include(b => b.Company).ForCompany(companyId).FirstOrDefaultAsync(b => b.Id == id, ct);
         if (branch is null)
             throw new KeyNotFoundException($"Branch {id} not found.");
 
@@ -135,10 +149,12 @@ public class BranchService : IBranchService
     public async Task<List<BranchDto>> GetDeletedAsync(CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
+        var companyId = await GetRequiredCompanyIdAsync(ct);
         return await context.Branches
             .IgnoreQueryFilters()
             .AsNoTracking()
             .Include(b => b.Company)
+            .ForCompany(companyId)
             .Where(b => b.IsDeleted)
             .OrderByDescending(b => b.DeletedAt)
             .Select(b => MapToDto(b))
@@ -149,7 +165,9 @@ public class BranchService : IBranchService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
-        var branch = await context.Branches.FindAsync([request.Id], ct);
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
+        var branch = await context.Branches.ForCompany(companyId).FirstOrDefaultAsync(b => b.Id == request.Id, ct);
         if (branch is null)
             throw new KeyNotFoundException($"Branch {request.Id} not found.");
 

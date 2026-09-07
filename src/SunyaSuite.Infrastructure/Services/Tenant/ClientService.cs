@@ -56,10 +56,13 @@ public class ClientService : IClientService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
         var client = await context.Clients
             .Include(c => c.Projects)
             .Include(c => c.Invoices)
             .AsSplitQuery()
+            .ForCompany(companyId)
             .FirstOrDefaultAsync(c => c.Id == id, ct);
 
         return client is null ? null : MapToDetail(client);
@@ -189,9 +192,12 @@ public class ClientService : IClientService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
         var client = await context.Clients
             .Include(c => c.Projects)
             .Include(c => c.Invoices)
+            .ForCompany(companyId)
             .FirstOrDefaultAsync(c => c.Id == id, ct);
 
         if (client is null)
@@ -218,7 +224,6 @@ public class ClientService : IClientService
             invoice.DeletedAt = now;
         }
 
-        var companyId = await GetRequiredCompanyIdAsync(ct);
         AuditLogHelper.Add(context, companyId, userId, "SoftDeleted", "Client", id.ToString(), client.Name, _timeProvider);
 
         await context.SaveChangesAsync(ct);
@@ -262,10 +267,13 @@ public class ClientService : IClientService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
         var client = await context.Clients
             .IgnoreQueryFilters()
             .Include(c => c.Projects)
             .Include(c => c.Invoices)
+            .ForCompany(companyId)
             .FirstOrDefaultAsync(c => c.Id == id, ct);
 
         if (client is null)
@@ -291,7 +299,6 @@ public class ClientService : IClientService
             invoice.DeletedAt = null;
         }
 
-        var companyId = await GetRequiredCompanyIdAsync(ct);
         AuditLogHelper.Add(context, companyId, userId, "Restored", "Client", id.ToString(), client.Name, _timeProvider);
 
         await context.SaveChangesAsync(ct);
@@ -301,10 +308,13 @@ public class ClientService : IClientService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
         var client = await context.Clients
             .IgnoreQueryFilters()
             .Include(c => c.Projects)
             .Include(c => c.Invoices)
+            .ForCompany(companyId)
             .FirstOrDefaultAsync(c => c.Id == id, ct);
 
         if (client is null)
@@ -317,7 +327,6 @@ public class ClientService : IClientService
         context.Projects.RemoveRange(client.Projects);
         context.Clients.Remove(client);
 
-        var companyId = await GetRequiredCompanyIdAsync(ct);
         AuditLogHelper.Add(context, companyId, userId, "PermanentDeleted", "Client", id.ToString(), name, _timeProvider);
 
         await context.SaveChangesAsync(ct);

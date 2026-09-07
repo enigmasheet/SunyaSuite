@@ -60,8 +60,11 @@ public class ProjectService : IProjectService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
         var project = await context.Projects
             .Include(p => p.Client)
+            .ForCompany(companyId)
             .FirstOrDefaultAsync(p => p.Id == id, ct);
 
         return project is null ? null : MapToDetail(project);
@@ -157,7 +160,10 @@ public class ProjectService : IProjectService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
         var existing = await context.Projects
+            .ForCompany(companyId)
             .FirstOrDefaultAsync(p => p.Id == request.Id, ct);
 
         if (existing is null)
@@ -188,7 +194,9 @@ public class ProjectService : IProjectService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
-        var project = await context.Projects.IgnoreQueryFilters().FirstOrDefaultAsync(p => p.Id == id, ct);
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
+        var project = await context.Projects.IgnoreQueryFilters().ForCompany(companyId).FirstOrDefaultAsync(p => p.Id == id, ct);
         if (project is null)
             throw new KeyNotFoundException($"Project {id} not found");
 
@@ -220,10 +228,13 @@ public class ProjectService : IProjectService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
         var query = context.Projects
             .IgnoreQueryFilters()
             .Include(p => p.Client)
             .AsNoTracking()
+            .ForCompany(companyId)
             .Where(p => p.IsDeleted)
             .AsQueryable();
 
@@ -249,7 +260,9 @@ public class ProjectService : IProjectService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
-        var project = await context.Projects.IgnoreQueryFilters().FirstOrDefaultAsync(p => p.Id == id, ct);
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
+        var project = await context.Projects.IgnoreQueryFilters().ForCompany(companyId).FirstOrDefaultAsync(p => p.Id == id, ct);
         if (project is null)
             throw new KeyNotFoundException($"Project {id} not found");
 
@@ -269,7 +282,9 @@ public class ProjectService : IProjectService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
-        var project = await context.Projects.IgnoreQueryFilters().FirstOrDefaultAsync(p => p.Id == id, ct);
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
+        var project = await context.Projects.IgnoreQueryFilters().ForCompany(companyId).FirstOrDefaultAsync(p => p.Id == id, ct);
         if (project is null)
             throw new KeyNotFoundException($"Project {id} not found");
 

@@ -338,12 +338,22 @@ else
 
     private async Task UpdateStatusWithConfirm(InvoiceStatus newStatus)
     {
+        var (icon, color) = newStatus switch
+        {
+            InvoiceStatus.Sent => (Icons.Material.Filled.Send, Color.Primary),
+            InvoiceStatus.Paid => (Icons.Material.Filled.CheckCircle, Color.Success),
+            InvoiceStatus.Overdue => (Icons.Material.Filled.Warning, Color.Warning),
+            _ => (Icons.Material.Filled.Edit, Color.Primary)
+        };
+
         var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
             $"Mark as {newStatus}",
             new DialogParameters
             {
                 { "Message", $"Mark invoice {_invoice?.InvoiceNumber} as {newStatus}?" },
-                { "ConfirmText", $"Mark as {newStatus}" }
+                { "ConfirmText", $"Mark as {newStatus}" },
+                { "Icon", icon },
+                { "Color", color }
             },
             new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
         var result = await dialog.Result;
@@ -390,7 +400,9 @@ else
                 new DialogParameters
                 {
                     { "Message", $"Send invoice {_invoice.InvoiceNumber} to {_invoice.ClientEmail}?" },
-                    { "ConfirmText", "Send Email" }
+                    { "ConfirmText", "Send Email" },
+                    { "Icon", Icons.Material.Filled.Email },
+                    { "Color", Color.Primary }
                 },
                 new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
             var result = await dialog.Result;

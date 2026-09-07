@@ -25,20 +25,20 @@ public static class DependencyInjection
 
         services.Configure<DatabaseSettings>(configuration.GetSection(DatabaseSettings.SectionName));
 
-        // Config database (shared â€” Organizations + Identity)
+        // Config database (shared Organizations + Identity)
         services.AddDbContextFactory<ConfigDbContext>(options =>
             options.UseNpgsql(configuration.GetConnectionString("ConfigConnection"),
                 npgsqlOptions => npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(10), errorCodesToAdd: null))
                .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
 
-        // Tenant database â€” register base options (used as fallback when no tenant override)
+        // Tenant database  register base options (used as fallback when no tenant override)
         services.AddDbContextFactory<ApplicationDbContext>(options =>
             options.UseNpgsql(configuration.GetConnectionString("TemplateConnection"),
                 npgsqlOptions => npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(10), errorCodesToAdd: null))
                .ConfigureWarnings(w => w.Ignore(CoreEventId.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning))
                .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
 
-        // Scoped factory â€” resolves tenant-specific connection string per request
+        // Scoped factory resolves tenant-specific connection string per request
         services.AddScoped<ITenantContext, TenantContext>();
         services.AddScoped<IDbContextFactory<ApplicationDbContext>, TenantDbContextFactory>();
 

@@ -3,3 +3,5 @@ abhaymandal321@gmail.com
 
 admin@sunya.local
 ***REMOVED***
+
+dotnet ef migrations add FixFiscalYearDateColumns --project src/SunyaSuite.Infrastructure/SunyaSuite.Infrastructure.csproj --startup-project src/SunyaSuite.Web/SunyaSuite.Web.Api.csproj --context ApplicationDbContext 2>&1

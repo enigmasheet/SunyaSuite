@@ -38,7 +38,7 @@ public class EmailService : IEmailService
         message.Body = body;
 
         using var client = new SmtpClient();
-        await client.ConnectAsync(_settings.SmtpHost, _settings.SmtpPort, SecureSocketOptions.StartTls, ct);
+        await client.ConnectAsync(_settings.SmtpHost, _settings.SmtpPort, SecureSocketOptions.SslOnConnect, ct);
 
         if (!string.IsNullOrWhiteSpace(_settings.Username))
             await client.AuthenticateAsync(_settings.Username, _settings.Password, ct);
@@ -76,7 +76,7 @@ public class EmailService : IEmailService
         message.Body = multipart;
 
         using var client = new SmtpClient();
-        await client.ConnectAsync(_settings.SmtpHost, _settings.SmtpPort, SecureSocketOptions.StartTls, ct);
+        await client.ConnectAsync(_settings.SmtpHost, _settings.SmtpPort, SecureSocketOptions.SslOnConnect, ct);
 
         if (!string.IsNullOrWhiteSpace(_settings.Username))
             await client.AuthenticateAsync(_settings.Username, _settings.Password, ct);

@@ -30,7 +30,8 @@ public class FiscalYearService : IFiscalYearService
     public async Task<FiscalYearDto?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
-        var fy = await context.FiscalYears.FindAsync([id], ct);
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+        var fy = await context.FiscalYears.ForCompany(companyId).FirstOrDefaultAsync(f => f.Id == id, ct);
         return fy is null ? null : MapToDto(fy);
     }
 
@@ -69,7 +70,9 @@ public class FiscalYearService : IFiscalYearService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
-        var existing = await context.FiscalYears.AnyAsync(f => f.YearName == request.YearName, ct);
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
+        var existing = await context.FiscalYears.ForCompany(companyId).AnyAsync(f => f.YearName == request.YearName, ct);
         if (existing)
             throw new InvalidOperationException($"Fiscal year {request.YearName} already exists.");
 
@@ -78,8 +81,6 @@ public class FiscalYearService : IFiscalYearService
         var endParts = request.EndDateBS.Split('/');
         if (startParts.Length != 3 || endParts.Length != 3)
             throw new InvalidOperationException("Dates must be in yyyy/MM/dd format.");
-
-        var companyId = await GetRequiredCompanyIdAsync(ct);
 
         var startBS = new NepaliDate(
             int.Parse(startParts[0]), int.Parse(startParts[1]), int.Parse(startParts[2]));
@@ -110,7 +111,8 @@ public class FiscalYearService : IFiscalYearService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
-        var fy = await context.FiscalYears.FindAsync([id], ct);
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+        var fy = await context.FiscalYears.ForCompany(companyId).FirstOrDefaultAsync(f => f.Id == id, ct);
         if (fy is null)
             throw new KeyNotFoundException($"FiscalYear {id} not found");
 
@@ -130,7 +132,7 @@ public class FiscalYearService : IFiscalYearService
             current.IsCurrent = false;
         }
 
-        var fy = await context.FiscalYears.FindAsync([id], ct);
+        var fy = await context.FiscalYears.ForCompany(companyId).FirstOrDefaultAsync(f => f.Id == id, ct);
         if (fy is null)
             throw new KeyNotFoundException($"FiscalYear {id} not found");
 

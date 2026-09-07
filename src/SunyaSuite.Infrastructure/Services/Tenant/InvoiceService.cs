@@ -233,6 +233,9 @@ public class InvoiceService : IInvoiceService
 
         var existing = await context.Invoices
             .Include(i => i.Items)
+            .Include(i => i.Client)
+            .Include(i => i.FiscalYearInfo)
+            .Include(i => i.Project)
             .ForCompany(companyId)
             .FirstOrDefaultAsync(i => i.Id == request.Id, ct);
 
@@ -383,11 +386,14 @@ public class InvoiceService : IInvoiceService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
         var query = context.Invoices
             .IgnoreQueryFilters()
             .Include(i => i.Client)
             .Include(i => i.FiscalYearInfo)
             .AsNoTracking()
+            .ForCompany(companyId)
             .Where(i => i.IsDeleted)
             .AsQueryable();
 
@@ -440,9 +446,16 @@ public class InvoiceService : IInvoiceService
 
         var companyId = await GetRequiredCompanyIdAsync(ct);
 
-        var invoice = await context.Invoices.IgnoreQueryFilters().ForCompany(companyId).FirstOrDefaultAsync(i => i.Id == id, ct);
+        var invoice = await context.Invoices
+            .IgnoreQueryFilters()
+            .ForCompany(companyId)
+            .Include(i => i.ReceiptAllocations)
+            .FirstOrDefaultAsync(i => i.Id == id, ct);
         if (invoice is null)
             throw new KeyNotFoundException($"Invoice {id} not found");
+
+        if (invoice.ReceiptAllocations.Count > 0)
+            throw new InvalidOperationException("Cannot permanently delete an invoice with receipt allocations. Remove the allocations first.");
 
         var userId = await GetCurrentUserIdAsync();
         var invoiceNumber = invoice.InvoiceNumber;
