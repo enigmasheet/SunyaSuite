@@ -168,7 +168,7 @@ else
                     <MudTd DataLabel="Status">
                         <StatusChip Status="@context.Status">@context.Status</StatusChip>
                     </MudTd>
-                    <MudTd DataLabel="Amount">@context.Total.ToString("C")</MudTd>
+                    <MudTd DataLabel="Amount">Rs. @context.Total.ToString("N2")</MudTd>
                     <MudTd DataLabel="Issue Date">@context.IssueDate.ToString("MMM dd, yyyy")</MudTd>
                 </RowTemplate>
             </MudTable>

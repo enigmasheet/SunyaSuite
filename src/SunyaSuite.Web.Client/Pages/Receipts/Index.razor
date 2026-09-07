@@ -59,7 +59,7 @@
             <MudLink Href="@($"/receipts/{context.Id}")">@context.ReceiptNumber</MudLink>
         </MudTd>
         <MudTd DataLabel="Received From">@context.ReceivedFromName</MudTd>
-        <MudTd DataLabel="Amount">@context.AmountReceived.ToString("C")</MudTd>
+        <MudTd DataLabel="Amount">Rs. @context.AmountReceived.ToString("N2")</MudTd>
         <MudTd DataLabel="In Words">
             <MudText Typo="Typo.caption">@context.AmountInWords</MudText>
         </MudTd>
@@ -152,7 +152,7 @@
 
     private async Task PromptDelete(Guid id, string number)
     {
-        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(
             "Delete Receipt",
             new DialogParameters
             {

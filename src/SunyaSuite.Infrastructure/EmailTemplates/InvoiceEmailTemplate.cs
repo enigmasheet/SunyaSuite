@@ -65,7 +65,7 @@ public static class InvoiceEmailTemplate
                                     <p style="color: #333333; font-size: 15px; line-height: 1.6;">Dear {clientName},</p>
                                     <p style="color: #333333; font-size: 15px; line-height: 1.6;">
                                         This is a reminder that invoice <strong>{invoiceNumber}</strong> for 
-                                        <strong style="color: #2e7d32;">{amount:C}</strong> was due on 
+                                        <strong style="color: #2e7d32;">Rs. {amount:N2}</strong> was due on 
                                         <strong>{dueDate:MMMM dd, yyyy}</strong> and is now overdue.
                                     </p>
                                     <p style="color: #333333; font-size: 15px; line-height: 1.6;">

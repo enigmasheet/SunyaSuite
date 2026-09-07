@@ -144,7 +144,7 @@ else
 
     private async Task PromptRemoveUser(OrganizationUserDto membership)
     {
-        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(
             "Remove from Organization",
             new DialogParameters
             {

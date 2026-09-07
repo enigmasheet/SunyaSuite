@@ -91,7 +91,7 @@ else
         <MudItem xs="12" sm="6" md="3">
             <MudCard Elevation="0" Outlined="true" Class="pa-4 stat-card stat-card-success">
                 <MudText Typo="Typo.subtitle2" Class="text-secondary mb-1">Revenue This Month</MudText>
-                <MudText Typo="Typo.h3">@_stats.RevenueThisMonth.ToString("C0")</MudText>
+                <MudText Typo="Typo.h3">Rs. @_stats.RevenueThisMonth.ToString("N0")</MudText>
             </MudCard>
         </MudItem>
     </MudGrid>
@@ -191,7 +191,7 @@ else
                         <MudLink Href="@($"/invoices/{context.Id}")">@context.InvoiceNumber</MudLink>
                     </MudTd>
                     <MudTd>@context.ClientName</MudTd>
-                    <MudTd>@context.Total.ToString("C")</MudTd>
+                    <MudTd>Rs. @context.Total.ToString("N2")</MudTd>
                     <MudTd>@context.DueDate.ToString("MMM dd")</MudTd>
                     <MudTd>
                         <StatusChip Status="@context.Status">@context.Status</StatusChip>

@@ -114,7 +114,7 @@
                 <MudText Typo="Typo.body2" Class="text-secondary">-</MudText>
             }
         </MudTd>
-        <MudTd DataLabel="Total">@context.Total.ToString("C")</MudTd>
+        <MudTd DataLabel="Total">Rs. @context.Total.ToString("N2")</MudTd>
         <MudTd DataLabel="Due Date">@context.DueDate.ToString("MMM dd, yyyy")</MudTd>
         <MudTd DataLabel="Status">
             <StatusChip Status="@context.Status">@context.Status</StatusChip>
@@ -306,19 +306,21 @@
                 return;
             }
 
-            var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+            var dialog = await DialogService.ShowAsync<ConfirmDialog>(
                 "Send Invoice",
                 new DialogParameters
                 {
-                    { "Message", $"Send invoice {invoiceNumber} to {invoice.ClientEmail}?" },
-                    { "ConfirmText", "Send Email" }
+                    { "Message", $"Send invoice {invoiceNumber} to {invoice.ClientEmail}?\n\nThe invoice PDF will be attached to the email." },
+                    { "ConfirmText", "Send" },
+                    { "Icon", Icons.Material.Filled.Email },
+                    { "Color", Color.Primary }
                 },
                 new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
             var result = await dialog.Result;
             if (result is { Canceled: false })
             {
                 var pdfBytes = await PdfService.GeneratePdfAsync(invoice);
-                var htmlBody = $@"<html><body style='font-family:sans-serif;'><h2>Invoice {invoiceNumber}</h2><p>Dear {clientName},</p><p>Please find your invoice attached.</p><table border='1' cellpadding='8' style='border-collapse:collapse;'><tr><th>Invoice #</th><th>Amount</th><th>Date</th></tr><tr><td>{invoiceNumber}</td><td>{invoice.Total:C}</td><td>{invoice.IssueDate:MMM dd, yyyy}</td></tr></table><p>Thank you for your business.</p></body></html>";
+                var htmlBody = $@"<html><body style='font-family:sans-serif;'><h2>Invoice {invoiceNumber}</h2><p>Dear {clientName},</p><p>Please find your invoice attached.</p><table border='1' cellpadding='8' style='border-collapse:collapse;'><tr><th>Invoice #</th><th>Amount</th><th>Date</th></tr><tr><td>{invoiceNumber}</td><td>Rs. {invoice.Total:N2}</td><td>{invoice.IssueDate:MMM dd, yyyy}</td></tr></table><p>Thank you for your business.</p></body></html>";
                 await EmailService.SendWithAttachmentAsync(invoice.ClientEmail, $"Invoice {invoiceNumber} from SunyaSuite", htmlBody, $"Invoice_{invoiceNumber}.pdf", pdfBytes);
                 Snackbar.Add($"Invoice sent to {invoice.ClientEmail}.", Severity.Success);
             }
@@ -335,7 +337,7 @@
 
     private async Task PromptDelete(Guid id, string number)
     {
-        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(
             "Delete Invoice",
             new DialogParameters
             {

@@ -182,10 +182,10 @@ else
                         {
                             <MudTd>@(string.IsNullOrEmpty(context.ProjectName) ? "-" : context.ProjectName)</MudTd>
                         }
-                        <MudTd>@context.Quantity.ToString("N2")</MudTd>
+                        <MudTd>Rs. @context.Quantity.ToString("N2")</MudTd>
                         <MudTd>@(string.IsNullOrEmpty(context.Unit) ? "-" : context.Unit)</MudTd>
-                        <MudTd>@context.UnitPrice.ToString("N2")</MudTd>
-                        <MudTd>@context.Amount.ToString("N2")</MudTd>
+                        <MudTd>Rs. @context.UnitPrice.ToString("N2")</MudTd>
+                        <MudTd>Rs. @context.Amount.ToString("N2")</MudTd>
                     </RowTemplate>
                 </MudTable>
 
@@ -194,20 +194,20 @@ else
                 <div Class="totals-box">
                     <MudGrid>
                         <MudItem xs="6"><MudText Typo="Typo.body2">Subtotal:</MudText></MudItem>
-                        <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2">@_invoice.Subtotal.ToString("N2")</MudText></MudItem>
+                        <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2">Rs. @_invoice.Subtotal.ToString("N2")</MudText></MudItem>
                         @if (_invoice.BillType == Domain.Enums.BillType.VatBill && !_invoice.IsAbbreviated)
                         {
                             <MudItem xs="6"><MudText Typo="Typo.body2">VAT (13%):</MudText></MudItem>
-                            <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2">@_invoice.VatAmount.ToString("N2")</MudText></MudItem>
+                            <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2">Rs. @_invoice.VatAmount.ToString("N2")</MudText></MudItem>
                         }
                         @if (_invoice.DiscountAmount > 0)
                         {
                             <MudItem xs="6"><MudText Typo="Typo.body2">Discount:</MudText></MudItem>
-                            <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2">-@_invoice.DiscountAmount.ToString("N2")</MudText></MudItem>
+                            <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2">-Rs. @_invoice.DiscountAmount.ToString("N2")</MudText></MudItem>
                         }
                         <MudItem xs="12"><MudDivider /></MudItem>
                         <MudItem xs="6"><MudText Typo="Typo.subtitle1" Class="font-weight-bold">Grand Total:</MudText></MudItem>
-                        <MudItem xs="6" Class="text-right"><MudText Typo="Typo.subtitle1">@_invoice.Total.ToString("N2")</MudText></MudItem>
+                        <MudItem xs="6" Class="text-right"><MudText Typo="Typo.subtitle1">Rs. @_invoice.Total.ToString("N2")</MudText></MudItem>
                     </MudGrid>
                     @if (!string.IsNullOrEmpty(_invoice.GrandTotalInWords))
                     {
@@ -248,7 +248,7 @@ else
                                     <MudLink Href="@($"/receipts/{context.MoneyReceiptId}")">@context.ReceiptNumber</MudLink>
                                 </MudTd>
                                 <MudTd>@context.ReceiptFiscalYear</MudTd>
-                                <MudTd>@context.AllocatedAmount.ToString("C")</MudTd>
+                                <MudTd>Rs. @context.AllocatedAmount.ToString("N2")</MudTd>
                                 <MudTd>
                                     <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
                                                    Color="Color.Error"
@@ -267,11 +267,11 @@ else
                     <div Class="totals-box">
                         <MudGrid>
                             <MudItem xs="6"><MudText Typo="Typo.body2">Paid:</MudText></MudItem>
-                            <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2" Class="text-success">@_invoice.AmountPaid.ToString("C")</MudText></MudItem>
+                            <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2" Class="text-success">Rs. @_invoice.AmountPaid.ToString("N2")</MudText></MudItem>
                             @if (balanceDue > 0)
                             {
                                 <MudItem xs="6"><MudText Typo="Typo.subtitle1" Class="font-weight-bold">Balance Due:</MudText></MudItem>
-                                <MudItem xs="6" Class="text-right"><MudText Typo="Typo.subtitle1" Color="Color.Error">@balanceDue.ToString("C")</MudText></MudItem>
+                                <MudItem xs="6" Class="text-right"><MudText Typo="Typo.subtitle1" Color="Color.Error">Rs. @balanceDue.ToString("N2")</MudText></MudItem>
                             }
                         </MudGrid>
                     </div>
@@ -346,8 +346,8 @@ else
             _ => (Icons.Material.Filled.Edit, Color.Primary)
         };
 
-        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
-            $"Mark as {newStatus}",
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(
+            "Confirm Status Change",
             new DialogParameters
             {
                 { "Message", $"Mark invoice {_invoice?.InvoiceNumber} as {newStatus}?" },
@@ -395,12 +395,12 @@ else
         _sendingEmail = true;
         try
         {
-            var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+            var dialog = await DialogService.ShowAsync<ConfirmDialog>(
                 "Send Invoice",
                 new DialogParameters
                 {
-                    { "Message", $"Send invoice {_invoice.InvoiceNumber} to {_invoice.ClientEmail}?" },
-                    { "ConfirmText", "Send Email" },
+                    { "Message", $"Send invoice {_invoice.InvoiceNumber} to {_invoice.ClientEmail}?\n\nThe invoice PDF will be attached to the email." },
+                    { "ConfirmText", "Send" },
                     { "Icon", Icons.Material.Filled.Email },
                     { "Color", Color.Primary }
                 },
@@ -409,7 +409,7 @@ else
             if (result is { Canceled: false })
             {
                 var pdfBytes = await PdfService.GeneratePdfAsync(_invoice, _copyType, _preference);
-                var htmlBody = $@"<html><body style='font-family:sans-serif;'><h2>Invoice {_invoice.InvoiceNumber}</h2><p>Dear {_invoice.ClientName},</p><p>Please find your invoice attached.</p><table border='1' cellpadding='8' style='border-collapse:collapse;'><tr><th>Invoice #</th><th>Amount</th><th>Date</th></tr><tr><td>{_invoice.InvoiceNumber}</td><td>{_invoice.Total:C}</td><td>{_invoice.IssueDate:MMM dd, yyyy}</td></tr></table><p>Thank you for your business.</p></body></html>";
+                var htmlBody = $@"<html><body style='font-family:sans-serif;'><h2>Invoice {_invoice.InvoiceNumber}</h2><p>Dear {_invoice.ClientName},</p><p>Please find your invoice attached.</p><table border='1' cellpadding='8' style='border-collapse:collapse;'><tr><th>Invoice #</th><th>Amount</th><th>Date</th></tr><tr><td>{_invoice.InvoiceNumber}</td><td>Rs. {_invoice.Total:N2}</td><td>{_invoice.IssueDate:MMM dd, yyyy}</td></tr></table><p>Thank you for your business.</p></body></html>";
                 await EmailService.SendWithAttachmentAsync(_invoice.ClientEmail, $"Invoice {_invoice.InvoiceNumber} from SunyaSuite", htmlBody, $"Invoice_{_invoice.InvoiceNumber}.pdf", pdfBytes);
                 Snackbar.Add($"Invoice sent to {_invoice.ClientEmail}.", Severity.Success);
             }
@@ -440,7 +440,7 @@ else
 
     private async Task PromptDeleteReceipt(Guid receiptId)
     {
-        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(
             "Delete Receipt",
             new DialogParameters
             {

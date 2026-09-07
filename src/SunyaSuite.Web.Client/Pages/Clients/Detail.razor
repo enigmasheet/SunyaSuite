@@ -88,7 +88,7 @@ else
                         <RowTemplate>
                             <MudTd>@context.InvoiceNumber</MudTd>
                             <MudTd>@context.IssueDate.ToString("MMM dd, yyyy")</MudTd>
-                            <MudTd>@context.Total.ToString("C")</MudTd>
+                            <MudTd>Rs. @context.Total.ToString("N2")</MudTd>
                             <MudTd>
                                 <StatusChip Status="@context.Status">@context.Status</StatusChip>
                             </MudTd>

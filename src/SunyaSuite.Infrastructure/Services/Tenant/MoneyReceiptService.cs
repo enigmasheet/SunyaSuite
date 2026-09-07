@@ -210,7 +210,7 @@ public class MoneyReceiptService : IMoneyReceiptService
         context.MoneyReceipts.Add(receipt);
 
         AuditLogHelper.Add(context, companyId, userId, "MoneyReceiptCreated", "MoneyReceipt", receipt.Id.ToString(),
-            $"{receipt.ReceiptNumber}: {totalAmount:C} via {request.PaymentMethod}", _timeProvider);
+            $"{receipt.ReceiptNumber}: Rs. {totalAmount:N2} via {request.PaymentMethod}", _timeProvider);
 
         await context.SaveChangesAsync(ct);
 
@@ -330,7 +330,7 @@ public class MoneyReceiptService : IMoneyReceiptService
         receipt.ReferenceNo = request.ReferenceNo;
 
         AuditLogHelper.Add(context, companyId, userId, "MoneyReceiptUpdated", "MoneyReceipt", receipt.Id.ToString(),
-            $"{receipt.ReceiptNumber}: updated to {totalAmount:C} via {request.PaymentMethod}", _timeProvider);
+            $"{receipt.ReceiptNumber}: updated to Rs. {totalAmount:N2} via {request.PaymentMethod}", _timeProvider);
 
         await context.SaveChangesAsync(ct);
 

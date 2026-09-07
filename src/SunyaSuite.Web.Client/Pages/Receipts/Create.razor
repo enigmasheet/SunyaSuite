@@ -88,7 +88,7 @@ else
                    Class="mb-4">
             @foreach (var inv in _availableInvoices)
             {
-                <MudSelectItem T="Guid?" Value="@inv.Id" @key="inv.Id">@inv.InvoiceNumber - @inv.ClientName (@inv.Total.ToString("C"))</MudSelectItem>
+                <MudSelectItem T="Guid?" Value="@inv.Id" @key="inv.Id">@inv.InvoiceNumber - @inv.ClientName (Rs. @inv.Total.ToString("N2"))</MudSelectItem>
             }
         </MudSelect>
 
@@ -116,9 +116,9 @@ else
                         <MudLink Href="@($"/invoices/{context.InvoiceId}")" Target="_blank">@context.InvoiceNumber</MudLink>
                     </MudTd>
                     <MudTd>@context.ClientName</MudTd>
-                    <MudTd>@context.Total.ToString("C")</MudTd>
-                    <MudTd>@context.AmountPaid.ToString("C")</MudTd>
-                    <MudTd>@context.BalanceDue.ToString("C")</MudTd>
+                    <MudTd>Rs. @context.Total.ToString("N2")</MudTd>
+                    <MudTd>Rs. @context.AmountPaid.ToString("N2")</MudTd>
+                    <MudTd>Rs. @context.BalanceDue.ToString("N2")</MudTd>
                     <MudTd>
                         <MudNumericField T="decimal"
                                          @bind-Value="context.Allocating"

@@ -187,7 +187,7 @@ else
 
     private async Task PromptRemove(Guid orgId, string orgName)
     {
-        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(
             "Remove from Organization",
             new DialogParameters
             {

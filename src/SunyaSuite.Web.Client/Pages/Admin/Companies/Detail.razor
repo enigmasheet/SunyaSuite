@@ -125,7 +125,7 @@ else
 
     private async Task PromptToggleActive()
     {
-        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(
             _company!.IsActive ? "Deactivate Company" : "Activate Company",
             new DialogParameters
             {
@@ -154,7 +154,7 @@ else
 
     private async Task PromptDelete()
     {
-        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(
             "Delete Company",
             new DialogParameters
             {

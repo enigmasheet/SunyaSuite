@@ -100,7 +100,7 @@
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd>@context.InvoiceNumber</MudTd>
-                    <MudTd>@context.Total.ToString("C")</MudTd>
+                    <MudTd>Rs. @context.Total.ToString("N2")</MudTd>
                     <MudTd>@(context.DeletedAt?.ToLocalTime().ToString("MMM dd, yyyy HH:mm") ?? "-")</MudTd>
                     <MudTd>
                         <MudIconButton Icon="@Icons.Material.Filled.Restore" Size="Size.Small"
@@ -261,7 +261,7 @@
 
     private async Task PermanentDeleteClient(Guid id, string name)
     {
-        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(
             "Permanently Delete Client",
             new DialogParameters
             {
@@ -303,7 +303,7 @@
 
     private async Task PermanentDeleteProject(Guid id, string name)
     {
-        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(
             "Permanently Delete Project",
             new DialogParameters
             {
@@ -375,7 +375,7 @@
 
     private async Task PermanentDeleteInvoice(Guid id, string number)
     {
-        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(
             "Permanently Delete Invoice",
             new DialogParameters
             {

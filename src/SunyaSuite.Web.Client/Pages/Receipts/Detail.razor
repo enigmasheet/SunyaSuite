@@ -75,7 +75,7 @@ else
             <MudPaper Elevation="0" Outlined="true" Class="pa-6 mb-4">
                 <MudText Typo="Typo.subtitle2" Class="mb-4">Amount</MudText>
                 <MudText Typo="Typo.h5" Color="Color.Primary" Class="font-weight-bold">
-                    @_receipt.AmountReceived.ToString("N2")
+                    Rs. @_receipt.AmountReceived.ToString("N2")
                 </MudText>
                 <MudText Typo="Typo.caption" Class="text-secondary">
                     @_receipt.AmountInWords
@@ -121,7 +121,7 @@ else
                         <MudLink Href="@($"/invoices/{context.InvoiceId}")">@context.InvoiceNumber</MudLink>
                     </MudTd>
                     <MudTd>@context.ReceiptFiscalYear</MudTd>
-                    <MudTd>@context.AllocatedAmount.ToString("N2")</MudTd>
+                    <MudTd>Rs. @context.AllocatedAmount.ToString("N2")</MudTd>
                 </RowTemplate>
             </MudTable>
         </MudPaper>
@@ -211,7 +211,7 @@ else
             try
             {
                 var pdfBytes = await ReceiptPdfService.GeneratePdfAsync(_receipt, _copyType);
-                var htmlBody = $@"<html><body style='font-family:sans-serif;'><h2>Receipt {_receipt.ReceiptNumber}</h2><p>Dear {_receipt.ReceivedFromName},</p><p>Thank you for your payment. Please find your receipt attached.</p><table border='1' cellpadding='8' style='border-collapse:collapse;'><tr><th>Receipt #</th><th>Amount</th><th>Date</th></tr><tr><td>{_receipt.ReceiptNumber}</td><td>{_receipt.AmountReceived:C}</td><td>{_receipt.DateAD:MMM dd, yyyy}</td></tr></table><p>Thank you for your business.</p></body></html>";
+                var htmlBody = $@"<html><body style='font-family:sans-serif;'><h2>Receipt {_receipt.ReceiptNumber}</h2><p>Dear {_receipt.ReceivedFromName},</p><p>Thank you for your payment. Please find your receipt attached.</p><table border='1' cellpadding='8' style='border-collapse:collapse;'><tr><th>Receipt #</th><th>Amount</th><th>Date</th></tr><tr><td>{_receipt.ReceiptNumber}</td><td>Rs. {_receipt.AmountReceived:N2}</td><td>{_receipt.DateAD:MMM dd, yyyy}</td></tr></table><p>Thank you for your business.</p></body></html>";
                 await EmailService.SendWithAttachmentAsync(email, $"Receipt {_receipt.ReceiptNumber} from SunyaSuite", htmlBody, $"Receipt_{_receipt.ReceiptNumber}.pdf", pdfBytes);
                 Snackbar.Add($"Receipt sent to {email}.", Severity.Success);
             }
@@ -228,7 +228,7 @@ else
 
     private async Task PromptDelete()
     {
-        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(
             "Delete Receipt",
             new DialogParameters
             {

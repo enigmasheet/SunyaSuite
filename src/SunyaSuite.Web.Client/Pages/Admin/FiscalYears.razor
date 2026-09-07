@@ -117,7 +117,7 @@ else
     {
         var isOpen = _fiscalYears.FirstOrDefault(f => f.Id == id)?.IsOpen ?? false;
         var action = isOpen ? "Close" : "Open";
-        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(
             $"{action} Fiscal Year",
             new DialogParameters
             {
@@ -146,7 +146,7 @@ else
 
     private async Task SetCurrentWithConfirm(Guid id, string yearName)
     {
-        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(
             "Set Current Fiscal Year",
             new DialogParameters
             {

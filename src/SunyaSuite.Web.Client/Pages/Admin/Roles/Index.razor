@@ -110,7 +110,7 @@ else
 
     private async Task PromptDelete(string roleName)
     {
-        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(
             "Delete Role",
             new DialogParameters
             {

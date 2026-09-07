@@ -217,7 +217,7 @@ public class InvoiceService : IInvoiceService
         invoice.GrandTotalInWords = _numberToWordsService.ToNepaliWords(invoice.Total);
 
         context.Invoices.Add(invoice);
-        AuditLogHelper.Add(context, companyId, userId, "Created", "Invoice", invoice.Id.ToString(), $"{invoice.InvoiceNumber} - {invoice.Total:C}", _timeProvider);
+        AuditLogHelper.Add(context, companyId, userId, "Created", "Invoice", invoice.Id.ToString(), $"{invoice.InvoiceNumber} - Rs. {invoice.Total:N2}", _timeProvider);
 
         await context.SaveChangesAsync(ct);
 

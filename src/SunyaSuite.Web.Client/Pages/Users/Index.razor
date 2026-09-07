@@ -110,7 +110,7 @@
 
     private async Task PromptDelete(string id, string email)
     {
-        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(
             "Delete User",
             new DialogParameters
             {

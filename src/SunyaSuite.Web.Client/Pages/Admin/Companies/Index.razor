@@ -86,7 +86,7 @@ else
 
     private async Task PromptDelete(Guid id, string name)
     {
-        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(
             "Delete Company",
             new DialogParameters
             {

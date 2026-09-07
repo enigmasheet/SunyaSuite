@@ -138,7 +138,7 @@ else
                                          Min="0m" Step="0.01m" />
                     </MudItem>
                     <MudItem xs="6" sm="1" Class="d-flex align-center">
-                        <MudText Typo="Typo.body2">@_items[idx].Amount.ToString("C")</MudText>
+                        <MudText Typo="Typo.body2">Rs. @_items[idx].Amount.ToString("N2")</MudText>
                     </MudItem>
                     <MudItem xs="6" sm="1" Class="d-flex align-center">
                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
@@ -167,20 +167,20 @@ else
             <MudPaper Elevation="0" Outlined="true" Class="pa-4 mt-4 totals-box">
                 <MudGrid>
                     <MudItem xs="6"><MudText Typo="Typo.body2">Subtotal:</MudText></MudItem>
-                    <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2">@_items.Sum(i => i.Amount).ToString("C")</MudText></MudItem>
+                    <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2">@_items.Sum(i => i.Amount).ToString("N2")</MudText></MudItem>
                     @if (_billType == Domain.Enums.BillType.VatBill && !_isAbbreviated)
                     {
                         <MudItem xs="6"><MudText Typo="Typo.body2">VAT (@_vatRate%):</MudText></MudItem>
-                        <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2">@((_items.Sum(i => i.Amount) * _vatRate / 100m).ToString("C"))</MudText></MudItem>
+                        <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2">Rs. @((_items.Sum(i => i.Amount) * _vatRate / 100m).ToString("N2"))</MudText></MudItem>
                     }
                     @if (_discountAmount > 0)
                     {
                         <MudItem xs="6"><MudText Typo="Typo.body2">Discount:</MudText></MudItem>
-                        <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2">-@_discountAmount.ToString("C")</MudText></MudItem>
+                        <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2">-Rs. @_discountAmount.ToString("N2")</MudText></MudItem>
                     }
                     <MudItem xs="12"><MudDivider /></MudItem>
                     <MudItem xs="6"><MudText Typo="Typo.subtitle1" Class="font-weight-bold">Total:</MudText></MudItem>
-                    <MudItem xs="6" Class="text-right"><MudText Typo="Typo.subtitle1">@_total.ToString("C")</MudText></MudItem>
+                    <MudItem xs="6" Class="text-right"><MudText Typo="Typo.subtitle1">Rs. @_total.ToString("N2")</MudText></MudItem>
                 </MudGrid>
             </MudPaper>
 

@@ -1,4 +1,4 @@
-ï»¿@page "/admin/organizations/{Id:guid}"
+@page "/admin/organizations/{Id:guid}"
 @attribute [Authorize(Policy = PolicyNames.SystemAdminOnly)]
 @inject IOrganizationService OrganizationService
 @inject ISnackbar Snackbar
@@ -112,10 +112,10 @@ else
                             </MudTd>
                             <MudTd DataLabel="Joined">@context.JoinedAt.ToString("MMM dd, yyyy")</MudTd>
                             <MudTd DataLabel="Default Company">
-                                <MudText Typo="Typo.body2">@(!string.IsNullOrEmpty(context.DefaultCompanyName) ? context.DefaultCompanyName : "â€”")</MudText>
+                                <MudText Typo="Typo.body2">@(!string.IsNullOrEmpty(context.DefaultCompanyName) ? context.DefaultCompanyName : "—")</MudText>
                             </MudTd>
                             <MudTd DataLabel="Default Branch">
-                                <MudText Typo="Typo.body2">@(!string.IsNullOrEmpty(context.DefaultBranchName) ? context.DefaultBranchName : "â€”")</MudText>
+                                <MudText Typo="Typo.body2">@(!string.IsNullOrEmpty(context.DefaultBranchName) ? context.DefaultBranchName : "—")</MudText>
                             </MudTd>
                             <MudTd DataLabel="Actions">
                                 <MudIconButton Icon="@Icons.Material.Filled.ManageAccounts" Size="Size.Small"
@@ -180,7 +180,7 @@ else
 
     private async Task PromptToggleActive()
     {
-        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(
             _org!.IsActive ? "Deactivate Organization" : "Activate Organization",
             new DialogParameters
             {
@@ -209,7 +209,7 @@ else
 
     private async Task PromptDelete()
     {
-        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(
             "Delete Organization",
             new DialogParameters
             {
@@ -296,7 +296,7 @@ else
 
     private async Task PromptRemoveUser(OrganizationUserDto membership)
     {
-        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(
             "Remove from Organization",
             new DialogParameters
             {

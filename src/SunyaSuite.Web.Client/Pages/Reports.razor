@@ -99,7 +99,7 @@ else if (_stats is not null)
         <MudItem xs="12" sm="6" md="3">
             <MudCard Elevation="0" Outlined="true" Class="pa-4">
                 <MudText Typo="Typo.subtitle2" Class="text-secondary mb-1">Total Revenue</MudText>
-                <MudText Typo="Typo.h3">@_stats.RevenueTotal.ToString("C0")</MudText>
+                <MudText Typo="Typo.h3">Rs. @_stats.RevenueTotal.ToString("N0")</MudText>
             </MudCard>
         </MudItem>
     </MudGrid>
@@ -169,11 +169,11 @@ else if (_stats is not null)
                     </MudListItem>
                     <MudListItem T="string">
                         <MudText Typo="Typo.body2" Class="text-secondary">Revenue This Month</MudText>
-                        <MudText Typo="Typo.body1">@_stats.RevenueThisMonth.ToString("C")</MudText>
+                        <MudText Typo="Typo.body1">Rs. @_stats.RevenueThisMonth.ToString("N2")</MudText>
                     </MudListItem>
                     <MudListItem T="string">
                         <MudText Typo="Typo.body2" Class="text-secondary">Total Revenue</MudText>
-                        <MudText Typo="Typo.body1">@_stats.RevenueTotal.ToString("C")</MudText>
+                        <MudText Typo="Typo.body1">Rs. @_stats.RevenueTotal.ToString("N2")</MudText>
                     </MudListItem>
                 </MudList>
             </MudPaper>
