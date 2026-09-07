@@ -74,7 +74,7 @@
         <MudTd DataLabel="Status">
             <StatusChip Status="@context.Status">@context.Status</StatusChip>
         </MudTd>
-        <MudTd DataLabel="Deadline">@context.Deadline.ToString("MMM dd, yyyy")</MudTd>
+        <MudTd DataLabel="Deadline">@context.Deadline.ToString(DateFormats.Display)</MudTd>
         <MudTd DataLabel="Progress">
             <MudProgressLinear Value="@context.ProgressPercent" Class="rounded" Style="max-width: 160px;" />
             <MudText Typo="Typo.caption" Class="ml-1">@context.ProgressPercent%</MudText>

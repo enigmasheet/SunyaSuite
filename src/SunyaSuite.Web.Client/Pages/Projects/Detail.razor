@@ -41,7 +41,7 @@ else
                     </MudListItem>
                     <MudListItem T="string">
                         <MudText Typo="Typo.body2" Class="text-secondary">Deadline</MudText>
-                        <MudText Typo="Typo.body1">@_project.Deadline.ToString("MMM dd, yyyy")</MudText>
+                        <MudText Typo="Typo.body1">@_project.Deadline.ToString(DateFormats.Display)</MudText>
                     </MudListItem>
                     <MudListItem T="string">
                         <MudText Typo="Typo.body2" Class="text-secondary">Progress</MudText>
@@ -66,7 +66,7 @@ else
                     Edit Project
                 </MudButton>
 
-                @if (_project.Status == "NotStarted")
+                @if (_project.Status == StatusStrings.ProjectNotStarted)
                 {
                     <MudButton Variant="Variant.Filled" Color="Color.Info"
                                FullWidth="true" Class="mt-2"
@@ -74,7 +74,7 @@ else
                         Start Project
                     </MudButton>
                 }
-                else if (_project.Status == "InProgress")
+                else if (_project.Status == StatusStrings.ProjectInProgress)
                 {
                     <MudButton Variant="Variant.Filled" Color="Color.Success"
                                FullWidth="true" Class="mt-2"
@@ -87,7 +87,7 @@ else
                         Put on Hold
                     </MudButton>
                 }
-                else if (_project.Status == "OnHold")
+                else if (_project.Status == StatusStrings.ProjectOnHold)
                 {
                     <MudButton Variant="Variant.Filled" Color="Color.Info"
                                FullWidth="true" Class="mt-2"
@@ -204,8 +204,8 @@ else
                     <MudTd DataLabel="Status">
                         <StatusChip Status="@context.Status">@context.Status</StatusChip>
                     </MudTd>
-                    <MudTd DataLabel="Amount">Rs. @context.Total.ToString("N2")</MudTd>
-                    <MudTd DataLabel="Issue Date">@context.IssueDate.ToString("MMM dd, yyyy")</MudTd>
+                    <MudTd DataLabel="Amount">@Currency.Format(context.Total)</MudTd>
+                    <MudTd DataLabel="Issue Date">@context.IssueDate.ToString(DateFormats.Display)</MudTd>
                 </RowTemplate>
             </MudTable>
         }
@@ -269,10 +269,10 @@ else
 
     private static int GetStatusIndex(string status) => status switch
     {
-        "NotStarted" => 0,
-        "InProgress" => 1,
-        "Completed" => 2,
-        "OnHold" => 3,
+        StatusStrings.ProjectNotStarted => 0,
+        StatusStrings.ProjectInProgress => 1,
+        StatusStrings.ProjectCompleted => 2,
+        StatusStrings.ProjectOnHold => 3,
         _ => -1
     };
 

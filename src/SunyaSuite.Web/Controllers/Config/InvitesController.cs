@@ -27,7 +27,7 @@ public class InvitesController : ControllerBase
     public async Task<ActionResult<PagedResult<InviteDto>>> GetPaged(
         [FromQuery] Guid organizationId,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        [FromQuery] int pageSize = PaginationDefaults.DefaultPageSize,
         [FromQuery] string? searchTerm = null,
         CancellationToken ct = default)
     {

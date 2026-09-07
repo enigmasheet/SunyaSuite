@@ -7,6 +7,8 @@ namespace SunyaSuite.Infrastructure.Services.Config;
 
 public class SystemDashboardService : ISystemDashboardService
 {
+    private const int MaxRecentOrgs = 10;
+
     private readonly IDbContextFactory<ConfigDbContext> _configFactory;
 
     public SystemDashboardService(IDbContextFactory<ConfigDbContext> configFactory)
@@ -29,7 +31,7 @@ public class SystemDashboardService : ISystemDashboardService
         var recentOrgs = await configDb.Organizations
             .AsNoTracking()
             .OrderByDescending(o => o.CreatedAt)
-            .Take(10)
+            .Take(MaxRecentOrgs)
             .Select(o => new RecentOrgDto(
                 o.Id,
                 o.Name,

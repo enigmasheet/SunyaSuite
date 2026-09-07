@@ -23,7 +23,7 @@ public class InvoicesController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<PagedResult<InvoiceListItemDto>>> GetPaged(
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        [FromQuery] int pageSize = PaginationDefaults.DefaultPageSize,
         [FromQuery] string? sortLabel = null,
         [FromQuery] string? sortDirection = null,
         [FromQuery] string? searchTerm = null,
@@ -131,7 +131,7 @@ public class InvoicesController : ControllerBase
     [HttpGet("deleted")]
     public async Task<ActionResult<PagedResult<DeletedInvoiceDto>>> GetDeletedPaged(
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        [FromQuery] int pageSize = PaginationDefaults.DefaultPageSize,
         [FromQuery] string? searchTerm = null,
         CancellationToken ct = default)
     {

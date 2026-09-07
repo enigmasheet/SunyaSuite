@@ -22,7 +22,7 @@ public class ClientsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<PagedResult<ClientListItemDto>>> GetPaged(
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        [FromQuery] int pageSize = PaginationDefaults.DefaultPageSize,
         [FromQuery] string? sortLabel = null,
         [FromQuery] string? sortDirection = null,
         [FromQuery] string? searchTerm = null,
@@ -107,7 +107,7 @@ public class ClientsController : ControllerBase
     [HttpGet("deleted")]
     public async Task<ActionResult<PagedResult<DeletedClientDto>>> GetDeletedPaged(
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        [FromQuery] int pageSize = PaginationDefaults.DefaultPageSize,
         [FromQuery] string? searchTerm = null,
         CancellationToken ct = default)
     {

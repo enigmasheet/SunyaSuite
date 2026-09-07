@@ -10,18 +10,18 @@
 
     private string Symbol => Status switch
     {
-        "Green" or "Paid" or "Completed" => "\u2713 ",
-        "Yellow" or "Sent" or "InProgress" => "\u2192 ",
-        "Red" or "Overdue" or "OnHold" => "\u26a0 ",
+        StatusStrings.ClientGreen or StatusStrings.InvoicePaid or StatusStrings.ProjectCompleted => "\u2713 ",
+        StatusStrings.ClientYellow or StatusStrings.InvoiceSent or StatusStrings.ProjectInProgress => "\u2192 ",
+        StatusStrings.ClientRed or StatusStrings.InvoiceOverdue or StatusStrings.ProjectOnHold => "\u26a0 ",
         _ => "\u25cb "
     };
 
     private Color ResolvedColor => Status switch
     {
-        "Green" or "Paid" or "Completed" => Color.Success,
-        "Yellow" or "OnHold" => Color.Warning,
-        "Red" or "Overdue" => Color.Error,
-        "Sent" or "InProgress" => Color.Info,
+        StatusStrings.ClientGreen or StatusStrings.InvoicePaid or StatusStrings.ProjectCompleted => Color.Success,
+        StatusStrings.ClientYellow or StatusStrings.ProjectOnHold => Color.Warning,
+        StatusStrings.ClientRed or StatusStrings.InvoiceOverdue => Color.Error,
+        StatusStrings.InvoiceSent or StatusStrings.ProjectInProgress => Color.Info,
         _ => Color.Default
     };
 }

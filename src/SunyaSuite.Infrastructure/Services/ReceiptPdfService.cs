@@ -3,6 +3,7 @@ using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using SunyaSuite.Application.DTOs.Tenant;
 using SunyaSuite.Application.Interfaces.Tenant;
+using SunyaSuite.Domain.Constants;
 using SunyaSuite.Domain.Enums;
 
 namespace SunyaSuite.Infrastructure.Services;
@@ -103,7 +104,7 @@ public class ReceiptPdfService : IReceiptPdfService
             col.Item().Row(row =>
             {
                 row.RelativeItem().Text("Amount Received:").Bold().FontSize(11);
-                row.RelativeItem().Text($"Rs. {receipt.AmountReceived:N2}").AlignRight().FontSize(11).Bold();
+                row.RelativeItem().Text(Currency.Format(receipt.AmountReceived)).AlignRight().FontSize(11).Bold();
             });
 
             if (!string.IsNullOrEmpty(receipt.AmountInWords))

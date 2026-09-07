@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using SunyaSuite.Application.Interfaces;
 using SunyaSuite.Application.Interfaces.Tenant;
 using SunyaSuite.Application.Settings;
+using SunyaSuite.Domain.Constants;
 using SunyaSuite.Domain.Entities.Tenant;
 using SunyaSuite.Domain.Enums;
 using SunyaSuite.Infrastructure.Data.Tenant;
@@ -15,6 +16,11 @@ namespace SunyaSuite.Infrastructure.Services.Tenant;
 
 public class OverdueBackgroundService : BackgroundService
 {
+    private const int BatchSize = 500;
+    private static readonly TimeSpan PostRunDelay = TimeSpan.FromMinutes(2);
+    private static readonly TimeSpan IdlePollInterval = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan ErrorRetryInterval = TimeSpan.FromSeconds(60);
+
     private static readonly Dictionary<string, string> CrossPlatformTimeZones = new(StringComparer.OrdinalIgnoreCase)
     {
         ["India Standard Time"] = "Asia/Kolkata",
@@ -89,7 +95,7 @@ public class OverdueBackgroundService : BackgroundService
                 var tzInfo = GetTimeZoneInfo(timeZoneId);
                 var localNow = TimeZoneInfo.ConvertTimeFromUtc(now, tzInfo);
 
-                var todayKey = localNow.ToString("yyyy-MM-dd");
+                var todayKey = localNow.ToString(DateFormats.IsoDate);
 
                 if (enabled
                     && _lastRunDate != todayKey
@@ -101,11 +107,11 @@ public class OverdueBackgroundService : BackgroundService
                     _lastRunDate = todayKey;
                     await ProcessOverdueInvoicesAsync(scope, stoppingToken);
 
-                    await Task.Delay(TimeSpan.FromMinutes(2), stoppingToken);
+                    await Task.Delay(PostRunDelay, stoppingToken);
                 }
                 else
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(60), stoppingToken);
+                    await Task.Delay(IdlePollInterval, stoppingToken);
                 }
             }
             catch (OperationCanceledException)
@@ -115,7 +121,7 @@ public class OverdueBackgroundService : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in OverdueBackgroundService");
-                await Task.Delay(TimeSpan.FromSeconds(60), stoppingToken);
+                await Task.Delay(ErrorRetryInterval, stoppingToken);
             }
         }
     }
@@ -145,7 +151,7 @@ public class OverdueBackgroundService : BackgroundService
                 .ForCompany(companyId).Where(i => !i.IsDeleted
                     && i.Status == InvoiceStatus.Sent
                     && i.DueDate < today)
-                .Take(500)
+                .Take(BatchSize)
                 .ToListAsync(ct);
 
             foreach (var invoice in companyInvoices)

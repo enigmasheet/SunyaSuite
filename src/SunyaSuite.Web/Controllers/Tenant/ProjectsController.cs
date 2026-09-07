@@ -29,7 +29,7 @@ public class ProjectsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<PagedResult<ProjectListItemDto>>> GetPaged(
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        [FromQuery] int pageSize = PaginationDefaults.DefaultPageSize,
         [FromQuery] string? sortLabel = null,
         [FromQuery] string? sortDirection = null,
         [FromQuery] string? searchTerm = null,
@@ -128,7 +128,7 @@ public class ProjectsController : ControllerBase
     [HttpGet("deleted")]
     public async Task<ActionResult<PagedResult<DeletedProjectDto>>> GetDeletedPaged(
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        [FromQuery] int pageSize = PaginationDefaults.DefaultPageSize,
         [FromQuery] string? searchTerm = null,
         CancellationToken ct = default)
     {

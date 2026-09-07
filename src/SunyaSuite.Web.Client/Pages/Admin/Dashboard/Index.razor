@@ -110,7 +110,7 @@ else if (_stats is not null)
                             @(context.IsActive ? "Active" : "Inactive")
                         </MudChip>
                     </MudTd>
-                    <MudTd>@context.CreatedAt.ToString("MMM dd, yyyy")</MudTd>
+                    <MudTd>@context.CreatedAt.ToString(DateFormats.Display)</MudTd>
                 </RowTemplate>
             </MudTable>
         }

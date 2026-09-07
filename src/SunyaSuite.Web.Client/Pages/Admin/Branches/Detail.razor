@@ -62,7 +62,7 @@ else
                     </MudItem>
                     <MudItem xs="12" sm="6">
                         <MudText Typo="Typo.body2" Class="text-secondary">Created</MudText>
-                        <MudText Typo="Typo.body1">@_branch.CreatedAt.ToString("MMM dd, yyyy")</MudText>
+                        <MudText Typo="Typo.body1">@_branch.CreatedAt.ToString(DateFormats.Display)</MudText>
                     </MudItem>
                 </MudGrid>
             </MudPaper>

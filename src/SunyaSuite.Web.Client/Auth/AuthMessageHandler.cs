@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
+using SunyaSuite.Web.Client.Services;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 
@@ -78,7 +79,7 @@ public class AuthMessageHandler : DelegatingHandler
                 return false;
 
             var renewClient = _httpClientFactory.CreateClient("Renew");
-            var renewResponse = await renewClient.PostAsJsonAsync("api/auth/renew", new { token }, ct);
+            var renewResponse = await renewClient.PostAsJsonAsync(ApiEndpoints.AuthPaths.Renew, new { token }, ct);
 
             if (!renewResponse.IsSuccessStatusCode)
                 return false;

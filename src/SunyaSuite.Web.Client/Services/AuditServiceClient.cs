@@ -1,5 +1,6 @@
 using SunyaSuite.Application.DTOs;
 using SunyaSuite.Application.Interfaces;
+using SunyaSuite.Domain.Constants;
 using System.Net.Http.Json;
 
 namespace SunyaSuite.Web.Client.Services;
@@ -16,7 +17,7 @@ public class AuditServiceClient : IAuditService
         response.EnsureSuccessStatusCode();
     }
 
-    public async Task<PagedResult<AuditLogDto>> GetRecentAsync(int page = 1, int pageSize = 50, AuditLogFilterDto? filter = null, CancellationToken ct = default)
+    public async Task<PagedResult<AuditLogDto>> GetRecentAsync(int page = 1, int pageSize = PaginationDefaults.AuditPageSize, AuditLogFilterDto? filter = null, CancellationToken ct = default)
     {
         var queryParams = new List<string>
         {

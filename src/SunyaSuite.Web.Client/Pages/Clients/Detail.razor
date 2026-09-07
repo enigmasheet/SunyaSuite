@@ -33,7 +33,7 @@ else
                                 new() { Label = "Email", Value = _client.Email },
                                 new() { Label = "Phone", Value = !string.IsNullOrEmpty(_client.Phone) ? _client.Phone : "—" },
                                 new() { Label = "Company", Value = !string.IsNullOrEmpty(_client.Company) ? _client.Company : "—" },
-                                new() { Label = "Registered On", Value = _client.RegisteredOn.ToString("MMM dd, yyyy") },
+                                new() { Label = "Registered On", Value = _client.RegisteredOn.ToString(DateFormats.Display) },
                                 new() { Label = "Address", Value = !string.IsNullOrEmpty(_client.Address) ? _client.Address : "—" }
                             })">
                 <MudButton Variant="Variant.Outlined" Color="Color.Primary"
@@ -91,8 +91,8 @@ else
                         </HeaderContent>
                         <RowTemplate>
                             <MudTd>@context.InvoiceNumber</MudTd>
-                            <MudTd>@context.IssueDate.ToString("MMM dd, yyyy")</MudTd>
-                            <MudTd>Rs. @context.Total.ToString("N2")</MudTd>
+                            <MudTd>@context.IssueDate.ToString(DateFormats.Display)</MudTd>
+                            <MudTd>@Currency.Format(context.Total)</MudTd>
                             <MudTd>
                                 <StatusChip Status="@context.Status">@context.Status</StatusChip>
                             </MudTd>

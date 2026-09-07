@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components.Authorization;
+using SunyaSuite.Domain.Constants;
 using System.Security.Claims;
 using System.Text.Json;
 
@@ -75,13 +76,13 @@ public class JwtAuthenticationStateProvider : AuthenticationStateProvider
                     }
                     break;
 
-                case "org_role":
+                case ClaimNames.OrgRole:
                     if (value.ValueKind == JsonValueKind.Array)
                     {
                         foreach (var role in value.EnumerateArray())
                         {
                             var orgRoleVal = role.GetString() ?? "";
-                            claims.Add(new Claim("org_role", orgRoleVal));
+                            claims.Add(new Claim(ClaimNames.OrgRole, orgRoleVal));
                             var parts = orgRoleVal.Split(':', 2);
                             if (parts.Length == 2)
                                 claims.Add(new Claim(ClaimTypes.Role, parts[1]));
@@ -90,7 +91,7 @@ public class JwtAuthenticationStateProvider : AuthenticationStateProvider
                     else
                     {
                         var orgRoleVal = value.GetString() ?? "";
-                        claims.Add(new Claim("org_role", orgRoleVal));
+                        claims.Add(new Claim(ClaimNames.OrgRole, orgRoleVal));
                         var parts = orgRoleVal.Split(':', 2);
                         if (parts.Length == 2)
                             claims.Add(new Claim(ClaimTypes.Role, parts[1]));

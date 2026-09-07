@@ -49,7 +49,7 @@ else
                             @context.Role
                         </MudChip>
                     </MudTd>
-                    <MudTd DataLabel="Joined">@context.JoinedAt.ToString("MMM dd, yyyy")</MudTd>
+                    <MudTd DataLabel="Joined">@context.JoinedAt.ToString(DateFormats.Display)</MudTd>
                     <MudTd DataLabel="Actions">
                         <MudIconButton Icon="@Icons.Material.Filled.ManageAccounts" Size="Size.Small"
                                        aria-label="Change role"

@@ -1,6 +1,7 @@
 @page "/login"
 @layout AuthLayout
 @using SunyaSuite.Application.DTOs.Config
+@using SunyaSuite.Web.Client.Services
 @using System.Text.Json
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
@@ -87,7 +88,7 @@
         try
         {
             var http = HttpClientFactory.CreateClient("Api");
-            var response = await http.PostAsJsonAsync("api/auth/login", new { email = _email, password = _password, rememberMe = true });
+            var response = await http.PostAsJsonAsync(ApiEndpoints.AuthPaths.Login, new { email = _email, password = _password, rememberMe = true });
 
             if (response.IsSuccessStatusCode)
             {

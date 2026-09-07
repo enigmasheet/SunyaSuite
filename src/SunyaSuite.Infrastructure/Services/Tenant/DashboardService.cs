@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using SunyaSuite.Application.DTOs.Tenant;
 using SunyaSuite.Application.Interfaces.Config;
 using SunyaSuite.Application.Interfaces.Tenant;
+using SunyaSuite.Domain.Constants;
 using SunyaSuite.Domain.Enums;
 using SunyaSuite.Infrastructure.Data.Tenant;
 
@@ -84,7 +85,7 @@ public class DashboardService : IDashboardService
 
         var monthlyRevenue = monthlyRevenueRaw
             .Select(m => new MonthlyRevenueDto(
-                new DateTime(m.Year, m.Month, 1).ToString("MMM yyyy"),
+                new DateTime(m.Year, m.Month, 1).ToString(DateFormats.MonthYear),
                 m.Total))
             .ToList();
 

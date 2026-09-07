@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SunyaSuite.Application.Interfaces;
 using SunyaSuite.Application.Interfaces.Config;
+using SunyaSuite.Domain.Constants;
 using SunyaSuite.Domain.Enums;
 using SunyaSuite.Infrastructure.Data.Tenant;
 
@@ -66,7 +67,7 @@ public class ExportService : IExportService
             ws.Cell(row, 4).Value = c.Phone;
             ws.Cell(row, 5).Value = c.Address;
             ws.Cell(row, 6).Value = c.Status.ToString();
-            ws.Cell(row, 7).Value = c.CreatedAt.ToString("yyyy-MM-dd");
+            ws.Cell(row, 7).Value = c.CreatedAt.ToString(DateFormats.IsoDate);
             row++;
         }
 
@@ -106,7 +107,7 @@ public class ExportService : IExportService
             ws.Cell(row, 1).Value = p.Name;
             ws.Cell(row, 2).Value = p.Client?.Name ?? "";
             ws.Cell(row, 3).Value = p.Description;
-            ws.Cell(row, 4).Value = p.Deadline.ToString("yyyy-MM-dd");
+            ws.Cell(row, 4).Value = p.Deadline.ToString(DateFormats.IsoDate);
             ws.Cell(row, 5).Value = p.ProgressPercent;
             ws.Cell(row, 6).Value = p.Status.ToString();
             row++;
@@ -152,8 +153,8 @@ public class ExportService : IExportService
         {
             ws.Cell(row, 1).Value = inv.InvoiceNumber;
             ws.Cell(row, 2).Value = inv.Client?.Name ?? "";
-            ws.Cell(row, 3).Value = inv.IssueDate.ToString("yyyy-MM-dd");
-            ws.Cell(row, 4).Value = inv.DueDate.ToString("yyyy-MM-dd");
+            ws.Cell(row, 3).Value = inv.IssueDate.ToString(DateFormats.IsoDate);
+            ws.Cell(row, 4).Value = inv.DueDate.ToString(DateFormats.IsoDate);
             ws.Cell(row, 5).Value = inv.Subtotal;
             ws.Cell(row, 6).Value = inv.TaxRate;
             ws.Cell(row, 7).Value = inv.DiscountAmount;

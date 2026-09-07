@@ -1,5 +1,6 @@
 @page "/invoices/create"
 @attribute [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
+@using SunyaSuite.Domain.Constants
 @inject IInvoiceService InvoiceService
 @inject IClientService ClientService
 @inject IProjectService ProjectService
@@ -138,7 +139,7 @@ else
                                          Min="0m" Step="0.01m" />
                     </MudItem>
                     <MudItem xs="6" sm="1" Class="d-flex align-center">
-                        <MudText Typo="Typo.body2">Rs. @_items[idx].Amount.ToString("N2")</MudText>
+                        <MudText Typo="Typo.body2">@Currency.Format(_items[idx].Amount)</MudText>
                     </MudItem>
                     <MudItem xs="6" sm="1" Class="d-flex align-center">
                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
@@ -171,16 +172,16 @@ else
                     @if (_billType == Domain.Enums.BillType.VatBill && !_isAbbreviated)
                     {
                         <MudItem xs="6"><MudText Typo="Typo.body2">VAT (@_vatRate%):</MudText></MudItem>
-                        <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2">Rs. @((_items.Sum(i => i.Amount) * _vatRate / 100m).ToString("N2"))</MudText></MudItem>
+                        <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2">@Currency.Format(_items.Sum(i => i.Amount) * _vatRate / 100m)</MudText></MudItem>
                     }
                     @if (_discountAmount > 0)
                     {
                         <MudItem xs="6"><MudText Typo="Typo.body2">Discount:</MudText></MudItem>
-                        <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2">-Rs. @_discountAmount.ToString("N2")</MudText></MudItem>
+                        <MudItem xs="6" Class="text-right"><MudText Typo="Typo.body2">-@Currency.Format(_discountAmount)</MudText></MudItem>
                     }
                     <MudItem xs="12"><MudDivider /></MudItem>
                     <MudItem xs="6"><MudText Typo="Typo.subtitle1" Class="font-weight-bold">Total:</MudText></MudItem>
-                    <MudItem xs="6" Class="text-right"><MudText Typo="Typo.subtitle1">Rs. @_total.ToString("N2")</MudText></MudItem>
+                        <MudItem xs="6" Class="text-right"><MudText Typo="Typo.subtitle1">@Currency.Format(_total)</MudText></MudItem>
                 </MudGrid>
             </MudPaper>
 
@@ -200,12 +201,12 @@ else
 
     private List<ClientOptionDto> _clients = [];
     private Guid _selectedClientId;
-    private DateTime? _dueDate = DateTime.UtcNow.AddDays(30);
+    private DateTime? _dueDate = DateTime.UtcNow.AddDays(InvoiceDefaults.DefaultDueDays);
     private BillType _billType = BillType.VatBill;
     private bool _isAbbreviated;
     private string _buyerPan = string.Empty;
     private string _buyerAddress = string.Empty;
-    private decimal _vatRate = 13m;
+    private decimal _vatRate = VatDefaults.DefaultRate;
     private decimal _discountAmount;
     private List<InvoiceItemDto> _items = [];
     private List<ProjectOptionDto> _projects = [];

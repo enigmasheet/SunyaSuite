@@ -1,5 +1,6 @@
 @page "/Account/Register"
 @layout AuthLayout
+@using SunyaSuite.Web.Client.Services
 @using System.Text.Json
 @inject NavigationManager Navigation
 @inject IHttpClientFactory HttpClientFactory
@@ -112,7 +113,7 @@
         try
         {
             var http = HttpClientFactory.CreateClient("Api");
-            var response = await http.PostAsJsonAsync("api/auth/register", new
+            var response = await http.PostAsJsonAsync(ApiEndpoints.AuthPaths.Register, new
             {
                 email = _email,
                 password = _password,

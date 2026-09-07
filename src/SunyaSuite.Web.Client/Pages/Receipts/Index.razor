@@ -59,12 +59,12 @@
             <MudLink Href="@($"/receipts/{context.Id}")">@context.ReceiptNumber</MudLink>
         </MudTd>
         <MudTd DataLabel="Received From">@context.ReceivedFromName</MudTd>
-        <MudTd DataLabel="Amount">Rs. @context.AmountReceived.ToString("N2")</MudTd>
+        <MudTd DataLabel="Amount">@Currency.Format(context.AmountReceived)</MudTd>
         <MudTd DataLabel="In Words">
             <MudText Typo="Typo.caption">@context.AmountInWords</MudText>
         </MudTd>
         <MudTd DataLabel="Method">@context.PaymentMethod</MudTd>
-        <MudTd DataLabel="Date">@context.DateAD.ToString("MMM dd, yyyy")</MudTd>
+        <MudTd DataLabel="Date">@context.DateAD.ToString(DateFormats.Display)</MudTd>
         <MudTd DataLabel="Actions">
             <MudTooltip Text="Download PDF">
                 <MudIconButton Icon="@Icons.Material.Filled.Download" Size="Size.Small" Color="Color.Info"

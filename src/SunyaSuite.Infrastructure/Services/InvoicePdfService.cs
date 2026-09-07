@@ -3,6 +3,7 @@ using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using SunyaSuite.Application.DTOs.Tenant;
 using SunyaSuite.Application.Interfaces.Tenant;
+using SunyaSuite.Domain.Constants;
 using SunyaSuite.Domain.Enums;
 
 namespace SunyaSuite.Infrastructure.Services;
@@ -80,7 +81,7 @@ public class InvoicePdfService : IInvoicePdfService
 
                 col.Item().PaddingTop(4).Text($"Invoice No: {invoice.InvoiceNumber}").FontSize(10);
                 col.Item().Text($"Date (BS): {invoice.DateBS}").FontSize(10);
-                col.Item().Text($"Date (AD): {invoice.IssueDate:yyyy-MM-dd}").FontSize(10);
+                col.Item().Text($"Date (AD): {invoice.IssueDate.ToString(DateFormats.IsoDate)}").FontSize(10);
                 col.Item().Text($"Fiscal Year: {invoice.FiscalYear}").FontSize(9).FontColor(Colors.Grey.Darken2);
             });
 
@@ -211,7 +212,7 @@ public class InvoicePdfService : IInvoicePdfService
             {
                 col.Item().PaddingTop(2).Row(row =>
                 {
-                    row.RelativeItem().Text("VAT (13%):").FontSize(9);
+                    row.RelativeItem().Text(VatDefaults.FormatLabel(13m)).FontSize(9);
                     row.RelativeItem().Text(invoice.VatAmount.ToString("N2")).AlignRight().FontSize(9);
                 });
             }

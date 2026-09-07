@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using SunyaSuite.Application.DTOs;
 using SunyaSuite.Application.Interfaces;
 using SunyaSuite.Application.Interfaces.Config;
+using SunyaSuite.Domain.Constants;
 using SunyaSuite.Domain.Entities.Tenant;
 using SunyaSuite.Infrastructure.Data.Tenant;
 
@@ -47,7 +48,7 @@ public class AuditService : IAuditService
         await context.SaveChangesAsync(ct);
     }
 
-    public async Task<PagedResult<AuditLogDto>> GetRecentAsync(int page = 1, int pageSize = 50, AuditLogFilterDto? filter = null, CancellationToken ct = default)
+    public async Task<PagedResult<AuditLogDto>> GetRecentAsync(int page = 1, int pageSize = PaginationDefaults.AuditPageSize, AuditLogFilterDto? filter = null, CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 

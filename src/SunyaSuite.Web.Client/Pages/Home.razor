@@ -91,7 +91,7 @@ else
         <MudItem xs="12" sm="6" md="3">
             <MudCard Elevation="0" Outlined="true" Class="pa-4 stat-card stat-card-success">
                 <MudText Typo="Typo.subtitle2" Class="text-secondary mb-1">Revenue This Month</MudText>
-                <MudText Typo="Typo.h3">Rs. @_stats.RevenueThisMonth.ToString("N0")</MudText>
+                <MudText Typo="Typo.h3">@Currency.FormatCompact(_stats.RevenueThisMonth)</MudText>
             </MudCard>
         </MudItem>
     </MudGrid>
@@ -105,7 +105,7 @@ else
                     var pct = _stats.TotalClients > 0 ? (int)Math.Round((double)item.Count / _stats.TotalClients * 100) : 0;
                     <MudText @key="item.Status" Typo="Typo.body2" Class="mb-1">@item.Status � @item.Count (@pct%)</MudText>
                     <MudProgressLinear Value="@pct" Class="mb-3 rounded"
-                                      Color="@(item.Status switch { "Green" => Color.Success, "Yellow" => Color.Warning, "Red" => Color.Error, _ => Color.Default })" />
+                                      Color="@(item.Status switch { StatusStrings.ClientGreen => Color.Success, StatusStrings.ClientYellow => Color.Warning, StatusStrings.ClientRed => Color.Error, _ => Color.Default })" />
                 }
                 @if (_stats.ClientStatusBreakdown.Count == 0)
                 {
@@ -123,7 +123,7 @@ else
                     <div @key="item.Status">
                         <MudText Typo="Typo.body2" Class="mb-1">@item.Status - @item.Count (@pct%)</MudText>
                         <MudProgressLinear Value="@pct" Class="mb-3 rounded"
-                                          Color="@(item.Status switch { "Completed" => Color.Success, "InProgress" => Color.Warning, "OnHold" => Color.Error, _ => Color.Default })" />
+                                          Color="@(item.Status switch { StatusStrings.ProjectCompleted => Color.Success, StatusStrings.ProjectInProgress => Color.Warning, StatusStrings.ProjectOnHold => Color.Error, _ => Color.Default })" />
                     </div>
                 }
                 @if (_stats.ProjectStatusBreakdown.Count == 0)
@@ -191,8 +191,8 @@ else
                         <MudLink Href="@($"/invoices/{context.Id}")">@context.InvoiceNumber</MudLink>
                     </MudTd>
                     <MudTd>@context.ClientName</MudTd>
-                    <MudTd>Rs. @context.Total.ToString("N2")</MudTd>
-                    <MudTd>@context.DueDate.ToString("MMM dd")</MudTd>
+                    <MudTd>@Currency.Format(context.Total)</MudTd>
+                    <MudTd>@context.DueDate.ToString(DateFormats.DisplayShort)</MudTd>
                     <MudTd>
                         <StatusChip Status="@context.Status">@context.Status</StatusChip>
                     </MudTd>

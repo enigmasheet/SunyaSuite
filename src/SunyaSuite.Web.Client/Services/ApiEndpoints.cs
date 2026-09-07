@@ -23,4 +23,13 @@ internal static class ApiEndpoints
     public const string Branches = "api/branches";
     public const string AdminDashboard = "api/admin/dashboard";
     public const string Menu = "api/auth/menu";
+
+    public static class AuthPaths
+    {
+        public const string Login = Auth + "/login";
+        public const string Register = Auth + "/register";
+        public const string Renew = Auth + "/renew";
+        public const string ForgotPassword = Auth + "/forgot-password";
+        public const string ChangePassword = Auth + "/change-password";
+    }
 }

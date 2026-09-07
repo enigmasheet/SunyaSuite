@@ -1,5 +1,6 @@
 @page "/admin/companies/edit/{Id:guid}"
 @attribute [Authorize(Policy = PolicyNames.OrgAdminOrAbove)]
+@using SunyaSuite.Domain.Constants
 @inject ICompanyService CompanyService
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
@@ -156,15 +157,14 @@ else
         var file = e.GetMultipleFiles(1).FirstOrDefault();
         if (file is null) return;
 
-        const int maxSize = 2 * 1024 * 1024;
-        if (file.Size > maxSize)
+        if (file.Size > FileUploadDefaults.MaxFileSizeBytes)
         {
             Snackbar.Add("Logo must be under 2 MB.", Severity.Error);
             return;
         }
 
         using var ms = new MemoryStream();
-        await file.OpenReadStream(maxSize).CopyToAsync(ms);
+        await file.OpenReadStream(FileUploadDefaults.MaxFileSizeBytes).CopyToAsync(ms);
         _logoBase64 = $"data:{file.ContentType};base64,{Convert.ToBase64String(ms.ToArray())}";
         _logoPreview = _logoBase64;
     }

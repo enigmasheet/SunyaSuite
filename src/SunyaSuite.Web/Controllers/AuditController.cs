@@ -21,7 +21,7 @@ public class AuditController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<PagedResult<AuditLogDto>>> GetRecent(
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 50,
+        [FromQuery] int pageSize = PaginationDefaults.AuditPageSize,
         [FromQuery] string? searchTerm = null,
         [FromQuery] string? action = null,
         [FromQuery] string? entityName = null,

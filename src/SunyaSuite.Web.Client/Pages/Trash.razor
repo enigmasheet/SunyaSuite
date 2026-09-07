@@ -29,7 +29,7 @@
                 <RowTemplate>
                     <MudTd>@context.Name</MudTd>
                     <MudTd>@context.Company</MudTd>
-                    <MudTd>@(context.DeletedAt?.ToLocalTime().ToString("MMM dd, yyyy HH:mm") ?? "-")</MudTd>
+                    <MudTd>@(context.DeletedAt?.ToLocalTime().ToString(DateFormats.DisplayWithTime) ?? "-")</MudTd>
                     <MudTd>
                         <MudIconButton Icon="@Icons.Material.Filled.Restore" Size="Size.Small"
                                        Color="Color.Primary" aria-label="Restore"
@@ -64,7 +64,7 @@
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd>@context.Name</MudTd>
-                    <MudTd>@(context.DeletedAt?.ToLocalTime().ToString("MMM dd, yyyy HH:mm") ?? "-")</MudTd>
+                    <MudTd>@(context.DeletedAt?.ToLocalTime().ToString(DateFormats.DisplayWithTime) ?? "-")</MudTd>
                     <MudTd>
                         <MudIconButton Icon="@Icons.Material.Filled.Restore" Size="Size.Small"
                                        Color="Color.Primary" aria-label="Restore"
@@ -100,8 +100,8 @@
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd>@context.InvoiceNumber</MudTd>
-                    <MudTd>Rs. @context.Total.ToString("N2")</MudTd>
-                    <MudTd>@(context.DeletedAt?.ToLocalTime().ToString("MMM dd, yyyy HH:mm") ?? "-")</MudTd>
+                    <MudTd>@Currency.Format(context.Total)</MudTd>
+                    <MudTd>@(context.DeletedAt?.ToLocalTime().ToString(DateFormats.DisplayWithTime) ?? "-")</MudTd>
                     <MudTd>
                         <MudIconButton Icon="@Icons.Material.Filled.Restore" Size="Size.Small"
                                        Color="Color.Primary" aria-label="Restore"
@@ -138,7 +138,7 @@
                 <RowTemplate>
                     <MudTd>@context.Name</MudTd>
                     <MudTd>@context.Slug</MudTd>
-                    <MudTd>@(context.DeletedAt?.ToLocalTime().ToString("MMM dd, yyyy HH:mm") ?? "-")</MudTd>
+                    <MudTd>@(context.DeletedAt?.ToLocalTime().ToString(DateFormats.DisplayWithTime) ?? "-")</MudTd>
                     <MudTd>
                         <MudIconButton Icon="@Icons.Material.Filled.Restore" Size="Size.Small"
                                        Color="Color.Primary" aria-label="Restore"
@@ -169,7 +169,7 @@
                 <RowTemplate>
                     <MudTd>@context.Name</MudTd>
                     <MudTd>@context.CompanyName</MudTd>
-                    <MudTd>@(context.DeletedAt?.ToLocalTime().ToString("MMM dd, yyyy HH:mm") ?? "-")</MudTd>
+                    <MudTd>@(context.DeletedAt?.ToLocalTime().ToString(DateFormats.DisplayWithTime) ?? "-")</MudTd>
                     <MudTd>
                         <MudIconButton Icon="@Icons.Material.Filled.Restore" Size="Size.Small"
                                        Color="Color.Primary" aria-label="Restore"
