@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SunyaSuite.Application.Interfaces.Config;
 using SunyaSuite.Infrastructure.Data.Config;
+using SunyaSuite.Infrastructure.Data.Tenant;
 using System.Security.Claims;
 
 namespace SunyaSuite.Web.Api.Middleware;
@@ -65,6 +66,22 @@ public class TenantMiddleware(RequestDelegate next)
             if (orgUser is not null)
             {
                 tenantContext.SetCompany(orgUser.DefaultCompanyId, orgUser.DefaultBranchId);
+            }
+        }
+
+        if (!tenantContext.CompanyId.HasValue && tenantContext.HasTenant)
+        {
+            var fallbackConnStr = tenantContext.ConnectionString;
+            if (!string.IsNullOrEmpty(fallbackConnStr))
+            {
+                var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
+                optionsBuilder.UseNpgsql(fallbackConnStr);
+                using var tenantDb = new ApplicationDbContext(optionsBuilder.Options, TimeProvider.System);
+                var firstCompany = await tenantDb.Companies
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(c => c.IsActive);
+                if (firstCompany is not null)
+                    tenantContext.SetCompany(firstCompany.Id, null);
             }
         }
 
