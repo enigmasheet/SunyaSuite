@@ -5,7 +5,8 @@
 
 <PageHeader Title="System Dashboard" />
 
-<ErrorAlert Message="@_errorMessage" />
+<ErrorAlert Message="@_errorMessage"
+            OnDismiss="@(() => _errorMessage = null)" />
 
 @if (_loading)
 {

@@ -1,12 +1,20 @@
 <MudChip T="string" Size="@Size" Color="@ResolvedColor" Class="@Class">
-    @Symbol @ChildContent
+    @Symbol @FormatStatus(Status)
 </MudChip>
 
 @code {
-    [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public string? Class { get; set; }
     [Parameter] public Size Size { get; set; } = Size.Small;
     [Parameter] public string? Status { get; set; }
+
+    private static string FormatStatus(string? status) => status switch
+    {
+        "NotStarted"  => "Not Started",
+        "InProgress"  => "In Progress",
+        "Completed"   => "Completed",
+        "OnHold"      => "On Hold",
+        _             => status ?? ""
+    };
 
     private string Symbol => Status switch
     {

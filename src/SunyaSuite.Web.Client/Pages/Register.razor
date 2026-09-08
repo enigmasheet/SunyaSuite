@@ -15,7 +15,8 @@
     <MudCardContent>
         <MudText Typo="Typo.h5" Align="Align.Center" Class="mb-8">Create Account</MudText>
 
-        <ErrorAlert Message="@_errorMessage" />
+        <ErrorAlert Message="@_errorMessage"
+            OnDismiss="@(() => _errorMessage = "")" />
 
         @if (!_hasInviteCode)
         {

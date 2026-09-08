@@ -1,7 +1,10 @@
 @if (!string.IsNullOrEmpty(Message))
 {
     <MudAlert Severity="@Severity" Class="@GetClass()" Dense="true"
-              role="alert" @onclick="@OnDismiss">
+              role="alert"
+              NoIcon="false"
+              CloseIcon="@(OnDismiss.HasDelegate ? Icons.Material.Filled.Close : null)"
+              CloseIconClicked="@(() => OnDismiss.InvokeAsync())">
         @Message
     </MudAlert>
 }

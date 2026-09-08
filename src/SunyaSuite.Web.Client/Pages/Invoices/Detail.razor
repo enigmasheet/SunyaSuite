@@ -11,9 +11,10 @@
 @inject IJSRuntime JsRuntime
 @inject IDialogService DialogService
 
-<PageHeader Title="@($"Invoice {_invoiceNumber}")" />
+<PageHeader Title="@($"Invoice {_invoiceNumber}")" Icon="@Icons.Material.Filled.ReceiptLong" />
 
-<ErrorAlert Message="@_errorMessage" />
+<ErrorAlert Message="@_errorMessage"
+            OnDismiss="@(() => _errorMessage = null)" />
 
 @if (_loading)
 {
@@ -35,7 +36,7 @@ else
                       Color="@(_invoice.BillType == Domain.Enums.BillType.VatBill ? Color.Primary : Color.Secondary)">
                 @_invoice.BillType
             </MudChip>
-            <StatusChip Status="@_invoice.Status" Class="mr-4">@_invoice.Status</StatusChip>
+            <StatusChip Status="@_invoice.Status" Class="mr-4" />
             <MudButton Variant="@(_preference == Domain.Enums.DateDisplayPreference.Nepali ? Variant.Filled : Variant.Outlined)"
                        Color="Color.Tertiary"
                        Size="Size.Small"
@@ -92,40 +93,38 @@ else
                 </div>
             }
 
-            @if (_invoice.Status == StatusStrings.InvoiceDraft)
-            {
-                <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                           FullWidth="true" Class="mt-4"
-                           OnClick="@(() => UpdateStatusWithConfirm(Domain.Enums.InvoiceStatus.Sent))">
-                    Send Invoice
-                </MudButton>
-                <MudButton Variant="Variant.Outlined" Color="Color.Default"
-                           FullWidth="true" Class="mt-2"
-                           Href="@($"/invoices/edit/{_invoice.Id}")">
-                    Edit Invoice
-                </MudButton>
-            }
-            else if (_invoice.Status == StatusStrings.InvoiceSent)
-            {
-                <MudButton Variant="Variant.Filled" Color="Color.Success"
-                           FullWidth="true" Class="mt-4"
-                           OnClick="@(() => UpdateStatusWithConfirm(Domain.Enums.InvoiceStatus.Paid))">
-                    Mark as Paid
-                </MudButton>
-                <MudButton Variant="Variant.Filled" Color="Color.Error"
-                           FullWidth="true" Class="mt-2"
-                           OnClick="@(() => UpdateStatusWithConfirm(Domain.Enums.InvoiceStatus.Overdue))">
-                    Mark as Overdue
-                </MudButton>
-            }
-            else if (_invoice.Status == StatusStrings.InvoiceOverdue)
-            {
-                <MudButton Variant="Variant.Filled" Color="Color.Success"
-                           FullWidth="true" Class="mt-4"
-                           OnClick="@(() => UpdateStatusWithConfirm(Domain.Enums.InvoiceStatus.Paid))">
-                    Mark as Paid
-                </MudButton>
-            }
+            <MudMenu Label="Actions" Variant="Variant.Filled" Color="Color.Primary"
+                     FullWidth="true" Class="mt-4"
+                     StartIcon="@Icons.Material.Filled.Bolt">
+                @if (_invoice.Status == StatusStrings.InvoiceDraft)
+                {
+                    <MudMenuItem OnClick="@(() => UpdateStatusWithConfirm(Domain.Enums.InvoiceStatus.Sent))">
+                        <MudIcon Icon="@Icons.Material.Filled.Send" Class="mr-2" /> Mark as Sent
+                    </MudMenuItem>
+                    <MudMenuItem Href="@($"/invoices/edit/{_invoice.Id}")">
+                        <MudIcon Icon="@Icons.Material.Filled.Edit" Class="mr-2" /> Edit Invoice
+                    </MudMenuItem>
+                }
+                else if (_invoice.Status == StatusStrings.InvoiceSent)
+                {
+                    <MudMenuItem OnClick="@(() => UpdateStatusWithConfirm(Domain.Enums.InvoiceStatus.Paid))">
+                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="mr-2" /> Mark as Paid
+                    </MudMenuItem>
+                    <MudMenuItem OnClick="@(() => UpdateStatusWithConfirm(Domain.Enums.InvoiceStatus.Overdue))">
+                        <MudIcon Icon="@Icons.Material.Filled.Warning" Class="mr-2" /> Mark as Overdue
+                    </MudMenuItem>
+                }
+                else if (_invoice.Status == StatusStrings.InvoiceOverdue)
+                {
+                    <MudMenuItem OnClick="@(() => UpdateStatusWithConfirm(Domain.Enums.InvoiceStatus.Paid))">
+                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="mr-2" /> Mark as Paid
+                    </MudMenuItem>
+                }
+                <MudDivider />
+                <MudMenuItem Href="@($"/receipts/create?invoiceId={_invoice.Id}")">
+                    <MudIcon Icon="@Icons.Material.Filled.Receipt" Class="mr-2" /> Record Receipt
+                </MudMenuItem>
+            </MudMenu>
 
             <MudText Typo="Typo.caption" Class="text-secondary mt-2" Style="display: block;">
                 Draft → Sent → Paid. Sent → Overdue → Paid. Paid is final.
@@ -145,13 +144,17 @@ else
                        OnClick="@(async () => await DownloadPdf())">
                 Download PDF (@_copyType)
             </MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                       FullWidth="true" StartIcon="@Icons.Material.Filled.Email"
-                       Class="mt-2"
-                       Disabled="@_sendingEmail"
-                       OnClick="@(async () => await SendInvoiceEmail())">
-                Send Email
-            </MudButton>
+
+            @if (_invoice.Status != StatusStrings.InvoiceDraft && !string.IsNullOrWhiteSpace(_invoice.ClientEmail))
+            {
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                           FullWidth="true" StartIcon="@Icons.Material.Filled.Email"
+                           Class="mt-2"
+                           Disabled="@_sendingEmail"
+                           OnClick="@(async () => await SendInvoiceEmail())">
+                    Send Email
+                </MudButton>
+            }
         </MudItem>
 
         <MudItem xs="12" md="8">
@@ -414,7 +417,7 @@ else
             {
                 var pdfBytes = await PdfService.GeneratePdfAsync(_invoice, _copyType, _preference);
                 var formattedTotal = Currency.Format(_invoice.Total);
-                var htmlBody = $@"<html><body style='font-family:sans-serif;'><h2>Invoice {_invoice.InvoiceNumber}</h2><p>Dear {_invoice.ClientName},</p><p>Please find your invoice attached.</p><table border='1' cellpadding='8' style='border-collapse:collapse;'><tr><th>Invoice #</th><th>Amount</th><th>Date</th></tr><tr><td>{_invoice.InvoiceNumber}</td><td>{formattedTotal}</td><td>{_invoice.IssueDate.ToString(DateFormats.Display)}</td></tr></table><p>Thank you for your business.</p></body></html>";
+                var htmlBody = EmailTemplateHelper.BuildInvoiceEmailBody(_invoice.InvoiceNumber, _invoice.ClientName, formattedTotal, _invoice.IssueDate.ToString(DateFormats.Display));
                 await EmailService.SendWithAttachmentAsync(_invoice.ClientEmail, $"Invoice {_invoice.InvoiceNumber} from SunyaSuite", htmlBody, $"Invoice_{_invoice.InvoiceNumber}.pdf", pdfBytes);
                 Snackbar.Add($"Invoice sent to {_invoice.ClientEmail}.", Severity.Success);
             }

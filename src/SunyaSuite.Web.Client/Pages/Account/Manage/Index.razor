@@ -4,7 +4,8 @@
 
 <PageHeader Title="Account Settings" />
 
-<ErrorAlert Message="@_errorMessage" />
+<ErrorAlert Message="@_errorMessage"
+            OnDismiss="@(() => _errorMessage = null)" />
 
 <MudPaper Elevation="0" Outlined="true" Class="pa-6" Style="max-width: 600px;">
     <MudText Typo="Typo.subtitle2" Class="mb-4">Profile</MudText>

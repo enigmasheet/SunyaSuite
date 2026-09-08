@@ -10,7 +10,9 @@
 
 <PageHeader Title="Trash" />
 
-<MudTabs Elevation="0" Outlined="true" Class="mt-4" @bind-ActivePanelIndex="_activeTab">
+<MudTabs Elevation="0" Outlined="true" Class="mt-4"
+         ActivePanelIndex="_activeTab"
+         ActivePanelIndexChanged="OnTabChanged">
     <MudTabPanel Text="Clients" Icon="@Icons.Material.Filled.People">
         @if (_loadingClients)
         {
@@ -186,11 +188,13 @@
 
 @code {
     private int _activeTab;
-    private bool _loadingClients = true;
-    private bool _loadingProjects = true;
-    private bool _loadingInvoices = true;
-    private bool _loadingCompanies = true;
-    private bool _loadingBranches = true;
+    private readonly HashSet<int> _loadedTabs = [];
+
+    private bool _loadingClients;
+    private bool _loadingProjects;
+    private bool _loadingInvoices;
+    private bool _loadingCompanies;
+    private bool _loadingBranches;
 
     private List<DeletedClientDto> _deletedClients = [];
     private List<DeletedProjectDto> _deletedProjects = [];
@@ -200,48 +204,70 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var clientsTask = LoadClientsAsync();
-        var projectsTask = LoadProjectsAsync();
-        var invoicesTask = LoadInvoicesAsync();
-        var companiesTask = LoadCompaniesAsync();
-        var branchesTask = LoadBranchesAsync();
+        await LoadTabAsync(_activeTab);
+    }
 
-        await Task.WhenAll(clientsTask, projectsTask, invoicesTask, companiesTask, branchesTask);
+    private async Task OnTabChanged(int index)
+    {
+        _activeTab = index;
+        await LoadTabAsync(index);
+    }
+
+    private async Task LoadTabAsync(int tabIndex)
+    {
+        if (!_loadedTabs.Add(tabIndex)) return;
+
+        var task = tabIndex switch
+        {
+            0 => LoadClientsAsync(),
+            1 => LoadProjectsAsync(),
+            2 => LoadInvoicesAsync(),
+            3 => LoadCompaniesAsync(),
+            4 => LoadBranchesAsync(),
+            _ => Task.CompletedTask
+        };
+
+        await task;
     }
 
     private async Task LoadClientsAsync()
     {
+        _loadingClients = true;
         try { _deletedClients = (await ClientService.GetDeletedPagedAsync(1, 100)).Items; }
         catch (Exception ex) { Snackbar.Add($"Failed to load deleted clients: {ex.Message}", Severity.Error); }
-        finally { _loadingClients = false; }
+        finally { _loadingClients = false; StateHasChanged(); }
     }
 
     private async Task LoadProjectsAsync()
     {
+        _loadingProjects = true;
         try { _deletedProjects = (await ProjectService.GetDeletedPagedAsync(1, 100)).Items; }
         catch (Exception ex) { Snackbar.Add($"Failed to load deleted projects: {ex.Message}", Severity.Error); }
-        finally { _loadingProjects = false; }
+        finally { _loadingProjects = false; StateHasChanged(); }
     }
 
     private async Task LoadInvoicesAsync()
     {
+        _loadingInvoices = true;
         try { _deletedInvoices = (await InvoiceService.GetDeletedPagedAsync(1, 100)).Items; }
         catch (Exception ex) { Snackbar.Add($"Failed to load deleted invoices: {ex.Message}", Severity.Error); }
-        finally { _loadingInvoices = false; }
+        finally { _loadingInvoices = false; StateHasChanged(); }
     }
 
     private async Task LoadCompaniesAsync()
     {
+        _loadingCompanies = true;
         try { _deletedCompanies = await CompanyService.GetDeletedAsync(); }
         catch (Exception ex) { Snackbar.Add($"Failed to load deleted companies: {ex.Message}", Severity.Error); }
-        finally { _loadingCompanies = false; }
+        finally { _loadingCompanies = false; StateHasChanged(); }
     }
 
     private async Task LoadBranchesAsync()
     {
+        _loadingBranches = true;
         try { _deletedBranches = await BranchService.GetDeletedAsync(); }
         catch (Exception ex) { Snackbar.Add($"Failed to load deleted branches: {ex.Message}", Severity.Error); }
-        finally { _loadingBranches = false; }
+        finally { _loadingBranches = false; StateHasChanged(); }
     }
 
     private async Task RestoreClient(Guid id)

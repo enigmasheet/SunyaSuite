@@ -4,7 +4,7 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 
-<PageHeader Title="@(_clientName is null ? "Edit Client" : $"Edit: {_clientName}")" />
+<PageHeader Title="@(_clientName is null ? "Edit Client" : $"Edit: {_clientName}")" Icon="@Icons.Material.Filled.Edit" />
 
 <ErrorAlert Message="@_errorMessage"
             OnDismiss="@(() => _errorMessage = null)" />
@@ -53,7 +53,7 @@ else
                 </MudItem>
                 <MudItem xs="12" sm="6">
                     <MudText Typo="Typo.body2" Class="text-secondary">Status (auto-calculated)</MudText>
-                    <StatusChip Status="@_status">@_status</StatusChip>
+                    <StatusChip Status="@_status" />
                     <MudText Typo="Typo.caption" Class="text-secondary mt-1" Style="display: block;">
                         Green = no overdue invoices, Yellow = due within 7 days, Red = overdue.
                     </MudText>
@@ -62,7 +62,8 @@ else
 
             <FormActions SaveLabel="Save Changes"
                          CancelHref="@($"/clients/{Id}")"
-                         Disabled="@(!_isValid)"
+                         Disabled="@(!_isValid || _saving)"
+                         Saving="@_saving"
                          OnSave="@(async () => await SaveAsync())" />
         </MudForm>
     </FormCard>
@@ -74,6 +75,7 @@ else
     private MudForm _form = null!;
     private bool _isValid;
     private bool _loading = true;
+    private bool _saving;
     private bool _notFound;
     private string? _errorMessage;
     private string? _clientName;
@@ -122,17 +124,18 @@ else
         await _form.ValidateAsync();
         if (!_isValid) return;
 
-        var request = new UpdateClientRequest(
-            Id,
-            _name.Trim(),
-            _email.Trim(),
-            _company.Trim(),
-            _phone.Trim(),
-            _address.Trim(),
-            _panNumber?.Trim());
-
+        _saving = true;
         try
         {
+            var request = new UpdateClientRequest(
+                Id,
+                _name.Trim(),
+                _email.Trim(),
+                _company.Trim(),
+                _phone.Trim(),
+                _address.Trim(),
+                _panNumber?.Trim());
+
             await ClientService.UpdateAsync(request);
             Snackbar.Add("Client updated successfully.", Severity.Success);
             Navigation.NavigateTo($"/clients/{Id}");
@@ -140,6 +143,10 @@ else
         catch (Exception ex)
         {
             Snackbar.Add($"Failed to update client: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
         }
     }
 }

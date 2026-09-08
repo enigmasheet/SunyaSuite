@@ -1,14 +1,12 @@
-@page "/receipts/create"
+@page "/receipts/edit/{Id:guid}"
 @attribute [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
 @inject IMoneyReceiptService MoneyReceiptService
 @inject IInvoiceService InvoiceService
-@inject IEmailService EmailService
-@inject IReceiptPdfService ReceiptPdfService
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 @inject IDialogService DialogService
 
-<PageHeader Title="Create Receipt" Icon="@Icons.Material.Filled.NoteAdd" />
+<PageHeader Title="@(_receiptNumber is null ? "Edit Receipt" : $"Edit: {_receiptNumber}")" Icon="@Icons.Material.Filled.Edit" />
 
 <ErrorAlert Message="@_errorMessage"
             OnDismiss="@(() => _errorMessage = null)" />
@@ -17,6 +15,10 @@
 {
     <LoadingSkeleton Variant="SkeletonVariant.Form" />
 }
+else if (_receipt is null)
+{
+    <MudAlert Severity="Severity.Warning" Class="mt-4">Receipt not found.</MudAlert>
+}
 else
 {
     <MudForm @ref="_form" @bind-IsValid="_isValid">
@@ -24,27 +26,27 @@ else
         <MudText Typo="Typo.subtitle2" Class="mb-4">Payer Information</MudText>
         <MudGrid>
             <MudItem xs="12" md="6">
-                <MudTextField @bind-Value="_model.ReceivedFromName"
+                <MudTextField @bind-Value="EditModel.ReceivedFromName"
                               Label="Received From *"
                               Required="true"
                               RequiredError="Received from is required"
-                              For="@(() => _model.ReceivedFromName)" />
+                              For="@(() => EditModel.ReceivedFromName)" />
             </MudItem>
             <MudItem xs="12" md="3">
-                <MudTextField @bind-Value="_model.ReceivedFromPan"
+                <MudTextField @bind-Value="EditModel.ReceivedFromPan"
                               Label="PAN"
-                              For="@(() => _model.ReceivedFromPan)" />
+                              For="@(() => EditModel.ReceivedFromPan)" />
             </MudItem>
             <MudItem xs="12" md="3">
-                <MudTextField @bind-Value="_model.ReferenceNo"
+                <MudTextField @bind-Value="EditModel.ReferenceNo"
                               Label="Reference No"
-                              For="@(() => _model.ReferenceNo)" />
+                              For="@(() => EditModel.ReferenceNo)" />
             </MudItem>
             <MudItem xs="12">
-                <MudTextField @bind-Value="_model.ReceivedFromAddress"
+                <MudTextField @bind-Value="EditModel.ReceivedFromAddress"
                               Label="Address"
                               Lines="2"
-                              For="@(() => _model.ReceivedFromAddress)" />
+                              For="@(() => EditModel.ReceivedFromAddress)" />
             </MudItem>
         </MudGrid>
     </FormCard>
@@ -53,11 +55,11 @@ else
         <MudText Typo="Typo.subtitle2" Class="mb-4">Payment Details</MudText>
         <MudGrid>
             <MudItem xs="12" md="4">
-                <MudSelect @bind-Value="_model.PaymentMethod"
+                <MudSelect @bind-Value="EditModel.PaymentMethod"
                            Label="Payment Method *"
                            Required="true"
                            RequiredError="Payment method is required"
-                           For="@(() => _model.PaymentMethod)">
+                           For="@(() => EditModel.PaymentMethod)">
                     @foreach (var method in Enum.GetValues<PaymentMethod>())
                     {
                         <MudSelectItem T="PaymentMethod" Value="@method" @key="method">@method.ToString()</MudSelectItem>
@@ -65,23 +67,16 @@ else
                 </MudSelect>
             </MudItem>
             <MudItem xs="12" md="4">
-                <MudTextField @bind-Value="_model.Notes"
+                <MudTextField @bind-Value="EditModel.Notes"
                               Label="Notes"
                               Lines="2"
-                              For="@(() => _model.Notes)" />
+                              For="@(() => EditModel.Notes)" />
             </MudItem>
         </MudGrid>
     </FormCard>
 
     <FormCard>
-        <MudText Typo="Typo.subtitle2" Class="mb-4">Select Invoices</MudText>
-
-        @if (_preSelectedInvoiceId is not null)
-        {
-            <MudAlert Severity="Severity.Info" Class="mb-4">
-                Pre-selected invoice from previous page. You may add more invoices below.
-            </MudAlert>
-        }
+        <MudText Typo="Typo.subtitle2" Class="mb-4">Allocated Invoices</MudText>
 
         @if (_loadingInvoices)
         {
@@ -89,12 +84,6 @@ else
                 <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
                 <MudText Typo="Typo.body2" Class="text-secondary">Loading invoices...</MudText>
             </div>
-        }
-        else if (_availableInvoices.Count == 0)
-        {
-            <MudText Typo="Typo.body2" Class="text-secondary mb-4">
-                No invoices available for receipt. Create and send an invoice first.
-            </MudText>
         }
         else
         {
@@ -143,10 +132,10 @@ else
                         <MudNumericField T="decimal"
                                          @bind-Value="context.Allocating"
                                          Min="0.01m"
-                                         Max="@context.BalanceDue"
+                                         Max="@(context.BalanceDue + context.Allocating)"
                                          Immediate="true"
                                          Variant="Variant.Outlined"
-                                          Class="mud-numeric-field-compact" />
+                                         Class="mud-numeric-field-compact" />
                     </MudTd>
                     <MudTd>
                         <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small"
@@ -163,15 +152,8 @@ else
         }
     </FormCard>
 
-        @if (EmailService.IsConfigured)
-        {
-            <MudCheckBox @bind-Value="_sendEmailAfterCreation"
-                         Label="Send receipt email after creation"
-                         Class="mb-2" />
-        }
-
-        <FormActions SaveLabel="Create Receipt"
-                     CancelHref="/receipts"
+        <FormActions SaveLabel="Save Changes"
+                     CancelHref="@($"/receipts/{Id}")"
                      Disabled="@(!_isValid || _saving)"
                      Saving="@_saving"
                      OnSave="@(async () => await SaveAsync())" />
@@ -179,18 +161,18 @@ else
 }
 
 @code {
-    [SupplyParameterFromQuery] public Guid? InvoiceId { get; set; }
+    [Parameter] public Guid Id { get; set; }
 
     private MudForm _form = null!;
     private bool _isValid;
     private bool _loading = true;
     private bool _saving;
     private bool _loadingInvoices = true;
-    private bool _sendEmailAfterCreation;
     private string? _errorMessage;
-    private CreateReceiptModel _model = new();
+    private MoneyReceiptDetailDto? _receipt;
+    private string? _receiptNumber;
+    private EditReceiptModel EditModel { get; set; } = new();
     private Guid? _selectedInvoiceId;
-    private Guid? _preSelectedInvoiceId;
     private List<SelectedInvoiceRow> _selectedInvoices = [];
 
     private List<InvoiceSelectionDto> _availableInvoices = [];
@@ -199,36 +181,67 @@ else
     {
         try
         {
-            _availableInvoices = await InvoiceService.GetInvoiceSelectionAsync();
+            _receipt = await MoneyReceiptService.GetByIdAsync(Id);
+            _receiptNumber = _receipt?.ReceiptNumber;
 
-            if (InvoiceId.HasValue)
+            if (_receipt is not null)
             {
-                _preSelectedInvoiceId = InvoiceId;
-                var inv = _availableInvoices.FirstOrDefault(i => i.Id == InvoiceId.Value);
-                if (inv is not null)
+                EditModel.ReceivedFromName = _receipt.ReceivedFromName;
+                EditModel.ReceivedFromPan = _receipt.ReceivedFromPan;
+                EditModel.ReceivedFromAddress = _receipt.ReceivedFromAddress;
+                EditModel.PaymentMethod = _receipt.PaymentMethod;
+                EditModel.ReferenceNo = _receipt.ReferenceNo;
+
+                foreach (var alloc in _receipt.Allocations)
                 {
-                    AutoFillPayerInfo(inv);
                     _selectedInvoices.Add(new SelectedInvoiceRow
                     {
-                        InvoiceId = inv.Id,
-                        InvoiceNumber = inv.InvoiceNumber,
-                        ClientName = inv.ClientName,
-                        Total = inv.Total,
-                        AmountPaid = inv.AmountPaid,
-                        BalanceDue = inv.Total - inv.AmountPaid,
-                        Allocating = inv.Total - inv.AmountPaid
+                        InvoiceId = alloc.InvoiceId,
+                        InvoiceNumber = alloc.InvoiceNumber,
+                        ClientName = "",
+                        Total = 0,
+                        AmountPaid = 0,
+                        BalanceDue = 0,
+                        Allocating = alloc.AllocatedAmount
                     });
                 }
             }
+
+            _availableInvoices = await InvoiceService.GetInvoiceSelectionAsync();
+
+            foreach (var row in _selectedInvoices)
+            {
+                var inv = _availableInvoices.FirstOrDefault(i => i.Id == row.InvoiceId);
+                if (inv is not null)
+                {
+                    row.InvoiceNumber = inv.InvoiceNumber;
+                    row.ClientName = inv.ClientName;
+                    row.Total = inv.Total;
+                    row.AmountPaid = inv.AmountPaid;
+                    row.BalanceDue = inv.Total - inv.AmountPaid;
+                }
+            }
         }
-        catch (Exception ex)
+        catch
         {
-            _errorMessage = $"Failed to load data: {ex.Message}";
+            _errorMessage = "Failed to load receipt.";
         }
         finally
         {
             _loadingInvoices = false;
             _loading = false;
+        }
+    }
+
+    private void OnInvoiceSelectionChanged(Guid? invoiceId)
+    {
+        if (invoiceId is null) return;
+        var inv = _availableInvoices.FirstOrDefault(i => i.Id == invoiceId.Value);
+        if (inv is not null && string.IsNullOrWhiteSpace(EditModel.ReceivedFromName))
+        {
+            EditModel.ReceivedFromName = inv.ClientName;
+            EditModel.ReceivedFromPan = inv.ClientPan;
+            EditModel.ReceivedFromAddress = inv.ClientAddress;
         }
     }
 
@@ -245,9 +258,6 @@ else
         var inv = _availableInvoices.FirstOrDefault(i => i.Id == _selectedInvoiceId.Value);
         if (inv is null) return;
 
-        if (_selectedInvoices.Count == 0)
-            AutoFillPayerInfo(inv);
-
         _selectedInvoices.Add(new SelectedInvoiceRow
         {
             InvoiceId = inv.Id,
@@ -260,24 +270,6 @@ else
         });
 
         _selectedInvoiceId = null;
-    }
-
-    private void OnInvoiceSelectionChanged(Guid? invoiceId)
-    {
-        if (invoiceId is null) return;
-        var inv = _availableInvoices.FirstOrDefault(i => i.Id == invoiceId.Value);
-        if (inv is not null)
-            AutoFillPayerInfo(inv);
-    }
-
-    private void AutoFillPayerInfo(InvoiceSelectionDto inv)
-    {
-        if (string.IsNullOrWhiteSpace(_model.ReceivedFromName))
-            _model.ReceivedFromName = inv.ClientName;
-        if (string.IsNullOrWhiteSpace(_model.ReceivedFromPan))
-            _model.ReceivedFromPan = inv.ClientPan;
-        if (string.IsNullOrWhiteSpace(_model.ReceivedFromAddress))
-            _model.ReceivedFromAddress = inv.ClientAddress;
     }
 
     private void RemoveInvoice(Guid invoiceId)
@@ -299,27 +291,24 @@ else
         _saving = true;
         try
         {
-            var request = new CreateMoneyReceiptRequest(
+            var request = new UpdateMoneyReceiptRequest(
+                Id,
                 _selectedInvoices.Select(i => i.InvoiceId).ToArray(),
                 _selectedInvoices.Select(i => i.Allocating).ToArray(),
-                _model.PaymentMethod,
-                _model.ReferenceNo,
-                _model.ReceivedFromName,
-                _model.ReceivedFromPan,
-                _model.ReceivedFromAddress,
-                _model.Notes);
+                EditModel.PaymentMethod,
+                EditModel.ReferenceNo,
+                EditModel.ReceivedFromName,
+                EditModel.ReceivedFromPan,
+                EditModel.ReceivedFromAddress,
+                EditModel.Notes);
 
-            var result = await MoneyReceiptService.CreateAsync(request);
-            Snackbar.Add($"Receipt {result.ReceiptNumber} created.", Severity.Success);
-
-            if (_sendEmailAfterCreation)
-                await SendReceiptEmail(result);
-
-            Navigation.NavigateTo($"/receipts/{result.Id}");
+            await MoneyReceiptService.UpdateAsync(request);
+            Snackbar.Add("Receipt updated.", Severity.Success);
+            Navigation.NavigateTo($"/receipts/{Id}");
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Failed to create receipt: {ex.Message}", Severity.Error);
+            Snackbar.Add($"Failed to update receipt: {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -327,53 +316,7 @@ else
         }
     }
 
-    private async Task SendReceiptEmail(MoneyReceiptListItemDto receipt)
-    {
-        if (!EmailService.IsConfigured)
-        {
-            Snackbar.Add("Email is not configured (SMTP settings missing).", Severity.Warning);
-            return;
-        }
-
-        var dialog = await DialogService.ShowAsync<PromptDialog>(
-            "Send Receipt",
-            new DialogParameters
-            {
-                { "Message", "Enter recipient email address:" },
-                { "Label", "Email" },
-                { "ConfirmText", "Send" }
-            },
-            new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
-        var dialogResult = await dialog.Result;
-        if (dialogResult is { Canceled: false })
-        {
-            var email = dialogResult.Data?.ToString();
-            if (string.IsNullOrWhiteSpace(email))
-            {
-                Snackbar.Add("Email address is required.", Severity.Warning);
-                return;
-            }
-
-            try
-            {
-                var detail = await MoneyReceiptService.GetByIdAsync(receipt.Id);
-                if (detail is not null)
-                {
-                    var pdfBytes = await ReceiptPdfService.GeneratePdfAsync(detail, CopyType.Original);
-                    var formattedAmount = Currency.Format(receipt.AmountReceived);
-                    var htmlBody = EmailTemplateHelper.BuildReceiptEmailBody(receipt.ReceiptNumber, receipt.ReceivedFromName, formattedAmount, receipt.DateAD.ToString(DateFormats.Display));
-                    await EmailService.SendWithAttachmentAsync(email, $"Receipt {receipt.ReceiptNumber} from SunyaSuite", htmlBody, $"Receipt_{receipt.ReceiptNumber}.pdf", pdfBytes);
-                    Snackbar.Add($"Receipt sent to {email}.", Severity.Success);
-                }
-            }
-            catch (Exception ex)
-            {
-                Snackbar.Add($"Failed to send email: {ex.Message}", Severity.Error);
-            }
-        }
-    }
-
-    private class CreateReceiptModel
+    private class EditReceiptModel
     {
         public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.BankTransfer;
         public string ReceivedFromName { get; set; } = string.Empty;

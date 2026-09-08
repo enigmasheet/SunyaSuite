@@ -5,7 +5,7 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 
-<PageHeader Title="@(_project is null ? "Edit Project" : $"Edit: {_project.Name}")" />
+<PageHeader Title="@(_project is null ? "Edit Project" : $"Edit: {_project.Name}")" Icon="@Icons.Material.Filled.Edit" />
 
 <ErrorAlert Message="@_errorMessage"
             OnDismiss="@(() => _errorMessage = null)" />
@@ -79,7 +79,8 @@ else
 
             <FormActions SaveLabel="Save Changes"
                          CancelHref="@($"/projects/{Id}")"
-                         Disabled="@(!_isValid)"
+                         Disabled="@(!_isValid || _saving)"
+                         Saving="@_saving"
                          OnSave="@(async () => await SaveAsync())" />
         </MudForm>
     </FormCard>
@@ -91,6 +92,7 @@ else
     private MudForm _form = null!;
     private bool _isValid;
     private bool _loading = true;
+    private bool _saving;
     private string? _errorMessage;
     private ProjectDetailDto? _project;
     private List<ClientOptionDto>? _clients;
@@ -133,17 +135,18 @@ else
         await _form.ValidateAsync();
         if (!_isValid || _deadline is null) return;
 
-        var request = new UpdateProjectRequest(
-            Id,
-            _selectedClientId,
-            _name.Trim(),
-            _description.Trim(),
-            DateOnly.FromDateTime(_deadline.Value),
-            _status,
-            _progressPercent);
-
+        _saving = true;
         try
         {
+            var request = new UpdateProjectRequest(
+                Id,
+                _selectedClientId,
+                _name.Trim(),
+                _description.Trim(),
+                DateOnly.FromDateTime(_deadline.Value),
+                _status,
+                _progressPercent);
+
             await ProjectService.UpdateAsync(request);
             Snackbar.Add("Project updated successfully.", Severity.Success);
             Navigation.NavigateTo($"/projects/{Id}");
@@ -151,6 +154,10 @@ else
         catch (Exception ex)
         {
             Snackbar.Add($"Failed to update project: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
         }
     }
 }

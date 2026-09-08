@@ -6,7 +6,8 @@
 
 <PageHeader Title="@(_user is null ? "Edit User" : $"Edit: {_user.FirstName} {_user.LastName}")" />
 
-<ErrorAlert Message="@_errorMessage" />
+<ErrorAlert Message="@_errorMessage"
+            OnDismiss="@(() => _errorMessage = null)" />
 
 @if (_loading)
 {

@@ -4,7 +4,7 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 
-<PageHeader Title="Create Client" />
+<PageHeader Title="Create Client" Icon="@Icons.Material.Filled.PersonAdd" />
 
 <FormCard>
     <MudForm @ref="_form" @bind-IsValid="_isValid">
@@ -42,7 +42,8 @@
 
         <FormActions SaveLabel="Create Client"
                      CancelHref="/clients"
-                     Disabled="@(!_isValid)"
+                     Disabled="@(!_isValid || _saving)"
+                     Saving="@_saving"
                      OnSave="@(async () => await SaveAsync())" />
     </MudForm>
 </FormCard>
@@ -50,6 +51,7 @@
 @code {
     private MudForm _form = null!;
     private bool _isValid;
+    private bool _saving;
 
     private string _name = string.Empty;
     private string _email = string.Empty;
@@ -64,16 +66,17 @@
 
         if (!_isValid) return;
 
-        var request = new CreateClientRequest(
-            _name.Trim(),
-            _email.Trim(),
-            _company.Trim(),
-            _phone.Trim(),
-            _address.Trim(),
-            _panNumber?.Trim());
-
+        _saving = true;
         try
         {
+            var request = new CreateClientRequest(
+                _name.Trim(),
+                _email.Trim(),
+                _company.Trim(),
+                _phone.Trim(),
+                _address.Trim(),
+                _panNumber?.Trim());
+
             await ClientService.CreateAsync(request);
             Snackbar.Add("Client created successfully.", Severity.Success);
             Navigation.NavigateTo("/clients");
@@ -81,6 +84,10 @@
         catch (Exception ex)
         {
             Snackbar.Add($"Failed to create client: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
         }
     }
 }

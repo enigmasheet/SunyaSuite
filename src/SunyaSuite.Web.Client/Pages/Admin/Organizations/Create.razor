@@ -6,7 +6,8 @@
 
 <PageHeader Title="Create Organization" />
 
-<ErrorAlert Message="@_errorMessage" />
+<ErrorAlert Message="@_errorMessage"
+            OnDismiss="@(() => _errorMessage = null)" />
 
 <FormCard MaxWidth="600px">
     <MudForm @ref="_form" @bind-IsValid="_isValid">

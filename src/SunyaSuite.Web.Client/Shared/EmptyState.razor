@@ -5,10 +5,18 @@
     {
         <MudText Typo="Typo.body2" Color="@Color.Tertiary" Class="mt-1">@Description</MudText>
     }
+    @if (!string.IsNullOrEmpty(ActionText) && !string.IsNullOrEmpty(ActionHref))
+    {
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@ActionHref" Class="mt-4">
+            @ActionText
+        </MudButton>
+    }
 </MudContainer>
 
 @code {
     [Parameter] public string Icon { get; set; } = Icons.Material.Filled.Inbox;
     [Parameter] public string Title { get; set; } = "No items found.";
     [Parameter] public string? Description { get; set; }
+    [Parameter] public string? ActionText { get; set; }
+    [Parameter] public string? ActionHref { get; set; }
 }

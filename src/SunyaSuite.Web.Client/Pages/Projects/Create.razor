@@ -5,9 +5,10 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 
-<PageHeader Title="Create Project" />
+<PageHeader Title="Create Project" Icon="@Icons.Material.Filled.CreateNewFolder" />
 
-<ErrorAlert Message="@_errorMessage" />
+<ErrorAlert Message="@_errorMessage"
+            OnDismiss="@(() => _errorMessage = null)" />
 
 @if (_loading)
 {
@@ -53,7 +54,8 @@ else
 
             <FormActions SaveLabel="Create Project"
                          CancelHref="/projects"
-                         Disabled="@(!_isValid)"
+                         Disabled="@(!_isValid || _saving)"
+                         Saving="@_saving"
                          OnSave="@(async () => await SaveAsync())" />
         </MudForm>
     </FormCard>
@@ -63,6 +65,7 @@ else
     private MudForm _form = null!;
     private bool _isValid;
     private bool _loading = true;
+    private bool _saving;
     private string? _errorMessage;
 
     private List<ClientOptionDto> _clients = [];
@@ -92,14 +95,15 @@ else
         await _form.ValidateAsync();
         if (!_isValid || _deadline is null) return;
 
-        var request = new CreateProjectRequest(
-            _selectedClientId,
-            _name.Trim(),
-            _description.Trim(),
-            DateOnly.FromDateTime(_deadline.Value));
-
+        _saving = true;
         try
         {
+            var request = new CreateProjectRequest(
+                _selectedClientId,
+                _name.Trim(),
+                _description.Trim(),
+                DateOnly.FromDateTime(_deadline.Value));
+
             await ProjectService.CreateAsync(request);
             Snackbar.Add("Project created successfully.", Severity.Success);
             Navigation.NavigateTo("/projects");
@@ -107,6 +111,10 @@ else
         catch (Exception ex)
         {
             Snackbar.Add($"Failed to create project: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
         }
     }
 }

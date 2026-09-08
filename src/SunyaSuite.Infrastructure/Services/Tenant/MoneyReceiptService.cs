@@ -11,43 +11,22 @@ using SunyaSuite.Infrastructure.Data.Tenant;
 
 namespace SunyaSuite.Infrastructure.Services.Tenant;
 
-public class MoneyReceiptService : IMoneyReceiptService
+public class MoneyReceiptService(
+    IDbContextFactory<ApplicationDbContext> contextFactory,
+    AuthenticationStateProvider authStateProvider,
+    INepaliDateService nepaliDateService,
+    INumberToWordsService numberToWordsService,
+    IClientStatusCalculator statusCalculator,
+    IFiscalYearService fiscalYearService,
+    ITenantContext tenantContext,
+    TimeProvider timeProvider) : IMoneyReceiptService
 {
-    private readonly IDbContextFactory<ApplicationDbContext> _contextFactory;
-    private readonly AuthenticationStateProvider _authStateProvider;
-    private readonly INepaliDateService _nepaliDateService;
-    private readonly INumberToWordsService _numberToWordsService;
-    private readonly IClientStatusCalculator _statusCalculator;
-    private readonly IFiscalYearService _fiscalYearService;
-    private readonly ITenantContext _tenantContext;
-    private readonly TimeProvider _timeProvider;
-
-    public MoneyReceiptService(
-        IDbContextFactory<ApplicationDbContext> contextFactory,
-        AuthenticationStateProvider authStateProvider,
-        INepaliDateService nepaliDateService,
-        INumberToWordsService numberToWordsService,
-        IClientStatusCalculator statusCalculator,
-        IFiscalYearService fiscalYearService,
-        ITenantContext tenantContext,
-        TimeProvider timeProvider)
-    {
-        _contextFactory = contextFactory;
-        _authStateProvider = authStateProvider;
-        _nepaliDateService = nepaliDateService;
-        _numberToWordsService = numberToWordsService;
-        _timeProvider = timeProvider;
-        _statusCalculator = statusCalculator;
-        _fiscalYearService = fiscalYearService;
-        _tenantContext = tenantContext;
-    }
-
     private Task<Guid> GetRequiredCompanyIdAsync(CancellationToken ct = default)
-        => TenantServiceHelper.GetRequiredCompanyIdAsync(_contextFactory, _tenantContext, ct);
+        => TenantServiceHelper.GetRequiredCompanyIdAsync(contextFactory, tenantContext, ct);
 
     public async Task<MoneyReceiptDetailDto?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync(ct);
+        await using var context = await contextFactory.CreateDbContextAsync(ct);
 
         var companyId = await GetRequiredCompanyIdAsync(ct);
 
@@ -67,7 +46,7 @@ public class MoneyReceiptService : IMoneyReceiptService
         string? sortLabel = null, string? sortDirection = null,
         Guid? fiscalYearId = null, CancellationToken ct = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync(ct);
+        await using var context = await contextFactory.CreateDbContextAsync(ct);
 
         var companyId = await GetRequiredCompanyIdAsync(ct);
 
@@ -84,8 +63,8 @@ public class MoneyReceiptService : IMoneyReceiptService
         {
             var term = searchTerm.ToLower();
             query = query.Where(r =>
-                r.ReceiptNumber.ToLower().Contains(term) ||
-                r.ReceivedFromName.ToLower().Contains(term));
+                r.ReceiptNumber.Contains(term, StringComparison.CurrentCultureIgnoreCase) ||
+                r.ReceivedFromName.Contains(term, StringComparison.CurrentCultureIgnoreCase));
         }
 
         query = (sortLabel?.ToLower(), sortDirection?.ToLower()) switch
@@ -106,18 +85,18 @@ public class MoneyReceiptService : IMoneyReceiptService
             .ToListAsync(ct);
 
         return new PagedResult<MoneyReceiptListItemDto>(
-            items.Select(MapToListItem).ToList(), total);
+            [.. items.Select(MapToListItem)], total);
     }
 
     public async Task<MoneyReceiptListItemDto> CreateAsync(CreateMoneyReceiptRequest request, CancellationToken ct = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync(ct);
+        await using var context = await contextFactory.CreateDbContextAsync(ct);
 
         var userId = await GetCurrentUserIdAsync();
-        var now = _timeProvider.GetUtcNow().UtcDateTime;
-        var fiscalYearLabel = _nepaliDateService.GetFiscalYear(now);
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var fiscalYearLabel = nepaliDateService.GetFiscalYear(now);
 
-        var fy = await _fiscalYearService.GetCurrentAsync(ct)
+        var fy = await fiscalYearService.GetCurrentAsync(ct)
             ?? throw new InvalidOperationException("No active fiscal year configured.");
 
         if (!fy.IsOpen)
@@ -160,16 +139,16 @@ public class MoneyReceiptService : IMoneyReceiptService
         {
             Id = Guid.NewGuid(),
             CompanyId = companyId,
-            BranchId = _tenantContext.BranchId,
+            BranchId = tenantContext.BranchId,
             ReceiptNumber = await GenerateNumberAsync(context, fy.YearName),
             FiscalYearId = fy.Id,
             DateAD = DateOnly.FromDateTime(now),
-            DateBS = _nepaliDateService.ToNepaliDateString(now, "yyyy/MM/dd"),
+            DateBS = nepaliDateService.ToNepaliDateString(now, "yyyy/MM/dd"),
             ReceivedFromName = request.ReceivedFromName,
             ReceivedFromPan = request.ReceivedFromPan,
             ReceivedFromAddress = request.ReceivedFromAddress,
             AmountReceived = totalAmount,
-            AmountInWords = _numberToWordsService.ToNepaliWords(totalAmount),
+            AmountInWords = numberToWordsService.ToNepaliWords(totalAmount),
             PaymentMethod = request.PaymentMethod,
             ReferenceNo = request.ReferenceNo,
             ReceivedBy = await GetCurrentUserNameAsync(),
@@ -200,9 +179,9 @@ public class MoneyReceiptService : IMoneyReceiptService
                 invoice.Status = InvoiceStatus.Paid;
 
                 AuditLogHelper.Add(context, companyId, userId, "StatusChanged", "Invoice", invoice.Id.ToString(),
-                    $"{invoice.InvoiceNumber}: → Paid (auto via receipt)", _timeProvider);
+                    $"{invoice.InvoiceNumber}: → Paid (auto via receipt)", timeProvider);
 
-                invoice.Client.Status = _statusCalculator.Calculate(
+                invoice.Client.Status = statusCalculator.Calculate(
                     invoice.Client.Invoices);
             }
         }
@@ -210,7 +189,7 @@ public class MoneyReceiptService : IMoneyReceiptService
         context.MoneyReceipts.Add(receipt);
 
         AuditLogHelper.Add(context, companyId, userId, "MoneyReceiptCreated", "MoneyReceipt", receipt.Id.ToString(),
-            $"{receipt.ReceiptNumber}: Rs. {totalAmount:N2} via {request.PaymentMethod}", _timeProvider);
+            $"{receipt.ReceiptNumber}: Rs. {totalAmount:N2} via {request.PaymentMethod}", timeProvider);
 
         await context.SaveChangesAsync(ct);
 
@@ -221,11 +200,11 @@ public class MoneyReceiptService : IMoneyReceiptService
 
     public async Task<MoneyReceiptListItemDto> UpdateAsync(UpdateMoneyReceiptRequest request, CancellationToken ct = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync(ct);
+        await using var context = await contextFactory.CreateDbContextAsync(ct);
 
         var companyId = await GetRequiredCompanyIdAsync(ct);
         var userId = await GetCurrentUserIdAsync();
-        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        var now = timeProvider.GetUtcNow().UtcDateTime;
 
         if (request.InvoiceIds.Length == 0)
             throw new InvalidOperationException("At least one invoice must be selected.");
@@ -243,10 +222,7 @@ public class MoneyReceiptService : IMoneyReceiptService
                 .ThenInclude(c => c.Invoices)
             .AsSplitQuery()
             .ForCompany(companyId)
-            .FirstOrDefaultAsync(r => r.Id == request.Id, ct);
-
-        if (receipt is null)
-            throw new KeyNotFoundException($"MoneyReceipt {request.Id} not found.");
+            .FirstOrDefaultAsync(r => r.Id == request.Id, ct) ?? throw new KeyNotFoundException($"MoneyReceipt {request.Id} not found.");
         if (receipt.IsDeleted)
             throw new InvalidOperationException("Cannot update a deleted receipt.");
 
@@ -265,7 +241,7 @@ public class MoneyReceiptService : IMoneyReceiptService
             if (invoice.Status == InvoiceStatus.Paid && !invoice.IsFullyPaid)
             {
                 invoice.Status = InvoiceStatus.Sent;
-                invoice.Client.Status = _statusCalculator.Calculate(invoice.Client.Invoices);
+                invoice.Client.Status = statusCalculator.Calculate(invoice.Client.Invoices);
             }
         }
 
@@ -315,9 +291,9 @@ public class MoneyReceiptService : IMoneyReceiptService
                 invoice.Status = InvoiceStatus.Paid;
 
                 AuditLogHelper.Add(context, receipt.CompanyId, userId, "StatusChanged", "Invoice", invoice.Id.ToString(),
-                    $"{invoice.InvoiceNumber}: → Paid (auto via receipt update)", _timeProvider);
+                    $"{invoice.InvoiceNumber}: → Paid (auto via receipt update)", timeProvider);
 
-                invoice.Client.Status = _statusCalculator.Calculate(invoice.Client.Invoices);
+                invoice.Client.Status = statusCalculator.Calculate(invoice.Client.Invoices);
             }
         }
 
@@ -325,12 +301,12 @@ public class MoneyReceiptService : IMoneyReceiptService
         receipt.ReceivedFromPan = request.ReceivedFromPan;
         receipt.ReceivedFromAddress = request.ReceivedFromAddress;
         receipt.AmountReceived = totalAmount;
-        receipt.AmountInWords = _numberToWordsService.ToNepaliWords(totalAmount);
+        receipt.AmountInWords = numberToWordsService.ToNepaliWords(totalAmount);
         receipt.PaymentMethod = request.PaymentMethod;
         receipt.ReferenceNo = request.ReferenceNo;
 
         AuditLogHelper.Add(context, companyId, userId, "MoneyReceiptUpdated", "MoneyReceipt", receipt.Id.ToString(),
-            $"{receipt.ReceiptNumber}: updated to Rs. {totalAmount:N2} via {request.PaymentMethod}", _timeProvider);
+            $"{receipt.ReceiptNumber}: updated to Rs. {totalAmount:N2} via {request.PaymentMethod}", timeProvider);
 
         await context.SaveChangesAsync(ct);
 
@@ -341,7 +317,7 @@ public class MoneyReceiptService : IMoneyReceiptService
 
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync(ct);
+        await using var context = await contextFactory.CreateDbContextAsync(ct);
 
         var companyId = await GetRequiredCompanyIdAsync(ct);
 
@@ -352,11 +328,7 @@ public class MoneyReceiptService : IMoneyReceiptService
                 .ThenInclude(c => c.Invoices)
             .AsSplitQuery()
             .ForCompany(companyId)
-            .FirstOrDefaultAsync(r => r.Id == id, ct);
-
-        if (receipt is null)
-            throw new KeyNotFoundException($"MoneyReceipt {id} not found");
-
+            .FirstOrDefaultAsync(r => r.Id == id, ct) ?? throw new KeyNotFoundException($"MoneyReceipt {id} not found");
         if (receipt.IsDeleted)
             throw new InvalidOperationException("Receipt is already deleted.");
 
@@ -371,23 +343,23 @@ public class MoneyReceiptService : IMoneyReceiptService
             {
                 invoice.Status = InvoiceStatus.Sent;
 
-                invoice.Client.Status = _statusCalculator.Calculate(
+                invoice.Client.Status = statusCalculator.Calculate(
                     invoice.Client.Invoices);
             }
         }
 
         receipt.IsDeleted = true;
-        receipt.DeletedAt = _timeProvider.GetUtcNow().UtcDateTime;
+        receipt.DeletedAt = timeProvider.GetUtcNow().UtcDateTime;
 
         AuditLogHelper.Add(context, companyId, userId, "MoneyReceiptDeleted", "MoneyReceipt", id.ToString(),
-            receipt.ReceiptNumber, _timeProvider);
+            receipt.ReceiptNumber, timeProvider);
 
         await context.SaveChangesAsync(ct);
     }
 
     public async Task RestoreAsync(Guid id, CancellationToken ct = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync(ct);
+        await using var context = await contextFactory.CreateDbContextAsync(ct);
 
         var companyId = await GetRequiredCompanyIdAsync(ct);
 
@@ -399,11 +371,7 @@ public class MoneyReceiptService : IMoneyReceiptService
                 .ThenInclude(c => c.Invoices)
             .AsSplitQuery()
             .ForCompany(companyId)
-            .FirstOrDefaultAsync(r => r.Id == id, ct);
-
-        if (receipt is null)
-            throw new KeyNotFoundException($"MoneyReceipt {id} not found");
-
+            .FirstOrDefaultAsync(r => r.Id == id, ct) ?? throw new KeyNotFoundException($"MoneyReceipt {id} not found");
         if (!receipt.IsDeleted)
             throw new InvalidOperationException("Receipt is not deleted.");
 
@@ -418,7 +386,7 @@ public class MoneyReceiptService : IMoneyReceiptService
             {
                 invoice.Status = InvoiceStatus.Paid;
 
-                invoice.Client.Status = _statusCalculator.Calculate(
+                invoice.Client.Status = statusCalculator.Calculate(
                     invoice.Client.Invoices);
             }
         }
@@ -427,7 +395,7 @@ public class MoneyReceiptService : IMoneyReceiptService
         receipt.DeletedAt = null;
 
         AuditLogHelper.Add(context, companyId, userId, "MoneyReceiptRestored", "MoneyReceipt", id.ToString(),
-            receipt.ReceiptNumber, _timeProvider);
+            receipt.ReceiptNumber, timeProvider);
 
         await context.SaveChangesAsync(ct);
     }
@@ -435,7 +403,7 @@ public class MoneyReceiptService : IMoneyReceiptService
     public async Task<PagedResult<MoneyReceiptListItemDto>> GetDeletedPagedAsync(
         int page, int pageSize, string? searchTerm = null, CancellationToken ct = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync(ct);
+        await using var context = await contextFactory.CreateDbContextAsync(ct);
 
         var companyId = await GetRequiredCompanyIdAsync(ct);
 
@@ -451,8 +419,8 @@ public class MoneyReceiptService : IMoneyReceiptService
         {
             var term = searchTerm.ToLower();
             query = query.Where(r =>
-                r.ReceiptNumber.ToLower().Contains(term) ||
-                r.ReceivedFromName.ToLower().Contains(term));
+                r.ReceiptNumber.Contains(term, StringComparison.CurrentCultureIgnoreCase) ||
+                r.ReceivedFromName.Contains(term, StringComparison.CurrentCultureIgnoreCase));
         }
 
         query = query.OrderByDescending(r => r.DeletedAt);
@@ -464,12 +432,12 @@ public class MoneyReceiptService : IMoneyReceiptService
             .ToListAsync(ct);
 
         return new PagedResult<MoneyReceiptListItemDto>(
-            items.Select(MapToListItem).ToList(), total);
+            [.. items.Select(MapToListItem)], total);
     }
 
     public async Task PermanentDeleteAsync(Guid id, CancellationToken ct = default)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync(ct);
+        await using var context = await contextFactory.CreateDbContextAsync(ct);
 
         var companyId = await GetRequiredCompanyIdAsync(ct);
 
@@ -477,11 +445,8 @@ public class MoneyReceiptService : IMoneyReceiptService
             .IgnoreQueryFilters()
             .Include(r => r.Allocations)
             .ForCompany(companyId)
-            .FirstOrDefaultAsync(r => r.Id == id, ct);
-
-        if (receipt is null)
-            throw new KeyNotFoundException($"MoneyReceipt {id} not found");
-
+            .FirstOrDefaultAsync(r => r.Id == id, ct) ?? throw new KeyNotFoundException($"MoneyReceipt {id} not found");
+        
         if (!receipt.IsDeleted)
             throw new InvalidOperationException("Cannot permanently delete an active receipt. Soft-delete it first.");
 
@@ -491,7 +456,7 @@ public class MoneyReceiptService : IMoneyReceiptService
         context.MoneyReceipts.Remove(receipt);
 
         AuditLogHelper.Add(context, companyId, userId, "MoneyReceiptPermanentDeleted", "MoneyReceipt", id.ToString(),
-            receiptNumber, _timeProvider);
+            receiptNumber, timeProvider);
 
         await context.SaveChangesAsync(ct);
     }
@@ -504,10 +469,10 @@ public class MoneyReceiptService : IMoneyReceiptService
         r.Id, r.ReceiptNumber, r.FiscalYearInfo?.YearName ?? "", r.DateAD, r.DateBS,
         r.ReceivedFromName, r.ReceivedFromPan, r.ReceivedFromAddress,
         r.AmountReceived, r.AmountInWords, r.PaymentMethod, r.ReferenceNo, r.ReceivedBy, r.SellerLogoBase64, r.IsDeleted,
-        r.Allocations.Select(a => new ReceiptAllocationDto(
-            a.Id, a.MoneyReceiptId, a.InvoiceId, a.MoneyReceipt.ReceiptNumber, a.MoneyReceipt.FiscalYearInfo?.YearName ?? "", a.AllocatedAmount, a.Invoice.InvoiceNumber)).ToList());
+        [.. r.Allocations.Select(a => new ReceiptAllocationDto(
+            a.Id, a.MoneyReceiptId, a.InvoiceId, a.MoneyReceipt.ReceiptNumber, a.MoneyReceipt.FiscalYearInfo?.YearName ?? "", a.AllocatedAmount, a.Invoice.InvoiceNumber))]);
 
-    private async Task<string> GenerateNumberAsync(ApplicationDbContext context, string fiscalYear)
+    private static async Task<string> GenerateNumberAsync(ApplicationDbContext context, string fiscalYear)
     {
         var safeFiscalYear = fiscalYear.Replace("/", "_");
         if (safeFiscalYear.Any(c => !char.IsAsciiLetterOrDigit(c) && c != '_'))
@@ -520,7 +485,7 @@ public class MoneyReceiptService : IMoneyReceiptService
             $"CREATE SEQUENCE IF NOT EXISTS \"{sequenceName}\" START 1");
 
         var nextSeq = await context.Database
-            .SqlQueryRaw<long>($"SELECT nextval('\"{sequenceName}\"')")
+            .SqlQueryRaw<long>($"SELECT nextval('\"{sequenceName}\"') AS \"Value\"")
             .FirstAsync();
 #pragma warning restore EF1002
 
@@ -528,8 +493,8 @@ public class MoneyReceiptService : IMoneyReceiptService
     }
 
     private Task<string> GetCurrentUserIdAsync()
-        => TenantServiceHelper.GetCurrentUserIdAsync(_authStateProvider);
+        => TenantServiceHelper.GetCurrentUserIdAsync(authStateProvider);
 
     private Task<string> GetCurrentUserNameAsync()
-        => TenantServiceHelper.GetCurrentUserNameAsync(_authStateProvider);
+        => TenantServiceHelper.GetCurrentUserNameAsync(authStateProvider);
 }

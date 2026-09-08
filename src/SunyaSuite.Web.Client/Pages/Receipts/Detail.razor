@@ -8,9 +8,10 @@
 @inject IJSRuntime JsRuntime
 @inject IDialogService DialogService
 
-<PageHeader Title="@($"Receipt {_receiptNumber}")" />
+<PageHeader Title="@($"Receipt {_receiptNumber}")" Icon="@Icons.Material.Filled.Receipt" />
 
-<ErrorAlert Message="@_errorMessage" />
+<ErrorAlert Message="@_errorMessage"
+            OnDismiss="@(() => _errorMessage = null)" />
 
 @if (_loading)
 {
@@ -129,11 +130,18 @@ else
 
     @if (!_receipt.IsDeleted)
     {
-        <MudButton Variant="Variant.Outlined" Color="Color.Error"
-                   StartIcon="@Icons.Material.Filled.Delete"
-                   OnClick="@PromptDelete">
-            Delete Receipt
-        </MudButton>
+        <div class="d-flex gap-2">
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Edit"
+                       Href="@($"/receipts/edit/{_receipt.Id}")">
+                Edit Receipt
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Error"
+                       StartIcon="@Icons.Material.Filled.Delete"
+                       OnClick="@PromptDelete">
+                Delete Receipt
+            </MudButton>
+        </div>
     }
 }
 
@@ -212,7 +220,7 @@ else
             {
                 var pdfBytes = await ReceiptPdfService.GeneratePdfAsync(_receipt, _copyType);
                 var formattedAmount = Currency.Format(_receipt.AmountReceived);
-                var htmlBody = $@"<html><body style='font-family:sans-serif;'><h2>Receipt {_receipt.ReceiptNumber}</h2><p>Dear {_receipt.ReceivedFromName},</p><p>Thank you for your payment. Please find your receipt attached.</p><table border='1' cellpadding='8' style='border-collapse:collapse;'><tr><th>Receipt #</th><th>Amount</th><th>Date</th></tr><tr><td>{_receipt.ReceiptNumber}</td><td>{formattedAmount}</td><td>{_receipt.DateAD.ToString(DateFormats.Display)}</td></tr></table><p>Thank you for your business.</p></body></html>";
+                var htmlBody = EmailTemplateHelper.BuildReceiptEmailBody(_receipt.ReceiptNumber, _receipt.ReceivedFromName, formattedAmount, _receipt.DateAD.ToString(DateFormats.Display));
                 await EmailService.SendWithAttachmentAsync(email, $"Receipt {_receipt.ReceiptNumber} from SunyaSuite", htmlBody, $"Receipt_{_receipt.ReceiptNumber}.pdf", pdfBytes);
                 Snackbar.Add($"Receipt sent to {email}.", Severity.Success);
             }

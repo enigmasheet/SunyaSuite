@@ -4,6 +4,7 @@ using SunyaSuite.Application.DTOs;
 using SunyaSuite.Application.DTOs.Tenant;
 using SunyaSuite.Application.Interfaces.Tenant;
 using SunyaSuite.Domain.Constants;
+using SunyaSuite.Domain.Enums;
 
 namespace SunyaSuite.Web.Api.Controllers.Tenant;
 
@@ -84,6 +85,27 @@ public class ClientsController : ControllerBase
             return Conflict(new { message = ex.Message });
         }
     }
+
+    [HttpPatch("{id}/status")]
+    [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
+    public async Task<ActionResult> UpdateStatus(Guid id, [FromBody] UpdateStatusRequest request, CancellationToken ct = default)
+    {
+        try
+        {
+            await _clientService.UpdateStatusAsync(id, request.Status, ct);
+            return NoContent();
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
+    public record UpdateStatusRequest(ClientStatus Status);
 
     [HttpDelete("{id}")]
     [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]

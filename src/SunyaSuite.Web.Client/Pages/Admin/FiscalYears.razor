@@ -6,7 +6,8 @@
 
 <PageHeader Title="Fiscal Years" />
 
-<ErrorAlert Message="@_errorMessage" />
+<ErrorAlert Message="@_errorMessage"
+            OnDismiss="@(() => _errorMessage = null)" />
 
 <MudButton Variant="Variant.Filled" Color="Color.Primary"
            StartIcon="@Icons.Material.Filled.Add"

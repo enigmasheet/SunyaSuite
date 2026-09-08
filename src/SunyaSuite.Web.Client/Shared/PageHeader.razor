@@ -1,5 +1,13 @@
 <PageTitle>@Title — SunyaSuite</PageTitle>
 
+@if (!string.IsNullOrEmpty(BackHref))
+{
+    <MudLink Href="@BackHref" Class="mb-2 d-inline-flex align-center" Style="font-size: 0.875rem;">
+        <MudIcon Icon="@Icons.Material.Filled.ArrowBack" Size="Size.Small" Class="mr-1" />
+        Back
+    </MudLink>
+}
+
 <MudText Typo="Typo.h4" Class="@GetClass()">
     @if (!string.IsNullOrEmpty(Icon))
     {
@@ -17,6 +25,7 @@
     [Parameter] public string Title { get; set; } = string.Empty;
     [Parameter] public string? Subtitle { get; set; }
     [Parameter] public string? Icon { get; set; }
+    [Parameter] public string? BackHref { get; set; }
     [Parameter] public string? Class { get; set; }
 
     private string GetClass()

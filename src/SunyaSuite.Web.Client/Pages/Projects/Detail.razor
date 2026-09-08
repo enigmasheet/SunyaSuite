@@ -5,9 +5,10 @@
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 
-<PageHeader Title="@(_project?.Name ?? "Project Details")" />
+<PageHeader Title="@(_project?.Name ?? "Project Details")" Icon="@Icons.Material.Filled.FolderOpen" />
 
-<ErrorAlert Message="@_errorMessage" />
+<ErrorAlert Message="@_errorMessage"
+            OnDismiss="@(() => _errorMessage = null)" />
 
 @if (_loading)
 {
@@ -21,105 +22,58 @@ else
 {
     <MudText Typo="Typo.h4" Class="mb-4">
         @_project.Name
-        <StatusChip Status="@_project.Status">@_project.Status</StatusChip>
+        <StatusChip Status="@_project.Status" />
     </MudText>
 
     <MudGrid>
         <MudItem xs="12" md="5">
-            <MudPaper Elevation="0" Outlined="true" Class="pa-6">
-                <MudText Typo="Typo.subtitle2" Class="mb-4">Project Details</MudText>
-                <MudList T="string" Dense="true">
-                    <MudListItem T="string">
-                        <MudText Typo="Typo.body2" Class="text-secondary">Client</MudText>
-                        <MudLink Href="@($"/clients/{_project.ClientId}")">
-                            <MudText Typo="Typo.body1">@_project.ClientName</MudText>
-                        </MudLink>
-                    </MudListItem>
-                    <MudListItem T="string">
-                        <MudText Typo="Typo.body2" Class="text-secondary">Status</MudText>
-                        <MudText Typo="Typo.body1">@_project.Status</MudText>
-                    </MudListItem>
-                    <MudListItem T="string">
-                        <MudText Typo="Typo.body2" Class="text-secondary">Deadline</MudText>
-                        <MudText Typo="Typo.body1">@_project.Deadline.ToString(DateFormats.Display)</MudText>
-                    </MudListItem>
-                    <MudListItem T="string">
-                        <MudText Typo="Typo.body2" Class="text-secondary">Progress</MudText>
-                        <MudProgressLinear Value="@_project.ProgressPercent" Class="rounded mt-1" />
-                        <MudText Typo="Typo.body1">@_project.ProgressPercent%</MudText>
-                    </MudListItem>
-                </MudList>
-
-                <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">Description</MudText>
-                @if (string.IsNullOrEmpty(_project.Description))
-                {
-                    <MudText Typo="Typo.body2" Class="text-disabled">No description provided.</MudText>
-                }
-                else
-                {
-                    <MudText Typo="Typo.body1">@_project.Description</MudText>
-                }
-
-                <MudButton Variant="Variant.Outlined" Color="Color.Primary"
-                           StartIcon="@Icons.Material.Filled.Edit" Class="mt-6"
-                           Href="@($"/projects/edit/{_project.Id}")">
-                    Edit Project
-                </MudButton>
-
-                @if (_project.Status == StatusStrings.ProjectNotStarted)
-                {
-                    <MudButton Variant="Variant.Filled" Color="Color.Info"
-                               FullWidth="true" Class="mt-2"
-                               OnClick="@(() => UpdateStatusWithConfirm(ProjectStatus.InProgress))">
-                        Start Project
+            <DetailInfoCard Title="Project Details"
+                            Fields="@(new List<DetailField>
+                            {
+                                new() { Label = "Client", Value = _project.ClientName, IsLink = true, Href = $"/clients/{_project.ClientId}" },
+                                new() { Label = "Status", Value = _project.Status },
+                                new() { Label = "Deadline", Value = _project.Deadline.ToString(DateFormats.Display) },
+                                new() { Label = "Description", Value = !string.IsNullOrEmpty(_project.Description) ? _project.Description : "—" }
+                            })">
+                <div class="mt-4">
+                    <MudText Typo="Typo.body2" Class="text-secondary mb-1">Progress: @_project.ProgressPercent%</MudText>
+                    <MudProgressLinear Value="@_project.ProgressPercent" Class="rounded" Style="max-width: 200px;" />
+                </div>
+                <div class="d-flex gap-2 mt-4">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Edit"
+                               Href="@($"/projects/edit/{_project.Id}")">
+                        Edit
                     </MudButton>
-                }
-                else if (_project.Status == StatusStrings.ProjectInProgress)
-                {
-                    <MudButton Variant="Variant.Filled" Color="Color.Success"
-                               FullWidth="true" Class="mt-2"
-                               OnClick="@(() => UpdateStatusWithConfirm(ProjectStatus.Completed))">
-                        Complete Project
-                    </MudButton>
-                    <MudButton Variant="Variant.Filled" Color="Color.Warning"
-                               FullWidth="true" Class="mt-2"
-                               OnClick="@(() => UpdateStatusWithConfirm(ProjectStatus.OnHold))">
-                        Put on Hold
-                    </MudButton>
-                }
-                else if (_project.Status == StatusStrings.ProjectOnHold)
-                {
-                    <MudButton Variant="Variant.Filled" Color="Color.Info"
-                               FullWidth="true" Class="mt-2"
-                               OnClick="@(() => UpdateStatusWithConfirm(ProjectStatus.InProgress))">
-                        Resume Project
-                    </MudButton>
-                }
-            </MudPaper>
+                    <MudMenu Icon="@Icons.Material.Filled.SwapHoriz" Label="Change Status" Variant="Variant.Outlined" Size="Size.Small">
+                        <MudMenuItem OnClick="@(() => UpdateStatusWithConfirm(ProjectStatus.NotStarted))"
+                                     Disabled="@(_project.Status == StatusStrings.ProjectNotStarted)">
+                            Not Started
+                        </MudMenuItem>
+                        <MudMenuItem OnClick="@(() => UpdateStatusWithConfirm(ProjectStatus.InProgress))"
+                                     Disabled="@(_project.Status == StatusStrings.ProjectInProgress)">
+                            In Progress
+                        </MudMenuItem>
+                        <MudMenuItem OnClick="@(() => UpdateStatusWithConfirm(ProjectStatus.OnHold))"
+                                     Disabled="@(_project.Status == StatusStrings.ProjectOnHold)">
+                            On Hold
+                        </MudMenuItem>
+                        <MudMenuItem OnClick="@(() => UpdateStatusWithConfirm(ProjectStatus.Completed))"
+                                     Disabled="@(_project.Status == StatusStrings.ProjectCompleted)">
+                            Completed
+                        </MudMenuItem>
+                    </MudMenu>
+                </div>
+            </DetailInfoCard>
         </MudItem>
         <MudItem xs="12" md="7">
-            <MudPaper Elevation="0" Outlined="true" Class="pa-6">
-                <MudText Typo="Typo.subtitle2" Class="mb-4">
-                    <MudIcon Icon="@Icons.Material.Filled.AccountCircle" Class="mr-2" />
-                    Client Information
-                </MudText>
-                <MudList T="string" Dense="true">
-                    <MudListItem T="string">
-                        <MudText Typo="Typo.body2" Class="text-secondary">Client</MudText>
-                        <MudLink Href="@($"/clients/{_project.ClientId}")">
-                            <MudText Typo="Typo.body1">@_project.ClientName</MudText>
-                        </MudLink>
-                    </MudListItem>
-                    <MudListItem T="string">
-                        <MudText Typo="Typo.body2" Class="text-secondary">Email</MudText>
-                        <MudText Typo="Typo.body1">@_project.ClientEmail</MudText>
-                    </MudListItem>
-                    <MudListItem T="string">
-                        <MudText Typo="Typo.body2" Class="text-secondary">Phone</MudText>
-                        <MudText Typo="Typo.body1">@_project.ClientPhone</MudText>
-                    </MudListItem>
-                </MudList>
-            </MudPaper>
+            <DetailInfoCard Title="Client Information"
+                            Fields="@(new List<DetailField>
+                            {
+                                new() { Label = "Name", Value = _project.ClientName, IsLink = true, Href = $"/clients/{_project.ClientId}" },
+                                new() { Label = "Email", Value = _project.ClientEmail ?? "—" },
+                                new() { Label = "Phone", Value = !string.IsNullOrEmpty(_project.ClientPhone) ? _project.ClientPhone : "—" }
+                            })" />
         </MudItem>
     </MudGrid>
 
@@ -202,7 +156,7 @@ else
                         <MudLink Href="@($"/invoices/{context.Id}")">@context.InvoiceNumber</MudLink>
                     </MudTd>
                     <MudTd DataLabel="Status">
-                        <StatusChip Status="@context.Status">@context.Status</StatusChip>
+                        <StatusChip Status="@context.Status" />
                     </MudTd>
                     <MudTd DataLabel="Amount">@Currency.Format(context.Total)</MudTd>
                     <MudTd DataLabel="Issue Date">@context.IssueDate.ToString(DateFormats.Display)</MudTd>

@@ -7,9 +7,10 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 
-<PageHeader Title="Create Invoice" />
+<PageHeader Title="Create Invoice" Icon="@Icons.Material.Filled.AddCard" />
 
-<ErrorAlert Message="@_errorMessage" />
+<ErrorAlert Message="@_errorMessage"
+            OnDismiss="@(() => _errorMessage = null)" />
 
 @if (_loading)
 {
@@ -187,7 +188,8 @@ else
 
             <FormActions SaveLabel="Create Invoice"
                          CancelHref="/invoices"
-                         Disabled="@(!_isValid)"
+                         Disabled="@(!_isValid || _saving)"
+                         Saving="@_saving"
                          OnSave="@(async () => await SaveAsync())" />
         </MudForm>
     </FormCard>
@@ -197,6 +199,7 @@ else
     private MudForm _form = null!;
     private bool _isValid;
     private bool _loading = true;
+    private bool _saving;
     private string? _errorMessage;
 
     private List<ClientOptionDto> _clients = [];
@@ -263,38 +266,39 @@ else
         await _form.ValidateAsync();
         if (!_isValid || _dueDate is null || _selectedClientId == Guid.Empty) return;
 
-        var request = new CreateInvoiceRequest(
-            _selectedClientId,
-            _billType,
-            DateOnly.FromDateTime(_dueDate.Value),
-            _discountAmount,
-            _isAbbreviated,
-            _buyerPan,
-            _buyerAddress,
-            _selectedProjectId,
-            string.IsNullOrWhiteSpace(_projectRemark) ? null : _projectRemark,
-            _items
-                .Where(i => !string.IsNullOrWhiteSpace(i.Description))
-                .Select((i, idx) => new InvoiceItemDto
-                {
-                    LineNo = idx + 1,
-                    Description = i.Description.Trim(),
-                    HsCode = _billType == BillType.VatBill ? i.HsCode : null,
-                    Unit = i.Unit,
-                    Quantity = i.Quantity,
-                    UnitPrice = i.UnitPrice,
-                    ProjectId = i.ProjectId
-                })
-                .ToList());
-
-        if (request.Items.Count == 0)
-        {
-            Snackbar.Add("At least one line item is required.", Severity.Warning);
-            return;
-        }
-
+        _saving = true;
         try
         {
+            var request = new CreateInvoiceRequest(
+                _selectedClientId,
+                _billType,
+                DateOnly.FromDateTime(_dueDate.Value),
+                _discountAmount,
+                _isAbbreviated,
+                _buyerPan,
+                _buyerAddress,
+                _selectedProjectId,
+                string.IsNullOrWhiteSpace(_projectRemark) ? null : _projectRemark,
+                _items
+                    .Where(i => !string.IsNullOrWhiteSpace(i.Description))
+                    .Select((i, idx) => new InvoiceItemDto
+                    {
+                        LineNo = idx + 1,
+                        Description = i.Description.Trim(),
+                        HsCode = _billType == BillType.VatBill ? i.HsCode : null,
+                        Unit = i.Unit,
+                        Quantity = i.Quantity,
+                        UnitPrice = i.UnitPrice,
+                        ProjectId = i.ProjectId
+                    })
+                    .ToList());
+
+            if (request.Items.Count == 0)
+            {
+                Snackbar.Add("At least one line item is required.", Severity.Warning);
+                return;
+            }
+
             await InvoiceService.CreateAsync(request);
             Snackbar.Add("Invoice created successfully.", Severity.Success);
             Navigation.NavigateTo("/invoices");
@@ -302,6 +306,10 @@ else
         catch (Exception ex)
         {
             Snackbar.Add($"Failed to create invoice: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
         }
     }
 }

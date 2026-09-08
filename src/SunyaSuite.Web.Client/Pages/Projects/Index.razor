@@ -7,7 +7,7 @@
 @inject IJSRuntime JsRuntime
 @inject IDialogService DialogService
 
-<PageHeader Title="Projects" />
+<PageHeader Title="Projects" Icon="@Icons.Material.Filled.Folder" />
 
 <IndexToolbar @bind-SearchTerm="_searchTerm"
               OnSearch="@(async (v) => { _searchTerm = v; await _table.ReloadServerData(); })"
@@ -72,7 +72,7 @@
             <MudLink Href="@($"/clients/{context.ClientId}")">@context.ClientName</MudLink>
         </MudTd>
         <MudTd DataLabel="Status">
-            <StatusChip Status="@context.Status">@context.Status</StatusChip>
+            <StatusChip Status="@context.Status" />
         </MudTd>
         <MudTd DataLabel="Deadline">@context.Deadline.ToString(DateFormats.Display)</MudTd>
         <MudTd DataLabel="Progress">
@@ -80,9 +80,36 @@
             <MudText Typo="Typo.caption" Class="ml-1">@context.ProgressPercent%</MudText>
         </MudTd>
         <MudTd DataLabel="Actions">
-            <ActionButtons ViewHref="@($"/projects/{context.Id}")"
-                           EditHref="@($"/projects/edit/{context.Id}")"
-                           OnDelete="@(() => PromptDelete(context.Id, context.Name))" />
+            <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true">
+                <MudMenuItem Href="@($"/projects/{context.Id}")" Icon="@Icons.Material.Filled.Visibility">View</MudMenuItem>
+                <MudMenuItem Href="@($"/projects/edit/{context.Id}")" Icon="@Icons.Material.Filled.Edit">Edit</MudMenuItem>
+                <MudDivider />
+                <MudMenuItem OnClick="@(() => UpdateProjectStatus(context.Id, context.Name, ProjectStatus.NotStarted))"
+                             Disabled="@(context.Status == StatusStrings.ProjectNotStarted)"
+                             Icon="@Icons.Material.Filled.PlayArrow" IconColor="Color.Default">
+                    Not Started
+                </MudMenuItem>
+                <MudMenuItem OnClick="@(() => UpdateProjectStatus(context.Id, context.Name, ProjectStatus.InProgress))"
+                             Disabled="@(context.Status == StatusStrings.ProjectInProgress)"
+                             Icon="@Icons.Material.Filled.Bolt" IconColor="Color.Info">
+                    In Progress
+                </MudMenuItem>
+                <MudMenuItem OnClick="@(() => UpdateProjectStatus(context.Id, context.Name, ProjectStatus.OnHold))"
+                             Disabled="@(context.Status == StatusStrings.ProjectOnHold)"
+                             Icon="@Icons.Material.Filled.Pause" IconColor="Color.Warning">
+                    On Hold
+                </MudMenuItem>
+                <MudMenuItem OnClick="@(() => UpdateProjectStatus(context.Id, context.Name, ProjectStatus.Completed))"
+                             Disabled="@(context.Status == StatusStrings.ProjectCompleted)"
+                             Icon="@Icons.Material.Filled.CheckCircle" IconColor="Color.Success">
+                    Completed
+                </MudMenuItem>
+                <MudDivider />
+                <MudMenuItem OnClick="@(() => PromptDelete(context.Id, context.Name))"
+                             Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error">
+                    Delete
+                </MudMenuItem>
+            </MudMenu>
         </MudTd>
     </RowTemplate>
 
@@ -174,6 +201,31 @@
         await _table.ReloadServerData();
     }
 
+    private async Task UpdateProjectStatus(Guid id, string name, ProjectStatus status)
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(
+            "Update Status",
+            new DialogParameters
+            {
+                { "Message", $"Change \"{name}\" status to {FormatStatus(status.ToString())}?" }
+            },
+            new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            try
+            {
+                await ProjectService.UpdateStatusAsync(id, status);
+                Snackbar.Add($"\"{name}\" status updated to {FormatStatus(status.ToString())}.", Severity.Success);
+                await _table.ReloadServerData();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to update status: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
     private async Task ExportProjects()
     {
         _exporting = true;
@@ -218,4 +270,7 @@
             }
         }
     }
+
+    private static string FormatStatus(string status) =>
+        string.Concat(status.Select((c, i) => i > 0 && char.IsUpper(c) ? " " + c : c.ToString()));
 }

@@ -6,7 +6,7 @@
 @inject IJSRuntime JsRuntime
 @inject IDialogService DialogService
 
-<PageHeader Title="Clients" />
+<PageHeader Title="Clients" Icon="@Icons.Material.Filled.People" />
 
 <IndexToolbar @bind-SearchTerm="_searchTerm"
               OnSearch="@(async (v) => { _searchTerm = v; await _table.ReloadServerData(); })"
@@ -59,12 +59,34 @@
         <MudTd DataLabel="Email">@context.Email</MudTd>
         <MudTd DataLabel="Company">@context.Company</MudTd>
         <MudTd DataLabel="Status">
-            <StatusChip Status="@context.Status">@context.Status</StatusChip>
+            <StatusChip Status="@context.Status" />
         </MudTd>
         <MudTd DataLabel="Actions">
-            <ActionButtons ViewHref="@($"/clients/{context.Id}")"
-                           EditHref="@($"/clients/edit/{context.Id}")"
-                           OnDelete="@(() => PromptDelete(context.Id, context.Name))" />
+            <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true">
+                <MudMenuItem Href="@($"/clients/{context.Id}")" Icon="@Icons.Material.Filled.Visibility">View</MudMenuItem>
+                <MudMenuItem Href="@($"/clients/edit/{context.Id}")" Icon="@Icons.Material.Filled.Edit">Edit</MudMenuItem>
+                <MudDivider />
+                <MudMenuItem OnClick="@(() => UpdateClientStatus(context.Id, context.Name, ClientStatus.Green))"
+                             Icon="@Icons.Material.Filled.Circle"
+                             IconColor="@(context.Status == StatusStrings.ClientGreen ? Color.Success : Color.Default)">
+                    Green
+                </MudMenuItem>
+                <MudMenuItem OnClick="@(() => UpdateClientStatus(context.Id, context.Name, ClientStatus.Yellow))"
+                             Icon="@Icons.Material.Filled.Circle"
+                             IconColor="@(context.Status == StatusStrings.ClientYellow ? Color.Warning : Color.Default)">
+                    Yellow
+                </MudMenuItem>
+                <MudMenuItem OnClick="@(() => UpdateClientStatus(context.Id, context.Name, ClientStatus.Red))"
+                             Icon="@Icons.Material.Filled.Circle"
+                             IconColor="@(context.Status == StatusStrings.ClientRed ? Color.Error : Color.Default)">
+                    Red
+                </MudMenuItem>
+                <MudDivider />
+                <MudMenuItem OnClick="@(() => PromptDelete(context.Id, context.Name))"
+                             Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error">
+                    Delete
+                </MudMenuItem>
+            </MudMenu>
         </MudTd>
     </RowTemplate>
 
@@ -140,6 +162,31 @@
         await _table.ReloadServerData();
     }
 
+    private async Task UpdateClientStatus(Guid id, string name, ClientStatus status)
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(
+            "Update Status",
+            new DialogParameters
+            {
+                { "Message", $"Change \"{name}\" status to {FormatStatus(status.ToString())}?" }
+            },
+            new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            try
+            {
+                await ClientService.UpdateStatusAsync(id, status);
+                Snackbar.Add($"\"{name}\" status updated to {FormatStatus(status.ToString())}.", Severity.Success);
+                await _table.ReloadServerData();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to update status: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
     private async Task ExportClients()
     {
         _exporting = true;
@@ -184,4 +231,7 @@
             }
         }
     }
+
+    private static string FormatStatus(string status) =>
+        string.Concat(status.Select((c, i) => i > 0 && char.IsUpper(c) ? " " + c : c.ToString()));
 }

@@ -190,6 +190,34 @@ public class ClientService : IClientService
         return MapToListItem(existing);
     }
 
+    public async Task UpdateStatusAsync(Guid id, ClientStatus status, CancellationToken ct = default)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync(ct);
+
+        var companyId = await GetRequiredCompanyIdAsync(ct);
+
+        var client = await context.Clients
+            .ForCompany(companyId)
+            .FirstOrDefaultAsync(c => c.Id == id, ct);
+
+        if (client is null)
+            throw new KeyNotFoundException($"Client {id} not found");
+
+        if (client.IsDeleted)
+            throw new InvalidOperationException("Cannot update a deleted client.");
+
+        if (client.Status == status)
+            return;
+
+        var userId = await GetCurrentUserIdAsync();
+
+        client.Status = status;
+
+        AuditLogHelper.Add(context, companyId, userId, "StatusChanged", "Client", client.Id.ToString(), $"{client.Name} → {status}", _timeProvider);
+
+        await context.SaveChangesAsync(ct);
+    }
+
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);

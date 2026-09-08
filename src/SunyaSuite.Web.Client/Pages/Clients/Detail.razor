@@ -2,9 +2,10 @@
 @attribute [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
 @inject IClientService ClientService
 
-<PageHeader Title="@(_client?.Name ?? "Client Details")" />
+<PageHeader Title="@(_client is null ? "Client Details" : _client.Name)" Icon="@Icons.Material.Filled.Person" />
 
-<ErrorAlert Message="@_errorMessage" />
+<ErrorAlert Message="@_errorMessage"
+            OnDismiss="@(() => _errorMessage = null)" />
 
 @if (_loading)
 {
@@ -16,15 +17,6 @@ else if (_client is null)
 }
 else
 {
-    <MudText Typo="Typo.h4" Class="mb-4">
-        @_client.Name
-        <StatusChip Status="@_client.Status">@_client.Status</StatusChip>
-    </MudText>
-
-    <MudText Typo="Typo.caption" Class="text-secondary mt-1 mb-4" Style="display: block;">
-        Status is auto-calculated: Green = no overdue invoices, Yellow = invoice due within 7 days, Red = overdue invoice exists.
-    </MudText>
-
     <MudGrid>
         <MudItem xs="12" md="4">
             <DetailInfoCard Title="Client Details"
@@ -61,8 +53,10 @@ else
                             <MudTh>Progress</MudTh>
                         </HeaderContent>
                         <RowTemplate>
-                            <MudTd>@context.Name</MudTd>
-                            <MudTd>@context.Status</MudTd>
+                            <MudTd>
+                                <MudLink Href="@($"/projects/{context.Id}")">@context.Name</MudLink>
+                            </MudTd>
+                            <MudTd><StatusChip Status="@context.Status" /></MudTd>
                             <MudTd>
                                 <MudProgressLinear Value="@context.ProgressPercent"
                                                    Class="rounded" Style="max-width: 200px;" />
@@ -90,11 +84,13 @@ else
                             <MudTh>Status</MudTh>
                         </HeaderContent>
                         <RowTemplate>
-                            <MudTd>@context.InvoiceNumber</MudTd>
+                            <MudTd>
+                                <MudLink Href="@($"/invoices/{context.Id}")">@context.InvoiceNumber</MudLink>
+                            </MudTd>
                             <MudTd>@context.IssueDate.ToString(DateFormats.Display)</MudTd>
                             <MudTd>@Currency.Format(context.Total)</MudTd>
                             <MudTd>
-                                <StatusChip Status="@context.Status">@context.Status</StatusChip>
+                                <StatusChip Status="@context.Status" />
                             </MudTd>
                         </RowTemplate>
                     </MudTable>

@@ -8,7 +8,8 @@
 
 <PageHeader Title="Reports" />
 
-<ErrorAlert Message="@_errorMessage" />
+<ErrorAlert Message="@_errorMessage"
+            OnDismiss="@(() => _errorMessage = null)" />
 
 <div class="d-flex align-center justify-space-between mb-6">
     <div class="d-flex align-center">

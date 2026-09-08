@@ -7,31 +7,34 @@
 @inject IJSRuntime JsRuntime
 @inject IDialogService DialogService
 
-<PageHeader Title="Receipts" />
+<PageHeader Title="Receipts" Icon="@Icons.Material.Filled.ReceiptLong" />
 
-<div class="d-flex align-center mb-4">
-    <MudButton Variant="Variant.Filled" Color="Color.Primary"
-               StartIcon="@Icons.Material.Filled.Add"
-               Href="/receipts/create" Class="mr-4">
-        Create Receipt
-    </MudButton>
-    <MudSelect T="Guid?" Label="Fiscal Year"
-               Clearable="true" Variant="Variant.Outlined"
-               ValueChanged="@(async (Guid? v) => { _fiscalYearId = v; await _table.ReloadServerData(); })"
-               Value="@_fiscalYearId"
-               Class="mud-select-small mud-select-min-width">
+<IndexToolbar @bind-SearchTerm="_searchTerm"
+              OnSearch="@(async (v) => { _searchTerm = v; await _table.ReloadServerData(); })"
+              SearchPlaceholder="Search by receipt # or received from..."
+              ShowFilter="true"
+              OnToggleFilter="@ToggleFilterPanel"
+              AddHref="/receipts/create"
+              AddLabel="Create Receipt" />
+
+<FilterPanel Visible="_showFilters"
+             OnApply="@ApplyFilters"
+             OnClear="@ClearFilters">
+    <MudText Typo="Typo.subtitle2" Class="mb-2">Fiscal Year</MudText>
+    <MudSelect T="Guid?" Label="Select FY" @bind-Value="_fiscalYearId"
+               Clearable="true" AnchorOrigin="Origin.BottomCenter">
         @foreach (var fy in _fiscalYears)
         {
             <MudSelectItem T="Guid?" Value="@fy.Id" @key="fy.Id">
-                @fy.YearName @(fy.IsCurrent ? "(Current)" : "")
+                @fy.YearName @(fy.IsCurrent ? "(Current)" : fy.IsOpen ? "" : "(Closed)")
             </MudSelectItem>
         }
     </MudSelect>
-</div>
+</FilterPanel>
 
 <MudTable T="MoneyReceiptListItemDto" ServerData="@(async (state, ct) => await ServerReload(state, ct))"
           Dense="true" Hover="true" Striped="true"
-          Outlined="true" Elevation="0"
+          Outlined="true" Elevation="0" Class="mt-4"
           @ref="_table">
 
     <ColGroup>
@@ -66,13 +69,20 @@
         <MudTd DataLabel="Method">@context.PaymentMethod</MudTd>
         <MudTd DataLabel="Date">@context.DateAD.ToString(DateFormats.Display)</MudTd>
         <MudTd DataLabel="Actions">
-            <MudTooltip Text="Download PDF">
-                <MudIconButton Icon="@Icons.Material.Filled.Download" Size="Size.Small" Color="Color.Info"
-                               aria-label="Download PDF"
-                               OnClick="@(() => DownloadPdf(context.Id, context.ReceiptNumber))" />
-            </MudTooltip>
-            <ActionButtons ViewHref="@($"/receipts/{context.Id}")"
-                           OnDelete="@(() => PromptDelete(context.Id, context.ReceiptNumber))" />
+            <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true">
+                <MudMenuItem Href="@($"/receipts/{context.Id}")" Icon="@Icons.Material.Filled.Visibility">View</MudMenuItem>
+                <MudMenuItem Href="@($"/receipts/edit/{context.Id}")" Icon="@Icons.Material.Filled.Edit">Edit</MudMenuItem>
+                <MudDivider />
+                <MudMenuItem Icon="@Icons.Material.Filled.Download"
+                             OnClick="@(() => DownloadPdf(context.Id, context.ReceiptNumber))">
+                    Download PDF
+                </MudMenuItem>
+                <MudDivider />
+                <MudMenuItem OnClick="@(() => PromptDelete(context.Id, context.ReceiptNumber))"
+                             Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error">
+                    Delete
+                </MudMenuItem>
+            </MudMenu>
         </MudTd>
     </RowTemplate>
 
@@ -85,9 +95,17 @@
 </MudTable>
 
 @code {
+    private string? _searchTerm;
     private MudTable<MoneyReceiptListItemDto> _table = null!;
+
+    private bool _showFilters;
     private Guid? _fiscalYearId;
     private List<FiscalYearListItemDto> _fiscalYears = [];
+
+    private void ToggleFilterPanel()
+    {
+        _showFilters = !_showFilters;
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -118,7 +136,7 @@
             var result = await MoneyReceiptService.GetPagedAsync(
                 state.Page + 1,
                 state.PageSize,
-                null,
+                _searchTerm,
                 state.SortLabel,
                 sortDirection,
                 _fiscalYearId,
@@ -131,6 +149,17 @@
             Snackbar.Add($"Failed to load receipts: {ex.Message}", Severity.Error);
             return new TableData<MoneyReceiptListItemDto> { Items = [], TotalItems = 0 };
         }
+    }
+
+    private async Task ApplyFilters()
+    {
+        await _table.ReloadServerData();
+    }
+
+    private async Task ClearFilters()
+    {
+        _fiscalYearId = null;
+        await _table.ReloadServerData();
     }
 
     private async Task DownloadPdf(Guid id, string receiptNumber)

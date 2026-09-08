@@ -10,7 +10,7 @@
 @inject IJSRuntime JsRuntime
 @inject IDialogService DialogService
 
-<PageHeader Title="Invoices" />
+<PageHeader Title="Invoices" Icon="@Icons.Material.Filled.Receipt" />
 
 <IndexToolbar @bind-SearchTerm="_searchTerm"
               OnSearch="@(async (v) => { _searchTerm = v; await _table.ReloadServerData(); })"
@@ -117,25 +117,53 @@
         <MudTd DataLabel="Total">@Currency.Format(context.Total)</MudTd>
         <MudTd DataLabel="Due Date">@context.DueDate.ToString(DateFormats.Display)</MudTd>
         <MudTd DataLabel="Status">
-            <StatusChip Status="@context.Status">@context.Status</StatusChip>
+            <StatusChip Status="@context.Status" />
         </MudTd>
         <MudTd DataLabel="Actions">
-            <MudTooltip Text="Download PDF">
-                <MudIconButton Icon="@Icons.Material.Filled.Download" Size="Size.Small" Color="Color.Info"
-                               aria-label="Download PDF"
-                               OnClick="@(() => DownloadPdf(context.Id, context.InvoiceNumber))" />
-            </MudTooltip>
-            <MudTooltip Text="Send Email">
-                <MudIconButton Icon="@Icons.Material.Filled.Email" Size="Size.Small" Color="Color.Primary"
-                               Disabled="_sendingEmail"
-                               aria-label="Send invoice email"
-                               OnClick="@(() => SendInvoiceEmail(context.Id, context.InvoiceNumber, context.ClientName))" />
-            </MudTooltip>
-            <ActionButtons ViewHref="@($"/invoices/{context.Id}")"
-                           EditHref="@(context.Status == StatusStrings.InvoiceDraft ? $"/invoices/edit/{context.Id}" : null)"
-                           ShowEdit="@(context.Status == StatusStrings.InvoiceDraft)"
-                           OnDelete="@(() => PromptDelete(context.Id, context.InvoiceNumber))"
-                           ShowDelete="@(context.Status == StatusStrings.InvoiceDraft)" />
+            <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true">
+                <MudMenuItem Href="@($"/invoices/{context.Id}")" Icon="@Icons.Material.Filled.Visibility">View</MudMenuItem>
+                @if (context.Status == StatusStrings.InvoiceDraft)
+                {
+                    <MudMenuItem Href="@($"/invoices/edit/{context.Id}")" Icon="@Icons.Material.Filled.Edit">Edit</MudMenuItem>
+                }
+                <MudDivider />
+                <MudMenuItem Icon="@Icons.Material.Filled.Download"
+                             OnClick="@(() => DownloadPdf(context.Id, context.InvoiceNumber))">
+                    Download PDF
+                </MudMenuItem>
+                @if (EmailService.IsConfigured && context.Status != StatusStrings.InvoiceDraft)
+                {
+                    <MudMenuItem Icon="@Icons.Material.Filled.Email"
+                                 Disabled="_sendingEmail"
+                                 OnClick="@(() => SendInvoiceEmail(context.Id, context.InvoiceNumber, context.ClientName))">
+                        Send Email
+                    </MudMenuItem>
+                }
+                <MudDivider />
+                @if (context.Status is StatusStrings.InvoiceDraft or StatusStrings.InvoiceSent)
+                {
+                    <MudMenuItem OnClick="@(() => UpdateInvoiceStatus(context.Id, context.InvoiceNumber, InvoiceStatus.Sent))"
+                                 Disabled="@(context.Status == StatusStrings.InvoiceSent)"
+                                 Icon="@Icons.Material.Filled.Send" IconColor="Color.Info">
+                        Mark as Sent
+                    </MudMenuItem>
+                }
+                @if (context.Status is StatusStrings.InvoiceSent or StatusStrings.InvoiceOverdue)
+                {
+                    <MudMenuItem OnClick="@(() => UpdateInvoiceStatus(context.Id, context.InvoiceNumber, InvoiceStatus.Paid))"
+                                 Icon="@Icons.Material.Filled.CheckCircle" IconColor="Color.Success">
+                        Mark as Paid
+                    </MudMenuItem>
+                }
+                @if (context.Status == StatusStrings.InvoiceDraft)
+                {
+                    <MudDivider />
+                    <MudMenuItem OnClick="@(() => PromptDelete(context.Id, context.InvoiceNumber))"
+                                 Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error">
+                        Delete
+                    </MudMenuItem>
+                }
+            </MudMenu>
         </MudTd>
     </RowTemplate>
 
@@ -243,6 +271,31 @@
         await _table.ReloadServerData();
     }
 
+    private async Task UpdateInvoiceStatus(Guid id, string invoiceNumber, InvoiceStatus status)
+    {
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>(
+            "Update Status",
+            new DialogParameters
+            {
+                { "Message", $"Change invoice \"{invoiceNumber}\" status to {FormatStatus(status.ToString())}?" }
+            },
+            new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            try
+            {
+                await InvoiceService.UpdateStatusAsync(id, status);
+                Snackbar.Add($"Invoice {invoiceNumber} marked as {FormatStatus(status.ToString())}.", Severity.Success);
+                await _table.ReloadServerData();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to update status: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
     private async Task ExportInvoices()
     {
         _exporting = true;
@@ -321,7 +374,7 @@
             {
                 var pdfBytes = await PdfService.GeneratePdfAsync(invoice);
                 var formattedTotal = Currency.Format(invoice.Total);
-                var htmlBody = $@"<html><body style='font-family:sans-serif;'><h2>Invoice {invoiceNumber}</h2><p>Dear {clientName},</p><p>Please find your invoice attached.</p><table border='1' cellpadding='8' style='border-collapse:collapse;'><tr><th>Invoice #</th><th>Amount</th><th>Date</th></tr><tr><td>{invoiceNumber}</td><td>{formattedTotal}</td><td>{invoice.IssueDate.ToString(DateFormats.Display)}</td></tr></table><p>Thank you for your business.</p></body></html>";
+                var htmlBody = EmailTemplateHelper.BuildInvoiceEmailBody(invoiceNumber, clientName, formattedTotal, invoice.IssueDate.ToString(DateFormats.Display));
                 await EmailService.SendWithAttachmentAsync(invoice.ClientEmail, $"Invoice {invoiceNumber} from SunyaSuite", htmlBody, $"Invoice_{invoiceNumber}.pdf", pdfBytes);
                 Snackbar.Add($"Invoice sent to {invoice.ClientEmail}.", Severity.Success);
             }
@@ -360,4 +413,7 @@
             }
         }
     }
+
+    private static string FormatStatus(string status) =>
+        string.Concat(status.Select((c, i) => i > 0 && char.IsUpper(c) ? " " + c : c.ToString()));
 }

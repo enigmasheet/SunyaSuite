@@ -16,7 +16,8 @@
     <MudCardContent>
         <MudText Typo="Typo.h5" Align="Align.Center" Class="mb-8">Sign in to SunyaSuite</MudText>
 
-        <ErrorAlert Message="@_errorMessage" />
+        <ErrorAlert Message="@_errorMessage"
+            OnDismiss="@(() => _errorMessage = "")" />
 
         <MudForm @ref="_form" @bind-IsValid="@_isValid" @bind-Errors="@_errors">
             <MudTextField @bind-Value="_email" Label="Email" Variant="Variant.Outlined" Class="mb-4" Required="true"

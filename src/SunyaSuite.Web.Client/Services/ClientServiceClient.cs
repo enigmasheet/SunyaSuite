@@ -1,6 +1,7 @@
 using SunyaSuite.Application.DTOs;
 using SunyaSuite.Application.DTOs.Tenant;
 using SunyaSuite.Application.Interfaces.Tenant;
+using SunyaSuite.Domain.Enums;
 using System.Net.Http.Json;
 
 namespace SunyaSuite.Web.Client.Services;
@@ -39,6 +40,9 @@ public class ClientServiceClient : IClientService
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<ClientListItemDto>(cancellationToken: ct))!;
     }
+
+    public async Task UpdateStatusAsync(Guid id, ClientStatus status, CancellationToken ct = default) =>
+        (await _http.PatchAsJsonAsync($"{ApiEndpoints.Clients}/{id}/status", new { status }, ct)).EnsureSuccessStatusCode();
 
     public async Task DeleteAsync(Guid id, CancellationToken ct = default) =>
         (await _http.DeleteAsync($"{ApiEndpoints.Clients}/{id}", ct)).EnsureSuccessStatusCode();
