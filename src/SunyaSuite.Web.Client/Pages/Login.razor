@@ -81,6 +81,12 @@
 
     private async Task HandleLogin()
     {
+        if (_form is not null)
+            await _form.ValidateAsync();
+
+        if (!_isValid)
+            return;
+
         _loading = true;
         _errorMessage = "";
 
@@ -131,7 +137,12 @@
         }
 
         await AuthStateProvider.NotifyAuthenticationStateChanged();
-        Navigation.NavigateTo("/", forceLoad: true);
+
+        var destination = "/";
+        if (!string.IsNullOrEmpty(_returnUrl) && _returnUrl.StartsWith('/') && !_returnUrl.StartsWith("//"))
+            destination = _returnUrl;
+
+        Navigation.NavigateTo(destination, forceLoad: true);
     }
 
     private record AuthResponse(string AccessToken, DateTime ExpiresAt, string RefreshToken, string UserId, string Email, IList<string> Roles, List<OrganizationDto>? Organizations);

@@ -17,6 +17,7 @@ public class TenantMiddleware(RequestDelegate next)
         "/api/auth/forgot-password",
         "/api/auth/refresh",
         "/api/auth/change-password",
+        "/api/auth/logout",
         "/api/organizations/my",
         "/api/organizations/deleted",
         "/api/admin/dashboard",
@@ -36,6 +37,7 @@ public class TenantMiddleware(RequestDelegate next)
             TenantNotRequiredPaths.Contains(path)
             || TenantNotRequiredPrefixes.Any(p =>
                 path.StartsWith(p, StringComparison.OrdinalIgnoreCase)
+                && (path.Length == p.Length || path[p.Length] == '/' || path[p.Length] == '?')
             )
         )
         {
@@ -69,37 +71,29 @@ public class TenantMiddleware(RequestDelegate next)
 
         tenantContext.SetTenant(org.Id, org.Slug, org.ConnectionString);
 
+        // Validate membership — reject non-members
         var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (userId is not null)
+        if (string.IsNullOrEmpty(userId))
         {
-            var orgUser = await configDb.OrganizationUsers.FirstOrDefaultAsync(ou =>
-                ou.OrganizationId == org.Id && ou.UserId == userId
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            await context.Response.WriteAsJsonAsync(new { message = "User not authenticated." });
+            return;
+        }
+
+        var orgUser = await configDb.OrganizationUsers.FirstOrDefaultAsync(ou =>
+            ou.OrganizationId == org.Id && ou.UserId == userId
+        );
+
+        if (orgUser is null)
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await context.Response.WriteAsJsonAsync(
+                new { message = "You are not a member of this organization." }
             );
-
-            if (orgUser is not null)
-            {
-                tenantContext.SetCompany(orgUser.DefaultCompanyId, orgUser.DefaultBranchId);
-            }
+            return;
         }
 
-        if (!tenantContext.CompanyId.HasValue && tenantContext.HasTenant)
-        {
-            var fallbackConnStr = tenantContext.ConnectionString;
-            if (!string.IsNullOrEmpty(fallbackConnStr))
-            {
-                var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
-                optionsBuilder.UseNpgsql(fallbackConnStr);
-                using var tenantDb = new ApplicationDbContext(
-                    optionsBuilder.Options,
-                    TimeProvider.System
-                );
-                var firstCompany = await tenantDb
-                    .Companies.AsNoTracking()
-                    .FirstOrDefaultAsync(c => c.IsActive);
-                if (firstCompany is not null)
-                    tenantContext.SetCompany(firstCompany.Id, null);
-            }
-        }
+        tenantContext.SetCompany(orgUser.DefaultCompanyId, orgUser.DefaultBranchId);
 
         await next(context);
     }

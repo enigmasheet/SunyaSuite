@@ -14,6 +14,7 @@ public class AuthMessageHandler : DelegatingHandler
     private readonly NavigationManager _navigation;
     private readonly IHttpClientFactory _httpClientFactory;
     private static readonly SemaphoreSlim RefreshLock = new(1, 1);
+    private static readonly string RetriedHeader = "X-Auth-Retried";
 
     public AuthMessageHandler(
         TokenManager tokenManager,
@@ -40,15 +41,29 @@ public class AuthMessageHandler : DelegatingHandler
         var token = await _tokenManager.GetAccessTokenAsync();
         var hasAccessToken = !string.IsNullOrEmpty(token);
 
+        // If no access token but we have a refresh token, try refresh before sending
+        if (!hasAccessToken)
+        {
+            var hasRefresh = !string.IsNullOrEmpty(await _tokenManager.GetRefreshTokenAsync());
+            if (hasRefresh)
+            {
+                var refreshed = await TryRefreshTokenAsync(ct);
+                if (refreshed)
+                {
+                    token = await _tokenManager.GetAccessTokenAsync();
+                    hasAccessToken = !string.IsNullOrEmpty(token);
+                }
+            }
+        }
         // Proactively refresh if access token is about to expire
-        if (hasAccessToken && _tokenManager.IsAccessTokenExpiringSoon())
+        else if (_tokenManager.IsAccessTokenExpiringSoon())
         {
             var refreshed = await TryRefreshTokenAsync(ct);
             if (refreshed)
                 token = await _tokenManager.GetAccessTokenAsync();
         }
 
-        if (hasAccessToken)
+        if (hasAccessToken && !string.IsNullOrEmpty(token))
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var orgSlug = await _orgManager.GetActiveSlugAsync();
@@ -57,35 +72,41 @@ public class AuthMessageHandler : DelegatingHandler
 
         var response = await base.SendAsync(request, ct);
 
-        // If 401 and we have a refresh token, try to refresh and retry once
-        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized && hasAccessToken)
+        // If 401, try refresh and retry once (unless already retried)
+        if (
+            response.StatusCode == System.Net.HttpStatusCode.Unauthorized
+            && !request.Headers.Contains(RetriedHeader)
+        )
         {
+            response.Dispose();
             var renewed = await TryRefreshTokenAsync(ct);
             if (renewed)
             {
                 var newToken = await _tokenManager.GetAccessTokenAsync();
                 if (!string.IsNullOrEmpty(newToken))
                 {
-                    request.Headers.Authorization = new AuthenticationHeaderValue(
-                        "Bearer",
-                        newToken
-                    );
-                    response = await base.SendAsync(request, ct);
+                    var retryRequest = await CloneRequestAsync(request);
+                    retryRequest.Headers.Add(RetriedHeader, "1");
+                    response = await base.SendAsync(retryRequest, ct);
                 }
             }
-            else
-            {
-                await _tokenManager.ClearAllAsync();
-                if (_authStateProvider is JwtAuthenticationStateProvider jwtProvider)
-                    await jwtProvider.NotifyAuthenticationStateChanged();
+        }
 
-                // Guard: don't redirect if already on login page
-                if (!_navigation.Uri.Contains("/login"))
-                {
-                    var returnUrl = Uri.EscapeDataString(_navigation.Uri);
-                    _navigation.NavigateTo($"/login?returnUrl={returnUrl}", forceLoad: true);
-                }
-            }
+        // If still no access token or refresh failed, redirect to login
+        if (
+            response.StatusCode == System.Net.HttpStatusCode.Unauthorized
+            && !_navigation.Uri.Contains("/login")
+        )
+        {
+            response.Dispose();
+            await _tokenManager.ClearAllAsync();
+            if (_authStateProvider is JwtAuthenticationStateProvider jwtProvider)
+                await jwtProvider.NotifyAuthenticationStateChanged();
+
+            var returnUrl = Uri.EscapeDataString(_navigation.Uri);
+            _navigation.NavigateTo($"/login?returnUrl={returnUrl}", forceLoad: true);
+
+            return new HttpResponseMessage(System.Net.HttpStatusCode.OK);
         }
 
         return response;
@@ -105,7 +126,7 @@ public class AuthMessageHandler : DelegatingHandler
                 return false;
 
             var renewClient = _httpClientFactory.CreateClient("Renew");
-            var renewResponse = await renewClient.PostAsJsonAsync(
+            using var renewResponse = await renewClient.PostAsJsonAsync(
                 ApiEndpoints.AuthPaths.Refresh,
                 new { refreshToken },
                 ct
@@ -132,6 +153,25 @@ public class AuthMessageHandler : DelegatingHandler
         {
             RefreshLock.Release();
         }
+    }
+
+    private static async Task<HttpRequestMessage> CloneRequestAsync(HttpRequestMessage request)
+    {
+        var clone = new HttpRequestMessage(request.Method, request.RequestUri);
+
+        foreach (var header in request.Headers)
+            clone.Headers.TryAddWithoutValidation(header.Key, header.Value);
+
+        if (request.Content is not null)
+        {
+            var contentBytes = await request.Content.ReadAsByteArrayAsync();
+            clone.Content = new ByteArrayContent(contentBytes);
+
+            if (request.Content.Headers.ContentType is not null)
+                clone.Content.Headers.ContentType = request.Content.Headers.ContentType;
+        }
+
+        return clone;
     }
 
     private record RefreshResponse(string AccessToken, DateTime ExpiresAt, string RefreshToken);

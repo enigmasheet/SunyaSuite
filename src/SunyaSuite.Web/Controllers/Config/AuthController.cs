@@ -97,7 +97,7 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = "Invalid email or password" });
 
         var (accessToken, expiresAt) = await _jwtTokenService.GenerateAccessTokenAsync(user);
-        var refreshToken = await _jwtTokenService.GenerateRefreshTokenAsync(
+        var (refreshEntity, rawRefreshToken) = await _jwtTokenService.GenerateRefreshTokenAsync(
             user,
             HttpContext.Connection.RemoteIpAddress?.ToString()
         );
@@ -108,7 +108,7 @@ public class AuthController : ControllerBase
             new AuthResponse(
                 accessToken,
                 expiresAt,
-                refreshToken.TokenHash,
+                rawRefreshToken,
                 user.Id,
                 user.Email ?? "",
                 roles,
@@ -186,7 +186,6 @@ public class AuthController : ControllerBase
 
         if (refreshToken.IsRevoked)
         {
-            // Token reuse detected — revoke entire family
             await _jwtTokenService.RevokeRefreshTokenFamilyAsync(
                 refreshToken.TokenHash,
                 "Token reuse detected"
@@ -206,12 +205,11 @@ public class AuthController : ControllerBase
         if (!await _userManager.IsEmailConfirmedAsync(user))
             return Unauthorized(new { message = "Email not confirmed" });
 
-        // Rotate: revoke old, issue new
-        var newRefreshToken = await _jwtTokenService.RotateRefreshTokenAsync(
+        var rotated = await _jwtTokenService.RotateRefreshTokenAsync(
             refreshToken,
             HttpContext.Connection.RemoteIpAddress?.ToString()
         );
-        if (newRefreshToken is null)
+        if (rotated is null)
             return Unauthorized(new { message = "Failed to rotate refresh token" });
 
         var (accessToken, expiresAt) = await _jwtTokenService.GenerateAccessTokenAsync(user);
@@ -222,7 +220,7 @@ public class AuthController : ControllerBase
             new AuthResponse(
                 accessToken,
                 expiresAt,
-                newRefreshToken.TokenHash,
+                rotated.Value.rawToken,
                 user.Id,
                 user.Email ?? "",
                 roles,
@@ -287,8 +285,7 @@ public class AuthController : ControllerBase
                 }
             );
 
-        // Revoke all refresh tokens after password change
-        await _jwtTokenService.RevokeRefreshTokenFamilyAsync("", "Password changed");
+        await _jwtTokenService.RevokeRefreshTokensByUserIdAsync(userId, "Password changed");
 
         return Ok(new { message = "Password changed successfully" });
     }

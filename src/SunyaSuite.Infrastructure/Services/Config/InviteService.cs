@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using SunyaSuite.Application.DTOs.Config;
@@ -5,7 +6,6 @@ using SunyaSuite.Application.Interfaces.Config;
 using SunyaSuite.Application.Settings;
 using SunyaSuite.Domain.Entities.Config;
 using SunyaSuite.Infrastructure.Data.Config;
-using System.Security.Cryptography;
 
 namespace SunyaSuite.Infrastructure.Services.Config;
 
@@ -18,7 +18,8 @@ public class InviteService : IInviteService
     public InviteService(
         IDbContextFactory<ConfigDbContext> contextFactory,
         TimeProvider timeProvider,
-        IOptions<InviteSettings> settings)
+        IOptions<InviteSettings> settings
+    )
     {
         _contextFactory = contextFactory;
         _timeProvider = timeProvider;
@@ -26,16 +27,21 @@ public class InviteService : IInviteService
     }
 
     public async Task<(List<InviteDto> Items, int Total)> GetPagedAsync(
-        Guid organizationId, int page, int pageSize, string? searchTerm = null, CancellationToken ct = default)
+        Guid organizationId,
+        int page,
+        int pageSize,
+        string? searchTerm = null,
+        CancellationToken ct = default
+    )
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
-        var query = context.Invites
-            .Where(i => i.OrganizationId == organizationId)
-            .AsQueryable();
+        var query = context.Invites.Where(i => i.OrganizationId == organizationId).AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
-            query = query.Where(i => i.Code.Contains(searchTerm) || i.UsedByEmail!.Contains(searchTerm));
+            query = query.Where(i =>
+                i.Code.Contains(searchTerm) || i.UsedByEmail!.Contains(searchTerm)
+            );
 
         var total = await query.CountAsync(ct);
         var items = await query
@@ -52,14 +58,20 @@ public class InviteService : IInviteService
                 CreatedAt = i.CreatedAt,
                 ExpiresAt = i.ExpiresAt,
                 UsedByEmail = i.UsedByEmail,
-                UsedAt = i.UsedAt
+                UsedAt = i.UsedAt,
             })
             .ToListAsync(ct);
 
         return (items, total);
     }
 
-    public async Task<InviteDto> CreateAsync(Guid organizationId, string role, int? expiresInHours, string createdByUserId, CancellationToken ct = default)
+    public async Task<InviteDto> CreateAsync(
+        Guid organizationId,
+        string role,
+        int? expiresInHours,
+        string createdByUserId,
+        CancellationToken ct = default
+    )
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
@@ -95,16 +107,24 @@ public class InviteService : IInviteService
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
         var invite = await context.Invites.FirstOrDefaultAsync(i => i.Code == code, ct);
-        if (invite is null) return false;
-        if (invite.IsUsed) return false;
-        if (_timeProvider.GetUtcNow().UtcDateTime > invite.ExpiresAt) return false;
+        if (invite is null)
+            return false;
+        if (invite.IsUsed)
+            return false;
+        if (_timeProvider.GetUtcNow().UtcDateTime > invite.ExpiresAt)
+            return false;
         return true;
     }
 
-    public async Task<(string Role, string Code, Guid OrganizationId)> ConsumeInviteAsync(string code, string usedByEmail, CancellationToken ct = default)
+    public async Task<(string Role, string Code, Guid OrganizationId)> ConsumeInviteAsync(
+        string code,
+        string usedByEmail,
+        CancellationToken ct = default
+    )
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
-        var invite = await context.Invites.FirstOrDefaultAsync(i => i.Code == code, ct)
+        var invite =
+            await context.Invites.FirstOrDefaultAsync(i => i.Code == code, ct)
             ?? throw new InvalidOperationException("Invalid invite code.");
 
         if (invite.IsUsed)
@@ -124,7 +144,7 @@ public class InviteService : IInviteService
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
-        var invite = await context.Invites.FindAsync([id], ct);
+        var invite = await context.Invites.FirstOrDefaultAsync(i => i.Id == id, ct);
         if (invite is not null)
         {
             context.Invites.Remove(invite);
@@ -132,14 +152,16 @@ public class InviteService : IInviteService
         }
     }
 
-    private static async Task<string> GenerateUniqueCodeAsync(ConfigDbContext context, CancellationToken ct)
+    private static async Task<string> GenerateUniqueCodeAsync(
+        ConfigDbContext context,
+        CancellationToken ct
+    )
     {
         string code;
         do
         {
             code = GenerateCode();
-        }
-        while (await context.Invites.AnyAsync(i => i.Code == code, ct));
+        } while (await context.Invites.AnyAsync(i => i.Code == code, ct));
         return code;
     }
 
@@ -158,16 +180,17 @@ public class InviteService : IInviteService
         return new string(result);
     }
 
-    private static InviteDto MapToDto(Invite invite) => new()
-    {
-        Id = invite.Id,
-        OrganizationId = invite.OrganizationId,
-        Code = invite.Code,
-        Role = invite.Role,
-        IsUsed = invite.IsUsed,
-        CreatedAt = invite.CreatedAt,
-        ExpiresAt = invite.ExpiresAt,
-        UsedByEmail = invite.UsedByEmail,
-        UsedAt = invite.UsedAt
-    };
+    private static InviteDto MapToDto(Invite invite) =>
+        new()
+        {
+            Id = invite.Id,
+            OrganizationId = invite.OrganizationId,
+            Code = invite.Code,
+            Role = invite.Role,
+            IsUsed = invite.IsUsed,
+            CreatedAt = invite.CreatedAt,
+            ExpiresAt = invite.ExpiresAt,
+            UsedByEmail = invite.UsedByEmail,
+            UsedAt = invite.UsedAt,
+        };
 }

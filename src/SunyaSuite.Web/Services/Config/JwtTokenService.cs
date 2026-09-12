@@ -79,16 +79,21 @@ public class JwtTokenService
     public Task<(string token, DateTime expiresAt)> GenerateTokenAsync(ApplicationUser user) =>
         GenerateAccessTokenAsync(user);
 
-    public async Task<RefreshToken> GenerateRefreshTokenAsync(
+    /// <summary>
+    /// Generates a new refresh token. Returns the raw token string (for the client)
+    /// and stores only its SHA-256 hash in the database.
+    /// </summary>
+    public async Task<(RefreshToken entity, string rawToken)> GenerateRefreshTokenAsync(
         ApplicationUser user,
         string? createdByIp = null
     )
     {
+        var rawToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
         var refreshToken = new RefreshToken
         {
             Id = Guid.NewGuid(),
             UserId = user.Id,
-            TokenHash = HashToken(RandomNumberGenerator.GetBytes(64)),
+            TokenHash = HashTokenString(rawToken),
             CreatedByIp = createdByIp,
             CreatedAt = _timeProvider.GetUtcNow().UtcDateTime,
             ExpiresAt = _timeProvider
@@ -100,7 +105,7 @@ public class JwtTokenService
         configDb.RefreshTokens.Add(refreshToken);
         await configDb.SaveChangesAsync();
 
-        return refreshToken;
+        return (refreshToken, rawToken);
     }
 
     public async Task<RefreshToken?> GetRefreshTokenAsync(string tokenHash)
@@ -109,16 +114,21 @@ public class JwtTokenService
         return await configDb.RefreshTokens.FirstOrDefaultAsync(rt => rt.TokenHash == tokenHash);
     }
 
-    public async Task<RefreshToken?> RotateRefreshTokenAsync(
+    /// <summary>
+    /// Rotates a refresh token. Returns the new raw token string (for the client)
+    /// and stores only its hash. The old token is revoked.
+    /// </summary>
+    public async Task<(RefreshToken entity, string rawToken)?> RotateRefreshTokenAsync(
         RefreshToken oldRefreshToken,
         string? createdByIp = null
     )
     {
+        var rawToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
         var newRefreshToken = new RefreshToken
         {
             Id = Guid.NewGuid(),
             UserId = oldRefreshToken.UserId,
-            TokenHash = HashToken(RandomNumberGenerator.GetBytes(64)),
+            TokenHash = HashTokenString(rawToken),
             CreatedByIp = createdByIp,
             CreatedAt = _timeProvider.GetUtcNow().UtcDateTime,
             ExpiresAt = _timeProvider
@@ -136,9 +146,33 @@ public class JwtTokenService
         configDb.RefreshTokens.Add(newRefreshToken);
         await configDb.SaveChangesAsync();
 
-        return newRefreshToken;
+        return (newRefreshToken, rawToken);
     }
 
+    /// <summary>
+    /// Revokes all non-revoked refresh tokens for a user.
+    /// </summary>
+    public async Task RevokeRefreshTokensByUserIdAsync(string userId, string reason)
+    {
+        await using var configDb = await _configFactory.CreateDbContextAsync();
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        var tokensToRevoke = await configDb
+            .RefreshTokens.Where(rt => rt.UserId == userId && !rt.IsRevoked)
+            .ToListAsync();
+
+        foreach (var t in tokensToRevoke)
+        {
+            t.RevokedAt = now;
+            t.ReasonRevoked = reason;
+        }
+
+        await configDb.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Revokes all non-revoked refresh tokens for the user who owns the given token hash.
+    /// Used for token-reuse detection.
+    /// </summary>
     public async Task RevokeRefreshTokenFamilyAsync(string tokenHash, string reason)
     {
         await using var configDb = await _configFactory.CreateDbContextAsync();
@@ -148,7 +182,6 @@ public class JwtTokenService
         if (token is null)
             return;
 
-        // Revoke the token and all tokens it replaced (the family)
         var now = _timeProvider.GetUtcNow().UtcDateTime;
         var tokensToRevoke = await configDb
             .RefreshTokens.Where(rt => rt.UserId == token.UserId && !rt.IsRevoked)
@@ -191,9 +224,6 @@ public class JwtTokenService
             return null;
         }
     }
-
-    public static string HashToken(byte[] tokenBytes) =>
-        Convert.ToHexString(SHA256.HashData(tokenBytes)).ToLowerInvariant();
 
     public static string HashTokenString(string token) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token))).ToLowerInvariant();

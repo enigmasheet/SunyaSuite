@@ -27,7 +27,8 @@ public class AuditController : ControllerBase
         [FromQuery] string? entityName = null,
         [FromQuery] DateTime? dateFrom = null,
         [FromQuery] DateTime? dateTo = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var filter = new AuditLogFilterDto(searchTerm, action, entityName, dateFrom, dateTo);
         var result = await _auditService.GetRecentAsync(page, pageSize, filter, ct);
@@ -50,11 +51,29 @@ public class AuditController : ControllerBase
 
     [HttpPost]
     [Authorize(Policy = PolicyNames.OrgMemberOrAbove)]
-    public async Task<ActionResult> Log([FromBody] LogRequest request, CancellationToken ct = default)
+    public async Task<ActionResult> Log(
+        [FromBody] LogRequest request,
+        CancellationToken ct = default
+    )
     {
-        await _auditService.LogAsync(request.UserId, request.Action, request.EntityName, request.EntityId, request.Details, ct);
+        // Use the authenticated user's ID, not the client-supplied one
+        var userId =
+            User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "Unknown";
+        await _auditService.LogAsync(
+            userId,
+            request.Action,
+            request.EntityName,
+            request.EntityId,
+            request.Details,
+            ct
+        );
         return NoContent();
     }
 
-    public record LogRequest(string UserId, string Action, string EntityName, string EntityId, string? Details = null);
+    public record LogRequest(
+        string Action,
+        string EntityName,
+        string EntityId,
+        string? Details = null
+    );
 }

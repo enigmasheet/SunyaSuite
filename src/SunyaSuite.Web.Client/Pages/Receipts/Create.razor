@@ -64,12 +64,6 @@ else
                     }
                 </MudSelect>
             </MudItem>
-            <MudItem xs="12" md="4">
-                <MudTextField @bind-Value="_model.Notes"
-                              Label="Notes"
-                              Lines="2"
-                              For="@(() => _model.Notes)" />
-            </MudItem>
         </MudGrid>
     </FormCard>
 
@@ -306,8 +300,7 @@ else
                 _model.ReferenceNo,
                 _model.ReceivedFromName,
                 _model.ReceivedFromPan,
-                _model.ReceivedFromAddress,
-                _model.Notes);
+                _model.ReceivedFromAddress);
 
             var result = await MoneyReceiptService.CreateAsync(request);
             Snackbar.Add($"Receipt {result.ReceiptNumber} created.", Severity.Success);
@@ -380,7 +373,6 @@ else
         public string? ReceivedFromPan { get; set; }
         public string? ReceivedFromAddress { get; set; }
         public string? ReferenceNo { get; set; }
-        public string Notes { get; set; } = string.Empty;
     }
 
     private class SelectedInvoiceRow

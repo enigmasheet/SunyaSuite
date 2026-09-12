@@ -23,8 +23,13 @@ public class ClientStatusCalculator : IClientStatusCalculator
             return ClientStatus.Red;
 
         var today = DateOnly.FromDateTime(_timeProvider.GetUtcNow().UtcDateTime);
-        if (activeInvoices.Any(i => i.Status == InvoiceStatus.Sent
-                                 && i.DueDate <= today.AddDays(YellowStatusThresholdDays)))
+        if (
+            activeInvoices.Any(i =>
+                i.Status == InvoiceStatus.Sent
+                && i.DueDate >= today
+                && i.DueDate <= today.AddDays(YellowStatusThresholdDays)
+            )
+        )
             return ClientStatus.Yellow;
 
         return ClientStatus.Green;

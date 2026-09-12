@@ -145,4 +145,27 @@ public class InvoiceTests
         invoice.Subtotal.Should().Be(0m);
         invoice.Total.Should().Be(-100m);
     }
+
+    [Fact]
+    public void RecordPayment_OverPayment_Throws()
+    {
+        var invoice = CreateInvoice();
+        invoice.Recalculate();
+
+        var act = () => invoice.RecordPayment(invoice.Total + 1m);
+
+        act.Should().Throw<InvalidOperationException>().WithMessage("*exceed invoice total*");
+    }
+
+    [Fact]
+    public void RecordPayment_ExactTotal_Allowed()
+    {
+        var invoice = CreateInvoice();
+        invoice.Recalculate();
+
+        invoice.RecordPayment(invoice.Total);
+
+        invoice.AmountPaid.Should().Be(invoice.Total);
+        invoice.IsFullyPaid.Should().BeTrue();
+    }
 }

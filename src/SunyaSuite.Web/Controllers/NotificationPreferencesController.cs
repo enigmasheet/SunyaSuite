@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SunyaSuite.Application.Interfaces.Config;
@@ -12,24 +13,43 @@ public class NotificationPreferencesController : ControllerBase
 {
     private readonly INotificationPreferenceService _notificationPreferenceService;
 
-    public NotificationPreferencesController(INotificationPreferenceService notificationPreferenceService)
+    public NotificationPreferencesController(
+        INotificationPreferenceService notificationPreferenceService
+    )
     {
         _notificationPreferenceService = notificationPreferenceService;
     }
 
     [HttpGet("{userId}")]
-    public async Task<ActionResult<List<NotificationPreferenceDto>>> GetForUser(string userId, CancellationToken ct = default)
+    public async Task<ActionResult<List<NotificationPreferenceDto>>> GetForUser(
+        string userId,
+        CancellationToken ct = default
+    )
     {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (currentUserId != userId && !User.IsInRole(RoleNames.SystemAdmin))
+            return Forbid();
+
         var preferences = await _notificationPreferenceService.GetForUserAsync(userId, ct);
-        var dtos = preferences.Select(p => new NotificationPreferenceDto(p.Id, p.UserId, p.Type, p.EmailEnabled)).ToList();
+        var dtos = preferences
+            .Select(p => new NotificationPreferenceDto(p.Id, p.UserId, p.Type, p.EmailEnabled))
+            .ToList();
         return Ok(dtos);
     }
 
     public record ToggleRequest(string Type, bool Enabled);
 
     [HttpPost("{userId}/toggle")]
-    public async Task<ActionResult> Toggle(string userId, [FromBody] ToggleRequest request, CancellationToken ct = default)
+    public async Task<ActionResult> Toggle(
+        string userId,
+        [FromBody] ToggleRequest request,
+        CancellationToken ct = default
+    )
     {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (currentUserId != userId && !User.IsInRole(RoleNames.SystemAdmin))
+            return Forbid();
+
         await _notificationPreferenceService.ToggleAsync(userId, request.Type, request.Enabled, ct);
         return NoContent();
     }
@@ -37,6 +57,10 @@ public class NotificationPreferencesController : ControllerBase
     [HttpPost("{userId}/seed")]
     public async Task<ActionResult> SeedDefaults(string userId, CancellationToken ct = default)
     {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (currentUserId != userId && !User.IsInRole(RoleNames.SystemAdmin))
+            return Forbid();
+
         await _notificationPreferenceService.SeedDefaultsAsync(userId, ct);
         return NoContent();
     }

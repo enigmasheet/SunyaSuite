@@ -10,5 +10,5 @@ public sealed record UpdateMoneyReceiptRequest(
     string? ReferenceNo,
     string ReceivedFromName,
     string? ReceivedFromPan,
-    string? ReceivedFromAddress,
-    string Notes);
+    string? ReceivedFromAddress
+);

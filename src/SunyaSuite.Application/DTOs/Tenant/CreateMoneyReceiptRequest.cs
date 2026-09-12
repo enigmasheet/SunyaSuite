@@ -9,5 +9,5 @@ public sealed record CreateMoneyReceiptRequest(
     string? ReferenceNo,
     string ReceivedFromName,
     string? ReceivedFromPan,
-    string? ReceivedFromAddress,
-    string Notes);
+    string? ReceivedFromAddress
+);

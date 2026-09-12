@@ -34,7 +34,8 @@ public class InvoiceService : IInvoiceService
         IFiscalYearService fiscalYearService,
         IOptions<VatSettings> vatSettings,
         ITenantContext tenantContext,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider
+    )
     {
         _contextFactory = contextFactory;
         _authStateProvider = authStateProvider;
@@ -47,8 +48,8 @@ public class InvoiceService : IInvoiceService
         _tenantContext = tenantContext;
     }
 
-    private Task<Guid> GetRequiredCompanyIdAsync(CancellationToken ct = default)
-        => TenantServiceHelper.GetRequiredCompanyIdAsync(_contextFactory, _tenantContext, ct);
+    private Task<Guid> GetRequiredCompanyIdAsync(CancellationToken ct = default) =>
+        TenantServiceHelper.GetRequiredCompanyIdAsync(_contextFactory, _tenantContext, ct);
 
     private Task<decimal> GetVatRateAsync(CancellationToken ct = default)
     {
@@ -56,8 +57,8 @@ public class InvoiceService : IInvoiceService
         return Task.FromResult(rate > 0 ? rate : 13m);
     }
 
-    private Task<string> GetCurrentUserIdAsync()
-        => TenantServiceHelper.GetCurrentUserIdAsync(_authStateProvider);
+    private Task<string> GetCurrentUserIdAsync() =>
+        TenantServiceHelper.GetCurrentUserIdAsync(_authStateProvider);
 
     public async Task<InvoiceDetailDto?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
@@ -65,8 +66,8 @@ public class InvoiceService : IInvoiceService
 
         var companyId = await GetRequiredCompanyIdAsync(ct);
 
-        var invoice = await context.Invoices
-            .Include(i => i.Client)
+        var invoice = await context
+            .Invoices.Include(i => i.Client)
             .Include(i => i.Items)
                 .ThenInclude(it => it.Project)
             .Include(i => i.CompanyInfo)
@@ -74,7 +75,7 @@ public class InvoiceService : IInvoiceService
             .Include(i => i.Project)
             .Include(i => i.ReceiptAllocations)
                 .ThenInclude(a => a.MoneyReceipt)
-                .ThenInclude(mr => mr.FiscalYearInfo)
+                    .ThenInclude(mr => mr.FiscalYearInfo)
             .AsSplitQuery()
             .ForCompany(companyId)
             .FirstOrDefaultAsync(i => i.Id == id, ct);
@@ -83,27 +84,34 @@ public class InvoiceService : IInvoiceService
     }
 
     public async Task<PagedResult<InvoiceListItemDto>> GetPagedAsync(
-        int page, int pageSize, string? sortLabel, string? sortDirection,
-        string? searchTerm = null, InvoiceFilterDto? filter = null, CancellationToken ct = default)
+        int page,
+        int pageSize,
+        string? sortLabel,
+        string? sortDirection,
+        string? searchTerm = null,
+        InvoiceFilterDto? filter = null,
+        CancellationToken ct = default
+    )
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
         var companyId = await GetRequiredCompanyIdAsync(ct);
 
-        var query = context.Invoices
-            .Include(i => i.Client)
+        var query = context
+            .Invoices.Include(i => i.Client)
             .Include(i => i.FiscalYearInfo)
             .Include(i => i.Project)
             .AsNoTracking()
-            .ForCompany(companyId).Where(i => !i.IsDeleted)
+            .ForCompany(companyId)
+            .Where(i => !i.IsDeleted)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
             var term = searchTerm.ToLower();
             query = query.Where(i =>
-                i.InvoiceNumber.ToLower().Contains(term) ||
-                i.Client.Name.ToLower().Contains(term));
+                i.InvoiceNumber.ToLower().Contains(term) || i.Client.Name.ToLower().Contains(term)
+            );
         }
 
         if (filter?.Statuses is { Count: > 0 })
@@ -139,20 +147,19 @@ public class InvoiceService : IInvoiceService
             ("duedate", _) => query.OrderBy(i => i.DueDate),
             ("total", "desc") => query.OrderByDescending(i => i.Total),
             ("total", _) => query.OrderBy(i => i.Total),
-            _ => query.OrderByDescending(i => i.IssueDate)
+            _ => query.OrderByDescending(i => i.IssueDate),
         };
 
         var total = await query.CountAsync(ct);
-        var items = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(ct);
+        var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
 
-        return new PagedResult<InvoiceListItemDto>(
-            items.Select(MapToListItem).ToList(), total);
+        return new PagedResult<InvoiceListItemDto>(items.Select(MapToListItem).ToList(), total);
     }
 
-    public async Task<InvoiceListItemDto> CreateAsync(CreateInvoiceRequest request, CancellationToken ct = default)
+    public async Task<InvoiceListItemDto> CreateAsync(
+        CreateInvoiceRequest request,
+        CancellationToken ct = default
+    )
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
@@ -160,18 +167,20 @@ public class InvoiceService : IInvoiceService
         var now = _timeProvider.GetUtcNow().UtcDateTime;
         var fiscalYearLabel = _nepaliDateService.GetFiscalYear(now);
 
-        var fy = await _fiscalYearService.GetCurrentAsync(ct)
+        var fy =
+            await _fiscalYearService.GetCurrentAsync(ct)
             ?? throw new InvalidOperationException("No active fiscal year configured.");
 
         if (!fy.IsOpen)
-            throw new InvalidOperationException($"Fiscal year {fy.YearName} is closed. Cannot create invoices.");
+            throw new InvalidOperationException(
+                $"Fiscal year {fy.YearName} is closed. Cannot create invoices."
+            );
 
         var vatRate = await GetVatRateAsync(ct);
 
         var companyId = await GetRequiredCompanyIdAsync(ct);
 
-        var company = await context.Companies.AsNoTracking()
-            .FirstAsync(c => c.Id == companyId, ct);
+        var company = await context.Companies.AsNoTracking().FirstAsync(c => c.Id == companyId, ct);
 
         var invoice = new Invoice
         {
@@ -197,27 +206,41 @@ public class InvoiceService : IInvoiceService
             SellerPan = company.PanNumber,
             SellerAddress = company.Address,
             SellerPhone = company.Phone,
-            SellerLogoBase64 = company.LogoBase64
+            SellerLogoBase64 = company.LogoBase64,
         };
 
-        invoice.Items = request.Items.Select((item, idx) => new InvoiceItem
-        {
-            Id = Guid.NewGuid(),
-            InvoiceId = invoice.Id,
-            LineNo = item.LineNo > 0 ? item.LineNo : idx + 1,
-            Description = item.Description,
-            HsCode = item.HsCode,
-            Unit = item.Unit,
-            Quantity = item.Quantity,
-            UnitPrice = item.UnitPrice,
-            ProjectId = item.ProjectId
-        }).ToList();
+        invoice.Items = request
+            .Items.Select(
+                (item, idx) =>
+                    new InvoiceItem
+                    {
+                        Id = Guid.NewGuid(),
+                        InvoiceId = invoice.Id,
+                        LineNo = item.LineNo > 0 ? item.LineNo : idx + 1,
+                        Description = item.Description,
+                        HsCode = item.HsCode,
+                        Unit = item.Unit,
+                        Quantity = item.Quantity,
+                        UnitPrice = item.UnitPrice,
+                        ProjectId = item.ProjectId,
+                    }
+            )
+            .ToList();
 
         invoice.Recalculate(vatRate);
         invoice.GrandTotalInWords = _numberToWordsService.ToNepaliWords(invoice.Total);
 
         context.Invoices.Add(invoice);
-        AuditLogHelper.Add(context, companyId, userId, "Created", "Invoice", invoice.Id.ToString(), $"{invoice.InvoiceNumber} - Rs. {invoice.Total:N2}", _timeProvider);
+        AuditLogHelper.Add(
+            context,
+            companyId,
+            userId,
+            "Created",
+            "Invoice",
+            invoice.Id.ToString(),
+            $"{invoice.InvoiceNumber} - Rs. {invoice.Total:N2}",
+            _timeProvider
+        );
 
         await context.SaveChangesAsync(ct);
 
@@ -226,13 +249,16 @@ public class InvoiceService : IInvoiceService
         return MapToListItem(invoice);
     }
 
-    public async Task<InvoiceListItemDto> UpdateAsync(UpdateInvoiceRequest request, CancellationToken ct = default)
+    public async Task<InvoiceListItemDto> UpdateAsync(
+        UpdateInvoiceRequest request,
+        CancellationToken ct = default
+    )
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
         var companyId = await GetRequiredCompanyIdAsync(ct);
 
-        var existing = await context.Invoices
-            .Include(i => i.Items)
+        var existing = await context
+            .Invoices.Include(i => i.Items)
             .Include(i => i.Client)
             .Include(i => i.FiscalYearInfo)
             .Include(i => i.Project)
@@ -263,24 +289,38 @@ public class InvoiceService : IInvoiceService
         existing.BuyerPan = request.BuyerPan;
         existing.BuyerAddress = request.BuyerAddress;
 
-        existing.Items = request.Items.Select((item, idx) => new InvoiceItem
-        {
-            Id = Guid.NewGuid(),
-            InvoiceId = existing.Id,
-            LineNo = item.LineNo > 0 ? item.LineNo : idx + 1,
-            Description = item.Description,
-            HsCode = item.HsCode,
-            Unit = item.Unit,
-            Quantity = item.Quantity,
-            UnitPrice = item.UnitPrice,
-            ProjectId = item.ProjectId
-        }).ToList();
+        existing.Items = request
+            .Items.Select(
+                (item, idx) =>
+                    new InvoiceItem
+                    {
+                        Id = Guid.NewGuid(),
+                        InvoiceId = existing.Id,
+                        LineNo = item.LineNo > 0 ? item.LineNo : idx + 1,
+                        Description = item.Description,
+                        HsCode = item.HsCode,
+                        Unit = item.Unit,
+                        Quantity = item.Quantity,
+                        UnitPrice = item.UnitPrice,
+                        ProjectId = item.ProjectId,
+                    }
+            )
+            .ToList();
 
         existing.Recalculate(vatRate);
         existing.GrandTotalInWords = _numberToWordsService.ToNepaliWords(existing.Total);
 
         var userId = await GetCurrentUserIdAsync();
-        AuditLogHelper.Add(context, companyId, userId, "Updated", "Invoice", existing.Id.ToString(), existing.InvoiceNumber, _timeProvider);
+        AuditLogHelper.Add(
+            context,
+            companyId,
+            userId,
+            "Updated",
+            "Invoice",
+            existing.Id.ToString(),
+            existing.InvoiceNumber,
+            _timeProvider
+        );
 
         await context.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
@@ -288,22 +328,28 @@ public class InvoiceService : IInvoiceService
         return MapToListItem(existing);
     }
 
-    private static readonly Dictionary<InvoiceStatus, HashSet<InvoiceStatus>> AllowedStatusTransitions = new()
+    private static readonly Dictionary<
+        InvoiceStatus,
+        HashSet<InvoiceStatus>
+    > AllowedStatusTransitions = new()
     {
         [InvoiceStatus.Draft] = [InvoiceStatus.Sent],
         [InvoiceStatus.Sent] = [InvoiceStatus.Overdue, InvoiceStatus.Paid],
         [InvoiceStatus.Overdue] = [InvoiceStatus.Paid],
-        [InvoiceStatus.Paid] = []
+        [InvoiceStatus.Paid] = [],
     };
 
-    public async Task<List<InvoiceSelectionDto>> GetInvoiceSelectionAsync(Guid? fiscalYearId = null, CancellationToken ct = default)
+    public async Task<List<InvoiceSelectionDto>> GetInvoiceSelectionAsync(
+        Guid? fiscalYearId = null,
+        CancellationToken ct = default
+    )
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
         var companyId = await GetRequiredCompanyIdAsync(ct);
 
-        var query = context.Invoices
-            .Include(i => i.Client)
+        var query = context
+            .Invoices.Include(i => i.Client)
             .Include(i => i.FiscalYearInfo)
             .AsNoTracking()
             .Where(i => !i.IsDeleted && i.Status != InvoiceStatus.Draft)
@@ -316,19 +362,31 @@ public class InvoiceService : IInvoiceService
         return await query
             .OrderByDescending(i => i.IssueDate)
             .Select(i => new InvoiceSelectionDto(
-                i.Id, i.InvoiceNumber, i.Client.Name, i.Client.PanNumber, i.Client.Address, i.Total, i.AmountPaid, i.FiscalYearInfo.YearName))
+                i.Id,
+                i.InvoiceNumber,
+                i.Client.Name,
+                i.Client.PanNumber,
+                i.Client.Address,
+                i.Total,
+                i.AmountPaid,
+                i.FiscalYearInfo.YearName
+            ))
             .ToListAsync(ct);
     }
 
-    public async Task UpdateStatusAsync(Guid id, InvoiceStatus status, CancellationToken ct = default)
+    public async Task UpdateStatusAsync(
+        Guid id,
+        InvoiceStatus status,
+        CancellationToken ct = default
+    )
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
         var companyId = await GetRequiredCompanyIdAsync(ct);
 
-        var existing = await context.Invoices
-            .Include(i => i.Client)
-            .ThenInclude(c => c.Invoices)
+        var existing = await context
+            .Invoices.Include(i => i.Client)
+                .ThenInclude(c => c.Invoices)
             .ForCompany(companyId)
             .FirstOrDefaultAsync(i => i.Id == id, ct);
 
@@ -342,17 +400,29 @@ public class InvoiceService : IInvoiceService
         if (previousStatus == status)
             return;
 
-        if (!AllowedStatusTransitions.TryGetValue(previousStatus, out var allowed) || !allowed.Contains(status))
-            throw new InvalidOperationException($"Cannot transition invoice from {previousStatus} to {status}.");
+        if (
+            !AllowedStatusTransitions.TryGetValue(previousStatus, out var allowed)
+            || !allowed.Contains(status)
+        )
+            throw new InvalidOperationException(
+                $"Cannot transition invoice from {previousStatus} to {status}."
+            );
 
         existing.Status = status;
 
-        existing.Client.Status = _statusCalculator.Calculate(
-            existing.Client.Invoices);
+        existing.Client.Status = _statusCalculator.Calculate(existing.Client.Invoices);
 
         var userId = await GetCurrentUserIdAsync();
-        AuditLogHelper.Add(context, companyId, userId, "StatusChanged", "Invoice", existing.Id.ToString(),
-            $"{existing.InvoiceNumber}: {previousStatus} → {status}", _timeProvider);
+        AuditLogHelper.Add(
+            context,
+            companyId,
+            userId,
+            "StatusChanged",
+            "Invoice",
+            existing.Id.ToString(),
+            $"{existing.InvoiceNumber}: {previousStatus} → {status}",
+            _timeProvider
+        );
 
         await context.SaveChangesAsync(ct);
     }
@@ -363,12 +433,29 @@ public class InvoiceService : IInvoiceService
 
         var companyId = await GetRequiredCompanyIdAsync(ct);
 
-        var invoice = await context.Invoices.IgnoreQueryFilters().ForCompany(companyId).FirstOrDefaultAsync(i => i.Id == id, ct);
+        var invoice = await context
+            .Invoices.IgnoreQueryFilters()
+            .ForCompany(companyId)
+            .FirstOrDefaultAsync(i => i.Id == id, ct);
         if (invoice is null)
             throw new KeyNotFoundException($"Invoice {id} not found");
 
         if (invoice.IsDeleted)
             throw new InvalidOperationException("Invoice is already deleted.");
+
+        if (invoice.AmountPaid > 0)
+            throw new InvalidOperationException(
+                "Cannot delete an invoice that has payments recorded. Reverse or delete the associated receipts first."
+            );
+
+        var hasAllocations = await context.ReceiptInvoiceAllocations.AnyAsync(
+            a => a.InvoiceId == id,
+            ct
+        );
+        if (hasAllocations)
+            throw new InvalidOperationException(
+                "Cannot delete an invoice with receipt allocations. Remove the allocations first."
+            );
 
         var userId = await GetCurrentUserIdAsync();
         var invoiceNumber = invoice.InvoiceNumber;
@@ -376,20 +463,33 @@ public class InvoiceService : IInvoiceService
         invoice.IsDeleted = true;
         invoice.DeletedAt = _timeProvider.GetUtcNow().UtcDateTime;
 
-        AuditLogHelper.Add(context, companyId, userId, "SoftDeleted", "Invoice", id.ToString(), invoiceNumber, _timeProvider);
+        AuditLogHelper.Add(
+            context,
+            companyId,
+            userId,
+            "SoftDeleted",
+            "Invoice",
+            id.ToString(),
+            invoiceNumber,
+            _timeProvider
+        );
 
         await context.SaveChangesAsync(ct);
     }
 
     public async Task<PagedResult<DeletedInvoiceDto>> GetDeletedPagedAsync(
-        int page, int pageSize, string? searchTerm = null, CancellationToken ct = default)
+        int page,
+        int pageSize,
+        string? searchTerm = null,
+        CancellationToken ct = default
+    )
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
         var companyId = await GetRequiredCompanyIdAsync(ct);
 
-        var query = context.Invoices
-            .IgnoreQueryFilters()
+        var query = context
+            .Invoices.IgnoreQueryFilters()
             .Include(i => i.Client)
             .Include(i => i.FiscalYearInfo)
             .AsNoTracking()
@@ -401,20 +501,16 @@ public class InvoiceService : IInvoiceService
         {
             var term = searchTerm.ToLower();
             query = query.Where(i =>
-                i.InvoiceNumber.ToLower().Contains(term) ||
-                i.Client.Name.ToLower().Contains(term));
+                i.InvoiceNumber.ToLower().Contains(term) || i.Client.Name.ToLower().Contains(term)
+            );
         }
 
         query = query.OrderByDescending(i => i.DeletedAt);
 
         var total = await query.CountAsync(ct);
-        var items = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(ct);
+        var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
 
-        return new PagedResult<DeletedInvoiceDto>(
-            items.Select(MapToDeleted).ToList(), total);
+        return new PagedResult<DeletedInvoiceDto>(items.Select(MapToDeleted).ToList(), total);
     }
 
     public async Task RestoreAsync(Guid id, CancellationToken ct = default)
@@ -423,7 +519,10 @@ public class InvoiceService : IInvoiceService
 
         var companyId = await GetRequiredCompanyIdAsync(ct);
 
-        var invoice = await context.Invoices.IgnoreQueryFilters().ForCompany(companyId).FirstOrDefaultAsync(i => i.Id == id, ct);
+        var invoice = await context
+            .Invoices.IgnoreQueryFilters()
+            .ForCompany(companyId)
+            .FirstOrDefaultAsync(i => i.Id == id, ct);
         if (invoice is null)
             throw new KeyNotFoundException($"Invoice {id} not found");
 
@@ -435,7 +534,16 @@ public class InvoiceService : IInvoiceService
         invoice.IsDeleted = false;
         invoice.DeletedAt = null;
 
-        AuditLogHelper.Add(context, companyId, userId, "Restored", "Invoice", id.ToString(), invoice.InvoiceNumber, _timeProvider);
+        AuditLogHelper.Add(
+            context,
+            companyId,
+            userId,
+            "Restored",
+            "Invoice",
+            id.ToString(),
+            invoice.InvoiceNumber,
+            _timeProvider
+        );
 
         await context.SaveChangesAsync(ct);
     }
@@ -446,8 +554,8 @@ public class InvoiceService : IInvoiceService
 
         var companyId = await GetRequiredCompanyIdAsync(ct);
 
-        var invoice = await context.Invoices
-            .IgnoreQueryFilters()
+        var invoice = await context
+            .Invoices.IgnoreQueryFilters()
             .ForCompany(companyId)
             .Include(i => i.ReceiptAllocations)
             .FirstOrDefaultAsync(i => i.Id == id, ct);
@@ -455,48 +563,119 @@ public class InvoiceService : IInvoiceService
             throw new KeyNotFoundException($"Invoice {id} not found");
 
         if (invoice.ReceiptAllocations.Count > 0)
-            throw new InvalidOperationException("Cannot permanently delete an invoice with receipt allocations. Remove the allocations first.");
+            throw new InvalidOperationException(
+                "Cannot permanently delete an invoice with receipt allocations. Remove the allocations first."
+            );
 
         var userId = await GetCurrentUserIdAsync();
         var invoiceNumber = invoice.InvoiceNumber;
 
         context.Invoices.Remove(invoice);
-        AuditLogHelper.Add(context, companyId, userId, "PermanentDeleted", "Invoice", id.ToString(), invoiceNumber, _timeProvider);
+        AuditLogHelper.Add(
+            context,
+            companyId,
+            userId,
+            "PermanentDeleted",
+            "Invoice",
+            id.ToString(),
+            invoiceNumber,
+            _timeProvider
+        );
 
         await context.SaveChangesAsync(ct);
     }
 
-    private static InvoiceListItemDto MapToListItem(Invoice i) => new(
-        i.Id, i.InvoiceNumber, i.FiscalYearInfo?.YearName ?? "", i.BillType, i.ClientId, i.Client?.Name ?? "",
-        i.IssueDate, i.DueDate, i.Total, i.Status.ToString(), i.Project?.Name);
+    private static InvoiceListItemDto MapToListItem(Invoice i) =>
+        new(
+            i.Id,
+            i.InvoiceNumber,
+            i.FiscalYearInfo?.YearName ?? "",
+            i.BillType,
+            i.ClientId,
+            i.Client?.Name ?? "",
+            i.IssueDate,
+            i.DueDate,
+            i.Total,
+            i.Status.ToString(),
+            i.Project?.Name
+        );
 
-    private static InvoiceDetailDto MapToDetail(Invoice i) => new(
-        i.Id, i.ClientId, i.Client?.Name ?? "", i.Client?.Email ?? "", i.InvoiceNumber, i.FiscalYearInfo?.YearName ?? "", i.BillType,
-        i.IssueDate, i.DueDate, i.DateBS, i.Subtotal, i.TaxRate, i.DiscountAmount,
-        i.VatAmount, i.Total, i.GrandTotalInWords, i.IsAbbreviated, i.Status.ToString(),
-        i.BuyerPan, i.BuyerAddress, i.SellerName, i.SellerPan, i.SellerAddress, i.SellerPhone, i.SellerLogoBase64,
-        i.CompanyInfo?.Name ?? "", i.CompanyInfo?.Address ?? "", i.CompanyInfo?.PanNumber ?? "", i.CompanyInfo?.Phone ?? "",
-        i.ProjectId, i.Project?.Name, i.ProjectRemark,
-        i.Items.OrderBy(it => it.LineNo).Select(item => new InvoiceItemDto
-        {
-            Id = item.Id,
-            LineNo = item.LineNo,
-            Description = item.Description,
-            HsCode = item.HsCode,
-            Unit = item.Unit,
-            Quantity = item.Quantity,
-            UnitPrice = item.UnitPrice,
-            ProjectId = item.ProjectId,
-            ProjectName = item.Project?.Name
-        }).ToList(),
-        i.AmountPaid,
-        i.ReceiptAllocations.OrderByDescending(a => a.MoneyReceipt.DateAD).Select(a => new ReceiptAllocationDto(
-            a.Id, a.MoneyReceiptId, a.InvoiceId, a.MoneyReceipt.ReceiptNumber, a.MoneyReceipt.FiscalYearInfo?.YearName ?? "", a.AllocatedAmount, i.InvoiceNumber)).ToList());
+    private static InvoiceDetailDto MapToDetail(Invoice i) =>
+        new(
+            i.Id,
+            i.ClientId,
+            i.Client?.Name ?? "",
+            i.Client?.Email ?? "",
+            i.InvoiceNumber,
+            i.FiscalYearInfo?.YearName ?? "",
+            i.BillType,
+            i.IssueDate,
+            i.DueDate,
+            i.DateBS,
+            i.Subtotal,
+            i.TaxRate,
+            i.DiscountAmount,
+            i.VatAmount,
+            i.Total,
+            i.GrandTotalInWords,
+            i.IsAbbreviated,
+            i.Status.ToString(),
+            i.BuyerPan,
+            i.BuyerAddress,
+            i.SellerName,
+            i.SellerPan,
+            i.SellerAddress,
+            i.SellerPhone,
+            i.SellerLogoBase64,
+            i.CompanyInfo?.Name ?? "",
+            i.CompanyInfo?.Address ?? "",
+            i.CompanyInfo?.PanNumber ?? "",
+            i.CompanyInfo?.Phone ?? "",
+            i.ProjectId,
+            i.Project?.Name,
+            i.ProjectRemark,
+            i.Items.OrderBy(it => it.LineNo)
+                .Select(item => new InvoiceItemDto
+                {
+                    Id = item.Id,
+                    LineNo = item.LineNo,
+                    Description = item.Description,
+                    HsCode = item.HsCode,
+                    Unit = item.Unit,
+                    Quantity = item.Quantity,
+                    UnitPrice = item.UnitPrice,
+                    ProjectId = item.ProjectId,
+                    ProjectName = item.Project?.Name,
+                })
+                .ToList(),
+            i.AmountPaid,
+            i.ReceiptAllocations.OrderByDescending(a => a.MoneyReceipt.DateAD)
+                .Select(a => new ReceiptAllocationDto(
+                    a.Id,
+                    a.MoneyReceiptId,
+                    a.InvoiceId,
+                    a.MoneyReceipt.ReceiptNumber,
+                    a.MoneyReceipt.FiscalYearInfo?.YearName ?? "",
+                    a.AllocatedAmount,
+                    i.InvoiceNumber
+                ))
+                .ToList()
+        );
 
-    private static DeletedInvoiceDto MapToDeleted(Invoice i) => new(
-        i.Id, i.InvoiceNumber, i.Total, i.FiscalYearInfo?.YearName ?? "", i.BillType, i.DeletedAt);
+    private static DeletedInvoiceDto MapToDeleted(Invoice i) =>
+        new(
+            i.Id,
+            i.InvoiceNumber,
+            i.Total,
+            i.FiscalYearInfo?.YearName ?? "",
+            i.BillType,
+            i.DeletedAt
+        );
 
-    private static async Task<string> GenerateNumberAsync(ApplicationDbContext context, string fiscalYear)
+    private static async Task<string> GenerateNumberAsync(
+        ApplicationDbContext context,
+        string fiscalYear
+    )
     {
         var safeFiscalYear = fiscalYear.Replace("/", "_");
         if (safeFiscalYear.Any(c => !char.IsAsciiLetterOrDigit(c) && c != '_'))
@@ -506,10 +685,11 @@ public class InvoiceService : IInvoiceService
 
 #pragma warning disable EF1002
         await context.Database.ExecuteSqlRawAsync(
-            $"CREATE SEQUENCE IF NOT EXISTS \"{sequenceName}\" START 1");
+            $"CREATE SEQUENCE IF NOT EXISTS \"{sequenceName}\" START 1"
+        );
 
-        var nextSeq = await context.Database
-            .SqlQueryRaw<long>($"SELECT nextval('\"{sequenceName}\"') AS \"Value\"")
+        var nextSeq = await context
+            .Database.SqlQueryRaw<long>($"SELECT nextval('\"{sequenceName}\"') AS \"Value\"")
             .FirstAsync();
 #pragma warning restore EF1002
 

@@ -8,15 +8,31 @@ public class ExportServiceClient : IExportService
 
     public ExportServiceClient(HttpClient http) => _http = http;
 
-    public async Task<byte[]> ExportClientsAsync(CancellationToken ct = default) =>
-        await (await _http.GetAsync($"{ApiEndpoints.Export}/clients", ct)).Content.ReadAsByteArrayAsync(ct);
+    public async Task<byte[]> ExportClientsAsync(CancellationToken ct = default)
+    {
+        using var response = await _http.GetAsync($"{ApiEndpoints.Export}/clients", ct);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadAsByteArrayAsync(ct);
+    }
 
-    public async Task<byte[]> ExportProjectsAsync(CancellationToken ct = default) =>
-        await (await _http.GetAsync($"{ApiEndpoints.Export}/projects", ct)).Content.ReadAsByteArrayAsync(ct);
+    public async Task<byte[]> ExportProjectsAsync(CancellationToken ct = default)
+    {
+        using var response = await _http.GetAsync($"{ApiEndpoints.Export}/projects", ct);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadAsByteArrayAsync(ct);
+    }
 
-    public async Task<byte[]> ExportInvoicesAsync(CancellationToken ct = default) =>
-        await (await _http.GetAsync($"{ApiEndpoints.Export}/invoices", ct)).Content.ReadAsByteArrayAsync(ct);
+    public async Task<byte[]> ExportInvoicesAsync(CancellationToken ct = default)
+    {
+        using var response = await _http.GetAsync($"{ApiEndpoints.Export}/invoices", ct);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadAsByteArrayAsync(ct);
+    }
 
-    public async Task<byte[]> ExportReportsAsync(CancellationToken ct = default) =>
-        await (await _http.GetAsync($"{ApiEndpoints.Export}/reports", ct)).Content.ReadAsByteArrayAsync(ct);
+    public async Task<byte[]> ExportReportsAsync(CancellationToken ct = default)
+    {
+        using var response = await _http.GetAsync($"{ApiEndpoints.Export}/reports", ct);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadAsByteArrayAsync(ct);
+    }
 }

@@ -44,7 +44,8 @@ public class Invoice : ICompanyScoped
     public Client Client { get; set; } = null!;
     public Project? Project { get; set; }
     public ICollection<InvoiceItem> Items { get; set; } = new List<InvoiceItem>();
-    public ICollection<ReceiptInvoiceAllocation> ReceiptAllocations { get; set; } = new List<ReceiptInvoiceAllocation>();
+    public ICollection<ReceiptInvoiceAllocation> ReceiptAllocations { get; set; } =
+        new List<ReceiptInvoiceAllocation>();
 
     public void Recalculate(decimal vatRatePercentage = 13m)
     {
@@ -65,7 +66,15 @@ public class Invoice : ICompanyScoped
     public void RecordPayment(decimal amount)
     {
         if (amount <= 0)
-            throw new ArgumentOutOfRangeException(nameof(amount), "Payment amount must be positive.");
+            throw new ArgumentOutOfRangeException(
+                nameof(amount),
+                "Payment amount must be positive."
+            );
+
+        if (AmountPaid + amount > Total)
+            throw new InvalidOperationException(
+                $"Cannot record payment of {amount}: would exceed invoice total of {Total} (currently paid {AmountPaid})."
+            );
 
         AmountPaid += amount;
     }
@@ -73,7 +82,10 @@ public class Invoice : ICompanyScoped
     public void ReversePayment(decimal amount)
     {
         if (amount <= 0)
-            throw new ArgumentOutOfRangeException(nameof(amount), "Reversal amount must be positive.");
+            throw new ArgumentOutOfRangeException(
+                nameof(amount),
+                "Reversal amount must be positive."
+            );
 
         AmountPaid -= amount;
     }

@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -11,7 +12,6 @@ using SunyaSuite.Domain.Enums;
 using SunyaSuite.Infrastructure.Data.Config;
 using SunyaSuite.Infrastructure.Data.Tenant;
 using SunyaSuite.Infrastructure.DataSeeding;
-using System.Text.RegularExpressions;
 
 namespace SunyaSuite.Infrastructure.Services.Config;
 
@@ -30,7 +30,8 @@ public class OrganizationService : IOrganizationService
         ITenantContext tenantContext,
         IOptions<DatabaseSettings> databaseSettings,
         TimeProvider timeProvider,
-        UserManager<ApplicationUser> userManager)
+        UserManager<ApplicationUser> userManager
+    )
     {
         _configFactory = configFactory;
         _tenantFactory = tenantFactory;
@@ -44,8 +45,8 @@ public class OrganizationService : IOrganizationService
     {
         await using var configDb = await _configFactory.CreateDbContextAsync();
 
-        return await configDb.OrganizationUsers
-            .AsNoTracking()
+        return await configDb
+            .OrganizationUsers.AsNoTracking()
             .Where(ou => ou.UserId == userId)
             .Select(ou => new OrganizationDto
             {
@@ -53,7 +54,7 @@ public class OrganizationService : IOrganizationService
                 Name = ou.Organization.Name,
                 Slug = ou.Organization.Slug,
                 HasSeparateDatabase = ou.Organization.ConnectionString != null,
-                Role = ou.Role
+                Role = ou.Role,
             })
             .ToListAsync();
     }
@@ -61,8 +62,8 @@ public class OrganizationService : IOrganizationService
     public async Task<List<OrganizationDto>> GetAllAsync(CancellationToken ct = default)
     {
         await using var configDb = await _configFactory.CreateDbContextAsync(ct);
-        return await configDb.Organizations
-            .AsNoTracking()
+        return await configDb
+            .Organizations.AsNoTracking()
             .OrderBy(o => o.Name)
             .Select(o => new OrganizationDto
             {
@@ -71,12 +72,17 @@ public class OrganizationService : IOrganizationService
                 Slug = o.Slug,
                 HasSeparateDatabase = o.ConnectionString != null,
                 IsActive = o.IsActive,
-                CreatedAt = o.CreatedAt
+                CreatedAt = o.CreatedAt,
             })
             .ToListAsync(ct);
     }
 
-    public async Task<(List<OrganizationDto> Items, int Total)> GetPagedAsync(int page, int pageSize, string? searchTerm = null, CancellationToken ct = default)
+    public async Task<(List<OrganizationDto> Items, int Total)> GetPagedAsync(
+        int page,
+        int pageSize,
+        string? searchTerm = null,
+        CancellationToken ct = default
+    )
     {
         await using var configDb = await _configFactory.CreateDbContextAsync(ct);
         var query = configDb.Organizations.AsNoTracking().AsQueryable();
@@ -85,8 +91,8 @@ public class OrganizationService : IOrganizationService
         {
             var term = searchTerm.ToLower();
             query = query.Where(o =>
-                o.Name.ToLower().Contains(term) ||
-                o.Slug.ToLower().Contains(term));
+                o.Name.Contains(term, StringComparison.CurrentCultureIgnoreCase) || o.Slug.Contains(term, StringComparison.CurrentCultureIgnoreCase)
+            );
         }
 
         var total = await query.CountAsync(ct);
@@ -101,7 +107,7 @@ public class OrganizationService : IOrganizationService
                 Slug = o.Slug,
                 HasSeparateDatabase = o.ConnectionString != null,
                 IsActive = o.IsActive,
-                CreatedAt = o.CreatedAt
+                CreatedAt = o.CreatedAt,
             })
             .ToListAsync(ct);
 
@@ -111,8 +117,8 @@ public class OrganizationService : IOrganizationService
     public async Task<OrganizationDto?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
         await using var configDb = await _configFactory.CreateDbContextAsync(ct);
-        return await configDb.Organizations
-            .AsNoTracking()
+        return await configDb
+            .Organizations.AsNoTracking()
             .Where(o => o.Id == id)
             .Select(o => new OrganizationDto
             {
@@ -121,16 +127,19 @@ public class OrganizationService : IOrganizationService
                 Slug = o.Slug,
                 HasSeparateDatabase = o.ConnectionString != null,
                 IsActive = o.IsActive,
-                CreatedAt = o.CreatedAt
+                CreatedAt = o.CreatedAt,
             })
             .FirstOrDefaultAsync(ct);
     }
 
-    public async Task<List<OrganizationUserDto>> GetUserOrganizationsAsync(string userId, CancellationToken ct = default)
+    public async Task<List<OrganizationUserDto>> GetUserOrganizationsAsync(
+        string userId,
+        CancellationToken ct = default
+    )
     {
         await using var configDb = await _configFactory.CreateDbContextAsync(ct);
-        var users = await configDb.OrganizationUsers
-            .AsNoTracking()
+        var users = await configDb
+            .OrganizationUsers.AsNoTracking()
             .Where(ou => ou.UserId == userId)
             .Select(ou => new OrganizationUserDto(
                 ou.Id,
@@ -144,22 +153,32 @@ public class OrganizationService : IOrganizationService
                 ou.Role,
                 ou.JoinedAt,
                 ou.DefaultCompanyId,
-                ou.DefaultBranchId))
+                ou.DefaultBranchId
+            ))
             .ToListAsync(ct);
 
         await ResolveDefaultNamesAsync(users, ct);
         return users;
     }
 
-    public async Task AssignToOrganizationAsync(string userId, Guid organizationId, string role, CancellationToken ct = default)
+    public async Task AssignToOrganizationAsync(
+        string userId,
+        Guid organizationId,
+        string role,
+        CancellationToken ct = default
+    )
     {
         if (!OrgRoles.All.Contains(role))
-            throw new ArgumentException($"Invalid role '{role}'. Valid roles: {string.Join(", ", OrgRoles.All)}");
+            throw new ArgumentException(
+                $"Invalid role '{role}'. Valid roles: {string.Join(", ", OrgRoles.All)}"
+            );
 
         await using var configDb = await _configFactory.CreateDbContextAsync(ct);
 
-        var exists = await configDb.OrganizationUsers
-            .AnyAsync(ou => ou.UserId == userId && ou.OrganizationId == organizationId, ct);
+        var exists = await configDb.OrganizationUsers.AnyAsync(
+            ou => ou.UserId == userId && ou.OrganizationId == organizationId,
+            ct
+        );
         if (exists)
             throw new InvalidOperationException("User is already a member of this organization.");
 
@@ -167,34 +186,47 @@ public class OrganizationService : IOrganizationService
         if (!orgExists)
             throw new KeyNotFoundException("Organization not found.");
 
-        configDb.OrganizationUsers.Add(new OrganizationUser
-        {
-            Id = Guid.NewGuid(),
-            OrganizationId = organizationId,
-            UserId = userId,
-            Role = role,
-            JoinedAt = _timeProvider.GetUtcNow().UtcDateTime
-        });
+        configDb.OrganizationUsers.Add(
+            new OrganizationUser
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                UserId = userId,
+                Role = role,
+                JoinedAt = _timeProvider.GetUtcNow().UtcDateTime,
+            }
+        );
 
         await configDb.SaveChangesAsync(ct);
     }
 
-    public async Task UpdateOrganizationRoleAsync(string userId, Guid organizationId, string role, CancellationToken ct = default)
+    public async Task UpdateOrganizationRoleAsync(
+        string userId,
+        Guid organizationId,
+        string role,
+        CancellationToken ct = default
+    )
     {
         if (!OrgRoles.All.Contains(role))
-            throw new ArgumentException($"Invalid role '{role}'. Valid roles: {string.Join(", ", OrgRoles.All)}");
+            throw new ArgumentException(
+                $"Invalid role '{role}'. Valid roles: {string.Join(", ", OrgRoles.All)}"
+            );
 
         await using var configDb = await _configFactory.CreateDbContextAsync(ct);
 
-        var membership = await configDb.OrganizationUsers
-            .FirstOrDefaultAsync(ou => ou.UserId == userId && ou.OrganizationId == organizationId, ct);
+        var membership = await configDb.OrganizationUsers.FirstOrDefaultAsync(
+            ou => ou.UserId == userId && ou.OrganizationId == organizationId,
+            ct
+        );
         if (membership is null)
             throw new KeyNotFoundException("User is not a member of this organization.");
 
         if (membership.Role == OrgRoles.Owner && role != OrgRoles.Owner)
         {
-            var ownerCount = await configDb.OrganizationUsers
-                .CountAsync(ou => ou.OrganizationId == organizationId && ou.Role == OrgRoles.Owner, ct);
+            var ownerCount = await configDb.OrganizationUsers.CountAsync(
+                ou => ou.OrganizationId == organizationId && ou.Role == OrgRoles.Owner,
+                ct
+            );
             if (ownerCount <= 1)
                 throw new InvalidOperationException("Cannot change the role of the last Owner.");
         }
@@ -203,20 +235,30 @@ public class OrganizationService : IOrganizationService
         await configDb.SaveChangesAsync(ct);
     }
 
-    public async Task RemoveFromOrganizationAsync(string userId, Guid organizationId, CancellationToken ct = default)
+    public async Task RemoveFromOrganizationAsync(
+        string userId,
+        Guid organizationId,
+        CancellationToken ct = default
+    )
     {
         await using var configDb = await _configFactory.CreateDbContextAsync(ct);
 
-        var membership = await configDb.OrganizationUsers
-            .FirstOrDefaultAsync(ou => ou.UserId == userId && ou.OrganizationId == organizationId, ct);
+        var membership = await configDb.OrganizationUsers.FirstOrDefaultAsync(
+            ou => ou.UserId == userId && ou.OrganizationId == organizationId,
+            ct
+        );
         if (membership is not null)
         {
             if (membership.Role == OrgRoles.Owner)
             {
-                var ownerCount = await configDb.OrganizationUsers
-                    .CountAsync(ou => ou.OrganizationId == organizationId && ou.Role == OrgRoles.Owner, ct);
+                var ownerCount = await configDb.OrganizationUsers.CountAsync(
+                    ou => ou.OrganizationId == organizationId && ou.Role == OrgRoles.Owner,
+                    ct
+                );
                 if (ownerCount <= 1)
-                    throw new InvalidOperationException("Cannot remove the last Owner from an organization.");
+                    throw new InvalidOperationException(
+                        "Cannot remove the last Owner from an organization."
+                    );
             }
 
             configDb.OrganizationUsers.Remove(membership);
@@ -224,15 +266,22 @@ public class OrganizationService : IOrganizationService
         }
     }
 
-    public async Task<OrganizationDto> CreateAsync(CreateOrganizationRequest request, string adminUserId)
+    public async Task<OrganizationDto> CreateAsync(
+        CreateOrganizationRequest request,
+        string adminUserId
+    )
     {
         await using var configDb = await _configFactory.CreateDbContextAsync();
 
         if (await configDb.Organizations.AnyAsync(o => o.Slug == request.Slug))
-            throw new InvalidOperationException($"Organization with slug '{request.Slug}' already exists.");
+            throw new InvalidOperationException(
+                $"Organization with slug '{request.Slug}' already exists."
+            );
 
         if (await configDb.Users.AnyAsync(u => u.Email == request.OwnerEmail))
-            throw new InvalidOperationException($"User with email '{request.OwnerEmail}' already exists.");
+            throw new InvalidOperationException(
+                $"User with email '{request.OwnerEmail}' already exists."
+            );
 
         var ownerUser = new ApplicationUser
         {
@@ -240,12 +289,14 @@ public class OrganizationService : IOrganizationService
             Email = request.OwnerEmail,
             FirstName = request.OwnerFirstName,
             LastName = request.OwnerLastName,
-            CreatedAt = _timeProvider.GetUtcNow().UtcDateTime
+            CreatedAt = _timeProvider.GetUtcNow().UtcDateTime,
         };
 
         var createResult = await _userManager.CreateAsync(ownerUser, request.OwnerPassword);
         if (!createResult.Succeeded)
-            throw new InvalidOperationException(string.Join("; ", createResult.Errors.Select(e => e.Description)));
+            throw new InvalidOperationException(
+                string.Join("; ", createResult.Errors.Select(e => e.Description))
+            );
 
         var confirmToken = await _userManager.GenerateEmailConfirmationTokenAsync(ownerUser);
         await _userManager.ConfirmEmailAsync(ownerUser, confirmToken);
@@ -257,8 +308,11 @@ public class OrganizationService : IOrganizationService
         {
             if (!string.IsNullOrEmpty(request.DatabaseName))
             {
-                var baseConnStr = _databaseSettings.TemplateConnection
-                    ?? throw new InvalidOperationException("Template connection string is not configured.");
+                var baseConnStr =
+                    _databaseSettings.TemplateConnection
+                    ?? throw new InvalidOperationException(
+                        "Template connection string is not configured."
+                    );
 
                 var dbName = SanitizeDatabaseName(request.DatabaseName);
                 connectionString = BuildConnectionString(baseConnStr, dbName);
@@ -267,10 +321,20 @@ public class OrganizationService : IOrganizationService
                 await CreateEmptyDatabaseAsync(baseConnStr, dbName);
 
                 var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
-                optionsBuilder.UseNpgsql(connectionString, npgsqlOptions =>
-                    npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(10), errorCodesToAdd: null));
+                optionsBuilder.UseNpgsql(
+                    connectionString,
+                    npgsqlOptions =>
+                        npgsqlOptions.EnableRetryOnFailure(
+                            maxRetryCount: 3,
+                            maxRetryDelay: TimeSpan.FromSeconds(10),
+                            errorCodesToAdd: null
+                        )
+                );
 
-                await using var tenantDb = new ApplicationDbContext(optionsBuilder.Options, _timeProvider);
+                await using var tenantDb = new ApplicationDbContext(
+                    optionsBuilder.Options,
+                    _timeProvider
+                );
                 await tenantDb.Database.MigrateAsync();
                 await SeedData.SeedTenantDataAsync(tenantDb);
             }
@@ -282,28 +346,32 @@ public class OrganizationService : IOrganizationService
                 Slug = request.Slug,
                 ConnectionString = connectionString,
                 IsActive = true,
-                CreatedAt = _timeProvider.GetUtcNow().UtcDateTime
+                CreatedAt = _timeProvider.GetUtcNow().UtcDateTime,
             };
 
             configDb.Organizations.Add(org);
 
-            configDb.OrganizationUsers.Add(new OrganizationUser
-            {
-                Id = Guid.NewGuid(),
-                OrganizationId = org.Id,
-                UserId = ownerUser.Id,
-                Role = OrgRoles.Owner,
-                JoinedAt = _timeProvider.GetUtcNow().UtcDateTime
-            });
+            configDb.OrganizationUsers.Add(
+                new OrganizationUser
+                {
+                    Id = Guid.NewGuid(),
+                    OrganizationId = org.Id,
+                    UserId = ownerUser.Id,
+                    Role = OrgRoles.Owner,
+                    JoinedAt = _timeProvider.GetUtcNow().UtcDateTime,
+                }
+            );
 
-            configDb.OrganizationUsers.Add(new OrganizationUser
-            {
-                Id = Guid.NewGuid(),
-                OrganizationId = org.Id,
-                UserId = adminUserId,
-                Role = OrgRoles.OrgAdmin,
-                JoinedAt = _timeProvider.GetUtcNow().UtcDateTime
-            });
+            configDb.OrganizationUsers.Add(
+                new OrganizationUser
+                {
+                    Id = Guid.NewGuid(),
+                    OrganizationId = org.Id,
+                    UserId = adminUserId,
+                    Role = OrgRoles.OrgAdmin,
+                    JoinedAt = _timeProvider.GetUtcNow().UtcDateTime,
+                }
+            );
 
             await configDb.SaveChangesAsync();
         }
@@ -323,15 +391,18 @@ public class OrganizationService : IOrganizationService
             HasSeparateDatabase = org.ConnectionString != null,
             IsActive = org.IsActive,
             CreatedAt = org.CreatedAt,
-            Role = OrgRoles.Owner
+            Role = OrgRoles.Owner,
         };
     }
 
-    public async Task<List<OrganizationUserDto>> GetOrgUsersAsync(Guid organizationId, CancellationToken ct = default)
+    public async Task<List<OrganizationUserDto>> GetOrgUsersAsync(
+        Guid organizationId,
+        CancellationToken ct = default
+    )
     {
         await using var configDb = await _configFactory.CreateDbContextAsync(ct);
-        var users = await configDb.OrganizationUsers
-            .AsNoTracking()
+        var users = await configDb
+            .OrganizationUsers.AsNoTracking()
             .Where(ou => ou.OrganizationId == organizationId)
             .Select(ou => new OrganizationUserDto(
                 ou.Id,
@@ -345,14 +416,18 @@ public class OrganizationService : IOrganizationService
                 ou.Role,
                 ou.JoinedAt,
                 ou.DefaultCompanyId,
-                ou.DefaultBranchId))
+                ou.DefaultBranchId
+            ))
             .ToListAsync(ct);
 
         await ResolveDefaultNamesAsync(users, ct);
         return users;
     }
 
-    public async Task<UserDto> CreateUserForOrganizationAsync(Guid organizationId, CreateOrgUserRequest request)
+    public async Task<UserDto> CreateUserForOrganizationAsync(
+        Guid organizationId,
+        CreateOrgUserRequest request
+    )
     {
         var user = new ApplicationUser
         {
@@ -360,28 +435,25 @@ public class OrganizationService : IOrganizationService
             Email = request.Email,
             FirstName = request.FirstName,
             LastName = request.LastName,
-            CreatedAt = _timeProvider.GetUtcNow().UtcDateTime
+            CreatedAt = _timeProvider.GetUtcNow().UtcDateTime,
         };
 
         var createResult = await _userManager.CreateAsync(user, request.Password);
         if (!createResult.Succeeded)
-            throw new InvalidOperationException(string.Join("; ", createResult.Errors.Select(e => e.Description)));
-
-        var validSystemRoles = new[] { RoleNames.SystemAdmin };
-        var invalidRoles = request.Roles.Except(validSystemRoles).ToList();
-        if (invalidRoles.Count > 0)
             throw new InvalidOperationException(
-                $"Invalid system role(s): {string.Join(", ", invalidRoles)}. Only SystemAdmin is assignable.");
+                string.Join("; ", createResult.Errors.Select(e => e.Description))
+            );
+
+        // System-level roles (e.g., SystemAdmin) cannot be assigned through org user creation
+        if (request.Roles is { Count: > 0 })
+            throw new InvalidOperationException(
+                "System-level roles cannot be assigned through organization user creation. Use the admin user management endpoint instead."
+            );
 
         if (!OrgRoles.All.Contains(request.OrgRole))
-            throw new ArgumentException($"Invalid org role '{request.OrgRole}'. Valid roles: {string.Join(", ", OrgRoles.All)}");
-
-        if (request.Roles.Count > 0)
-        {
-            var roleResult = await _userManager.AddToRolesAsync(user, request.Roles);
-            if (!roleResult.Succeeded)
-                throw new InvalidOperationException(string.Join("; ", roleResult.Errors.Select(e => e.Description)));
-        }
+            throw new ArgumentException(
+                $"Invalid org role '{request.OrgRole}'. Valid roles: {string.Join(", ", OrgRoles.All)}"
+            );
 
         var confirmToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
         await _userManager.ConfirmEmailAsync(user, confirmToken);
@@ -392,19 +464,30 @@ public class OrganizationService : IOrganizationService
         if (!orgExists)
             throw new KeyNotFoundException("Organization not found.");
 
-        configDb.OrganizationUsers.Add(new OrganizationUser
-        {
-            Id = Guid.NewGuid(),
-            OrganizationId = organizationId,
-            UserId = user.Id,
-            Role = request.OrgRole,
-            JoinedAt = _timeProvider.GetUtcNow().UtcDateTime
-        });
+        configDb.OrganizationUsers.Add(
+            new OrganizationUser
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                UserId = user.Id,
+                Role = request.OrgRole,
+                JoinedAt = _timeProvider.GetUtcNow().UtcDateTime,
+            }
+        );
 
         await configDb.SaveChangesAsync();
 
         var roles = (await _userManager.GetRolesAsync(user)).ToList();
-        return new UserDto(user.Id, user.Email, user.UserName, user.FirstName, user.LastName, roles, user.CreatedAt, user.Preference);
+        return new UserDto(
+            user.Id,
+            user.Email,
+            user.UserName,
+            user.FirstName,
+            user.LastName,
+            roles,
+            user.CreatedAt,
+            user.Preference
+        );
     }
 
     public async Task<OrganizationDto> UpdateAsync(Guid id, UpdateOrganizationRequest request)
@@ -416,7 +499,9 @@ public class OrganizationService : IOrganizationService
             throw new KeyNotFoundException("Organization not found.");
 
         if (await configDb.Organizations.AnyAsync(o => o.Slug == request.Slug && o.Id != id))
-            throw new InvalidOperationException($"Organization with slug '{request.Slug}' already exists.");
+            throw new InvalidOperationException(
+                $"Organization with slug '{request.Slug}' already exists."
+            );
 
         org.Name = request.Name;
         org.Slug = request.Slug;
@@ -430,14 +515,16 @@ public class OrganizationService : IOrganizationService
             Slug = org.Slug,
             HasSeparateDatabase = org.ConnectionString != null,
             IsActive = org.IsActive,
-            CreatedAt = org.CreatedAt
+            CreatedAt = org.CreatedAt,
         };
     }
 
     public async Task RestoreAsync(Guid id, CancellationToken ct = default)
     {
         await using var configDb = await _configFactory.CreateDbContextAsync(ct);
-        var org = await configDb.Organizations.IgnoreQueryFilters().FirstOrDefaultAsync(o => o.Id == id, ct);
+        var org = await configDb
+            .Organizations.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(o => o.Id == id, ct);
         if (org is null)
             throw new KeyNotFoundException("Organization not found.");
 
@@ -453,8 +540,8 @@ public class OrganizationService : IOrganizationService
     public async Task<List<OrganizationDto>> GetDeletedAsync(CancellationToken ct = default)
     {
         await using var configDb = await _configFactory.CreateDbContextAsync(ct);
-        return await configDb.Organizations
-            .IgnoreQueryFilters()
+        return await configDb
+            .Organizations.IgnoreQueryFilters()
             .AsNoTracking()
             .Where(o => o.DeletedAt != null)
             .OrderByDescending(o => o.DeletedAt)
@@ -466,7 +553,7 @@ public class OrganizationService : IOrganizationService
                 HasSeparateDatabase = o.ConnectionString != null,
                 IsActive = o.IsActive,
                 CreatedAt = o.CreatedAt,
-                DeletedAt = o.DeletedAt
+                DeletedAt = o.DeletedAt,
             })
             .ToListAsync(ct);
     }
@@ -501,12 +588,18 @@ public class OrganizationService : IOrganizationService
         await configDb.SaveChangesAsync(ct);
     }
 
-    public async Task UpdateOrgUserDefaultsAsync(Guid orgId, string userId, Guid? companyId, Guid? branchId)
+    public async Task UpdateOrgUserDefaultsAsync(
+        Guid orgId,
+        string userId,
+        Guid? companyId,
+        Guid? branchId
+    )
     {
         await using var configDb = await _configFactory.CreateDbContextAsync();
 
-        var membership = await configDb.OrganizationUsers
-            .FirstOrDefaultAsync(ou => ou.OrganizationId == orgId && ou.UserId == userId);
+        var membership = await configDb.OrganizationUsers.FirstOrDefaultAsync(ou =>
+            ou.OrganizationId == orgId && ou.UserId == userId
+        );
         if (membership is null)
             throw new KeyNotFoundException("User is not a member of this organization.");
 
@@ -533,19 +626,23 @@ public class OrganizationService : IOrganizationService
     public async Task UpdateOrgUserRoleAsync(Guid orgId, string userId, string role)
     {
         if (!OrgRoles.All.Contains(role))
-            throw new ArgumentException($"Invalid role '{role}'. Valid roles: {string.Join(", ", OrgRoles.All)}");
+            throw new ArgumentException(
+                $"Invalid role '{role}'. Valid roles: {string.Join(", ", OrgRoles.All)}"
+            );
 
         await using var configDb = await _configFactory.CreateDbContextAsync();
 
-        var membership = await configDb.OrganizationUsers
-            .FirstOrDefaultAsync(ou => ou.OrganizationId == orgId && ou.UserId == userId);
+        var membership = await configDb.OrganizationUsers.FirstOrDefaultAsync(ou =>
+            ou.OrganizationId == orgId && ou.UserId == userId
+        );
         if (membership is null)
             throw new KeyNotFoundException("User is not a member of this organization.");
 
         if (membership.Role == OrgRoles.Owner && role != OrgRoles.Owner)
         {
-            var ownerCount = await configDb.OrganizationUsers
-                .CountAsync(ou => ou.OrganizationId == orgId && ou.Role == OrgRoles.Owner);
+            var ownerCount = await configDb.OrganizationUsers.CountAsync(ou =>
+                ou.OrganizationId == orgId && ou.Role == OrgRoles.Owner
+            );
             if (ownerCount <= 1)
                 throw new InvalidOperationException("Cannot change the role of the last Owner.");
         }
@@ -555,7 +652,10 @@ public class OrganizationService : IOrganizationService
         await configDb.SaveChangesAsync();
     }
 
-    private async Task ResolveDefaultNamesAsync(List<OrganizationUserDto> users, CancellationToken ct)
+    private async Task ResolveDefaultNamesAsync(
+        List<OrganizationUserDto> users,
+        CancellationToken ct
+    )
     {
         var companyIds = users
             .Where(u => u.DefaultCompanyId.HasValue)
@@ -563,14 +663,15 @@ public class OrganizationService : IOrganizationService
             .Distinct()
             .ToList();
 
-        if (companyIds.Count == 0) return;
+        if (companyIds.Count == 0)
+            return;
 
         try
         {
             await using var tenantDb = await _tenantFactory.CreateDbContextAsync(ct);
 
-            var companies = await tenantDb.Companies
-                .AsNoTracking()
+            var companies = await tenantDb
+                .Companies.AsNoTracking()
                 .Where(c => companyIds.Contains(c.Id))
                 .ToDictionaryAsync(c => c.Id, c => c.Name, ct);
 
@@ -580,12 +681,13 @@ public class OrganizationService : IOrganizationService
                 .Distinct()
                 .ToList();
 
-            var branches = branchIds.Count > 0
-                ? await tenantDb.Branches
-                    .AsNoTracking()
-                    .Where(b => branchIds.Contains(b.Id))
-                    .ToDictionaryAsync(b => b.Id, b => b.Name, ct)
-                : [];
+            var branches =
+                branchIds.Count > 0
+                    ? await tenantDb
+                        .Branches.AsNoTracking()
+                        .Where(b => branchIds.Contains(b.Id))
+                        .ToDictionaryAsync(b => b.Id, b => b.Name, ct)
+                    : [];
 
             for (var i = 0; i < users.Count; i++)
             {
@@ -597,7 +699,11 @@ public class OrganizationService : IOrganizationService
                     ? branches.GetValueOrDefault(user.DefaultBranchId.Value)
                     : null;
 
-                users[i] = user with { DefaultCompanyName = companyName, DefaultBranchName = branchName };
+                users[i] = user with
+                {
+                    DefaultCompanyName = companyName,
+                    DefaultBranchName = branchName,
+                };
             }
         }
         catch
@@ -616,16 +722,19 @@ public class OrganizationService : IOrganizationService
     {
         var builder = new NpgsqlConnectionStringBuilder(baseConnectionString)
         {
-            Database = databaseName
+            Database = databaseName,
         };
         return builder.ConnectionString;
     }
 
-    private static async Task CreateEmptyDatabaseAsync(string baseConnectionString, string databaseName)
+    private static async Task CreateEmptyDatabaseAsync(
+        string baseConnectionString,
+        string databaseName
+    )
     {
         var masterBuilder = new NpgsqlConnectionStringBuilder(baseConnectionString)
         {
-            Database = "postgres"
+            Database = "postgres",
         };
 
         await using var conn = new NpgsqlConnection(masterBuilder.ConnectionString);
@@ -652,7 +761,8 @@ public class OrganizationService : IOrganizationService
         await conn.OpenAsync();
 
         await using var termCmd = conn.CreateCommand();
-        termCmd.CommandText = @"
+        termCmd.CommandText =
+            @"
             SELECT pg_terminate_backend(pg_stat_activity.pid)
             FROM pg_stat_activity
             WHERE pg_stat_activity.datname = @name

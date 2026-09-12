@@ -108,6 +108,12 @@
 
     private async Task HandleRegister()
     {
+        if (_form is not null)
+            await _form.ValidateAsync();
+
+        if (!_isValid)
+            return;
+
         _loading = true;
         _errorMessage = "";
 

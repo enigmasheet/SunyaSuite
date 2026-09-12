@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SunyaSuite.Application.Interfaces.Config;
@@ -19,8 +20,15 @@ public class UserPreferencesController : ControllerBase
     }
 
     [HttpGet("{userId}")]
-    public async Task<ActionResult<DateDisplayPreference>> GetDateDisplayPreference(string userId, CancellationToken ct = default)
+    public async Task<ActionResult<DateDisplayPreference>> GetDateDisplayPreference(
+        string userId,
+        CancellationToken ct = default
+    )
     {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (currentUserId != userId && !User.IsInRole(RoleNames.SystemAdmin))
+            return Forbid();
+
         var preference = await _userPreferenceService.GetDateDisplayPreferenceAsync(userId, ct);
         return Ok(preference);
     }
@@ -28,8 +36,16 @@ public class UserPreferencesController : ControllerBase
     public record SetDateDisplayPreferenceRequest(DateDisplayPreference Preference);
 
     [HttpPost("{userId}")]
-    public async Task<ActionResult> SetDateDisplayPreference(string userId, [FromBody] SetDateDisplayPreferenceRequest request, CancellationToken ct = default)
+    public async Task<ActionResult> SetDateDisplayPreference(
+        string userId,
+        [FromBody] SetDateDisplayPreferenceRequest request,
+        CancellationToken ct = default
+    )
     {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (currentUserId != userId && !User.IsInRole(RoleNames.SystemAdmin))
+            return Forbid();
+
         await _userPreferenceService.SetDateDisplayPreferenceAsync(userId, request.Preference, ct);
         return NoContent();
     }
