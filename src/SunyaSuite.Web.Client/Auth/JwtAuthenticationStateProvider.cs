@@ -1,14 +1,17 @@
-using Microsoft.AspNetCore.Components.Authorization;
-using SunyaSuite.Domain.Constants;
 using System.Security.Claims;
 using System.Text.Json;
+using Microsoft.AspNetCore.Components.Authorization;
+using SunyaSuite.Domain.Constants;
 
 namespace SunyaSuite.Web.Client.Auth;
 
 public class JwtAuthenticationStateProvider : AuthenticationStateProvider
 {
     private readonly TokenManager _tokenManager;
-    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+    };
 
     public JwtAuthenticationStateProvider(TokenManager tokenManager)
     {
@@ -17,7 +20,7 @@ public class JwtAuthenticationStateProvider : AuthenticationStateProvider
 
     public override async Task<AuthenticationState> GetAuthenticationStateAsync()
     {
-        var token = await _tokenManager.GetTokenAsync();
+        var token = await _tokenManager.GetAccessTokenAsync();
 
         if (string.IsNullOrEmpty(token))
             return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
@@ -37,10 +40,14 @@ public class JwtAuthenticationStateProvider : AuthenticationStateProvider
     {
         var payload = jwt.Split('.')[1];
         var jsonBytes = ParseBase64WithoutPadding(payload);
-        var keyValuePairs = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(jsonBytes, JsonOptions);
+        var keyValuePairs = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
+            jsonBytes,
+            JsonOptions
+        );
 
         var claims = new List<Claim>();
-        if (keyValuePairs is null) return claims;
+        if (keyValuePairs is null)
+            return claims;
 
         foreach (var (key, value) in keyValuePairs)
         {
@@ -112,7 +119,7 @@ public class JwtAuthenticationStateProvider : AuthenticationStateProvider
                         JsonValueKind.Number => value.GetRawText(),
                         JsonValueKind.True => "true",
                         JsonValueKind.False => "false",
-                        _ => value.GetRawText()
+                        _ => value.GetRawText(),
                     };
                     claims.Add(new Claim(key, strValue));
                     break;
@@ -126,8 +133,12 @@ public class JwtAuthenticationStateProvider : AuthenticationStateProvider
     {
         switch (base64.Length % 4)
         {
-            case 2: base64 += "=="; break;
-            case 3: base64 += "="; break;
+            case 2:
+                base64 += "==";
+                break;
+            case 3:
+                base64 += "=";
+                break;
         }
         return Convert.FromBase64String(base64);
     }

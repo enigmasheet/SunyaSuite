@@ -1,8 +1,8 @@
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using SunyaSuite.Web.Client.Services;
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
 
 namespace SunyaSuite.Web.Client.Auth;
 
@@ -13,14 +13,15 @@ public class AuthMessageHandler : DelegatingHandler
     private readonly AuthenticationStateProvider _authStateProvider;
     private readonly NavigationManager _navigation;
     private readonly IHttpClientFactory _httpClientFactory;
-    private static readonly SemaphoreSlim RenewLock = new(1, 1);
+    private static readonly SemaphoreSlim RefreshLock = new(1, 1);
 
     public AuthMessageHandler(
         TokenManager tokenManager,
         OrgManager orgManager,
         AuthenticationStateProvider authStateProvider,
         NavigationManager navigation,
-        IHttpClientFactory httpClientFactory)
+        IHttpClientFactory httpClientFactory
+    )
     {
         _tokenManager = tokenManager;
         _orgManager = orgManager;
@@ -29,13 +30,25 @@ public class AuthMessageHandler : DelegatingHandler
         _httpClientFactory = httpClientFactory;
     }
 
-    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+    protected override async Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken ct
+    )
     {
         ct.ThrowIfCancellationRequested();
 
-        var token = await _tokenManager.GetTokenAsync();
-        var hadToken = !string.IsNullOrEmpty(token);
-        if (hadToken)
+        var token = await _tokenManager.GetAccessTokenAsync();
+        var hasAccessToken = !string.IsNullOrEmpty(token);
+
+        // Proactively refresh if access token is about to expire
+        if (hasAccessToken && _tokenManager.IsAccessTokenExpiringSoon())
+        {
+            var refreshed = await TryRefreshTokenAsync(ct);
+            if (refreshed)
+                token = await _tokenManager.GetAccessTokenAsync();
+        }
+
+        if (hasAccessToken)
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var orgSlug = await _orgManager.GetActiveSlugAsync();
@@ -44,20 +57,25 @@ public class AuthMessageHandler : DelegatingHandler
 
         var response = await base.SendAsync(request, ct);
 
-        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized && hadToken)
+        // If 401 and we have a refresh token, try to refresh and retry once
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized && hasAccessToken)
         {
-            var renewed = await TryRenewTokenAsync(ct);
+            var renewed = await TryRefreshTokenAsync(ct);
             if (renewed)
             {
-                var newToken = await _tokenManager.GetTokenAsync();
+                var newToken = await _tokenManager.GetAccessTokenAsync();
                 if (!string.IsNullOrEmpty(newToken))
-                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", newToken);
-
-                response = await base.SendAsync(request, ct);
+                {
+                    request.Headers.Authorization = new AuthenticationHeaderValue(
+                        "Bearer",
+                        newToken
+                    );
+                    response = await base.SendAsync(request, ct);
+                }
             }
             else
             {
-                await _tokenManager.ClearTokenAsync();
+                await _tokenManager.ClearAllAsync();
                 if (_authStateProvider is JwtAuthenticationStateProvider jwtProvider)
                     await jwtProvider.NotifyAuthenticationStateChanged();
 
@@ -69,26 +87,37 @@ public class AuthMessageHandler : DelegatingHandler
         return response;
     }
 
-    private async Task<bool> TryRenewTokenAsync(CancellationToken ct)
+    private async Task<bool> TryRefreshTokenAsync(CancellationToken ct)
     {
-        await RenewLock.WaitAsync(ct);
+        await RefreshLock.WaitAsync(ct);
         try
         {
-            var token = await _tokenManager.GetTokenAsync();
-            if (string.IsNullOrEmpty(token) || !await _tokenManager.IsTokenExpiredAsync())
+            // Double-check: another thread may have already refreshed
+            if (!_tokenManager.IsAccessTokenExpiringSoon())
+                return true;
+
+            var refreshToken = await _tokenManager.GetRefreshTokenAsync();
+            if (string.IsNullOrEmpty(refreshToken))
                 return false;
 
             var renewClient = _httpClientFactory.CreateClient("Renew");
-            var renewResponse = await renewClient.PostAsJsonAsync(ApiEndpoints.AuthPaths.Renew, new { token }, ct);
+            var renewResponse = await renewClient.PostAsJsonAsync(
+                ApiEndpoints.AuthPaths.Refresh,
+                new { refreshToken },
+                ct
+            );
 
             if (!renewResponse.IsSuccessStatusCode)
                 return false;
 
-            var result = await renewResponse.Content.ReadFromJsonAsync<RenewResponse>(cancellationToken: ct);
+            var result = await renewResponse.Content.ReadFromJsonAsync<RefreshResponse>(
+                cancellationToken: ct
+            );
             if (result is null)
                 return false;
 
-            await _tokenManager.RenewTokenAsync(result.Token, result.ExpiresAt);
+            await _tokenManager.SetAccessTokenAsync(result.AccessToken, result.ExpiresAt);
+            await _tokenManager.SetRefreshTokenAsync(result.RefreshToken);
             return true;
         }
         catch
@@ -97,9 +126,9 @@ public class AuthMessageHandler : DelegatingHandler
         }
         finally
         {
-            RenewLock.Release();
+            RefreshLock.Release();
         }
     }
 
-    private record RenewResponse(string Token, DateTime ExpiresAt);
+    private record RefreshResponse(string AccessToken, DateTime ExpiresAt, string RefreshToken);
 }

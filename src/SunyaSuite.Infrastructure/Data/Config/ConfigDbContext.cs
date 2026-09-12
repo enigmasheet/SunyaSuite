@@ -8,7 +8,8 @@ public class ConfigDbContext : IdentityDbContext<ApplicationUser>
 {
     private readonly TimeProvider _timeProvider;
 
-    public ConfigDbContext(DbContextOptions<ConfigDbContext> options, TimeProvider timeProvider) : base(options)
+    public ConfigDbContext(DbContextOptions<ConfigDbContext> options, TimeProvider timeProvider)
+        : base(options)
     {
         _timeProvider = timeProvider;
     }
@@ -16,12 +17,15 @@ public class ConfigDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Organization> Organizations => Set<Organization>();
     public DbSet<OrganizationUser> OrganizationUsers => Set<OrganizationUser>();
     public DbSet<Invite> Invites => Set<Invite>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
-        builder.ApplyConfigurationsFromAssembly(typeof(ConfigDbContext).Assembly,
-            t => t.Namespace == typeof(Configurations.OrganizationConfiguration).Namespace);
+        builder.ApplyConfigurationsFromAssembly(
+            typeof(ConfigDbContext).Assembly,
+            t => t.Namespace == typeof(Configurations.OrganizationConfiguration).Namespace
+        );
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken ct = default)
@@ -39,6 +43,8 @@ public class ConfigDbContext : IdentityDbContext<ApplicationUser>
                     ou.JoinedAt = utcNow;
                 if (entry.Entity is Invite invite && invite.CreatedAt == default)
                     invite.CreatedAt = utcNow;
+                if (entry.Entity is RefreshToken rt && rt.CreatedAt == default)
+                    rt.CreatedAt = utcNow;
             }
 
             foreach (var property in entry.Properties)

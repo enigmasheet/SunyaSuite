@@ -28,8 +28,10 @@ internal static class ApiEndpoints
     {
         public const string Login = Auth + "/login";
         public const string Register = Auth + "/register";
+        public const string Refresh = Auth + "/refresh";
         public const string Renew = Auth + "/renew";
         public const string ForgotPassword = Auth + "/forgot-password";
         public const string ChangePassword = Auth + "/change-password";
+        public const string Logout = Auth + "/logout";
     }
 }

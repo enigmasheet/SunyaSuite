@@ -1,5 +1,5 @@
-using Microsoft.AspNetCore.Components.Authorization;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Components.Authorization;
 
 namespace SunyaSuite.Web.Api.Auth;
 
@@ -19,8 +19,10 @@ public class ApiAuthStateProvider : AuthenticationStateProvider
     public override Task<AuthenticationState> GetAuthenticationStateAsync()
     {
         var user = _httpContextAccessor.HttpContext?.User;
-        if (user is null || !user.Identity?.IsAuthenticated == true)
-            return Task.FromResult(new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity())));
+        if (user is null || user.Identity is not { IsAuthenticated: true })
+            return Task.FromResult(
+                new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()))
+            );
 
         return Task.FromResult(new AuthenticationState(user));
     }

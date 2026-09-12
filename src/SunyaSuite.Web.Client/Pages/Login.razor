@@ -73,7 +73,7 @@
     {
         if (firstRender)
         {
-            var token = await TokenManager.GetTokenAsync();
+            var token = await TokenManager.GetAccessTokenAsync();
             if (!string.IsNullOrEmpty(token))
                 Navigation.NavigateTo("/", forceLoad: true);
         }
@@ -119,7 +119,8 @@
 
         if (result is null) return;
 
-        await TokenManager.SetTokenAsync(result.Token, result.ExpiresAt);
+        await TokenManager.SetAccessTokenAsync(result.AccessToken, result.ExpiresAt);
+        await TokenManager.SetRefreshTokenAsync(result.RefreshToken);
         if (result.Organizations is { Count: > 0 })
         {
             await OrgManager.SetOrganizationsAsync(result.Organizations);
@@ -133,5 +134,5 @@
         Navigation.NavigateTo("/", forceLoad: true);
     }
 
-    private record AuthResponse(string Token, DateTime ExpiresAt, string UserId, string Email, IList<string> Roles, List<OrganizationDto>? Organizations);
+    private record AuthResponse(string AccessToken, DateTime ExpiresAt, string RefreshToken, string UserId, string Email, IList<string> Roles, List<OrganizationDto>? Organizations);
 }
