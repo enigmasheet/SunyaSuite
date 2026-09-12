@@ -19,31 +19,54 @@ namespace SunyaSuite.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services,
+        IConfiguration configuration
+    )
     {
         services.AddSingleton(TimeProvider.System);
 
-        services.Configure<DatabaseSettings>(configuration.GetSection(DatabaseSettings.SectionName));
+        services.Configure<DatabaseSettings>(
+            configuration.GetSection(DatabaseSettings.SectionName)
+        );
 
         // Config database (shared Organizations + Identity)
         services.AddDbContextFactory<ConfigDbContext>(options =>
-            options.UseNpgsql(configuration.GetConnectionString("ConfigConnection"),
-                npgsqlOptions => npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(10), errorCodesToAdd: null))
-               .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
+            options.UseNpgsql(
+                configuration.GetConnectionString("ConfigConnection"),
+                npgsqlOptions =>
+                    npgsqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: 3,
+                        maxRetryDelay: TimeSpan.FromSeconds(10),
+                        errorCodesToAdd: null
+                    )
+            )
+        );
 
         // Tenant database  register base options (used as fallback when no tenant override)
         services.AddDbContextFactory<ApplicationDbContext>(options =>
-            options.UseNpgsql(configuration.GetConnectionString("TemplateConnection"),
-                npgsqlOptions => npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(10), errorCodesToAdd: null))
-               .ConfigureWarnings(w => w.Ignore(CoreEventId.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning))
-               .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
+            options
+                .UseNpgsql(
+                    configuration.GetConnectionString("TemplateConnection"),
+                    npgsqlOptions =>
+                        npgsqlOptions.EnableRetryOnFailure(
+                            maxRetryCount: 3,
+                            maxRetryDelay: TimeSpan.FromSeconds(10),
+                            errorCodesToAdd: null
+                        )
+                )
+                .ConfigureWarnings(w =>
+                    w.Ignore(
+                        CoreEventId.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning
+                    )
+                )
+        );
 
         // Scoped factory resolves tenant-specific connection string per request
         services.AddScoped<ITenantContext, TenantContext>();
         services.AddScoped<IDbContextFactory<ApplicationDbContext>, TenantDbContextFactory>();
 
-        services.AddHealthChecks()
-            .AddCheck<DbContextHealthCheck>("database");
+        services.AddHealthChecks().AddCheck<DbContextHealthCheck>("database");
 
         services.AddScoped<IClientStatusCalculator, ClientStatusCalculator>();
         services.AddScoped<IAuditService, AuditService>();
@@ -72,7 +95,8 @@ public static class DependencyInjection
         services.AddHostedService<ApplyTenantMigrationsService>();
 
         services.AddValidatorsFromAssemblyContaining<Application.DTOs.Tenant.CreateClientRequest>(
-            ServiceLifetime.Scoped);
+            ServiceLifetime.Scoped
+        );
 
         return services;
     }

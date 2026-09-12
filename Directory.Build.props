@@ -5,5 +5,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
+    <NoWarn>$(NoWarn);IDX00001</NoWarn>
   </PropertyGroup>
 </Project>

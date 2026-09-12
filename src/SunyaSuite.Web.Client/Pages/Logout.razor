@@ -3,6 +3,7 @@
 @inject Auth.TokenManager TokenManager
 @inject Auth.OrgManager OrgManager
 @inject Auth.JwtAuthenticationStateProvider AuthStateProvider
+@inject IHttpClientFactory HttpClientFactory
 @inject NavigationManager Navigation
 
 <PageTitle>Signed Out — SunyaSuite</PageTitle>
@@ -20,6 +21,17 @@
 @code {
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
+            var refreshToken = await TokenManager.GetRefreshTokenAsync();
+            if (!string.IsNullOrEmpty(refreshToken))
+            {
+                var http = HttpClientFactory.CreateClient("Api");
+                await http.PostAsJsonAsync("api/auth/logout", new { refreshToken });
+            }
+        }
+        catch { }
+
         try
         {
             await TokenManager.ClearAllAsync();

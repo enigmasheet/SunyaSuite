@@ -79,8 +79,12 @@ public class AuthMessageHandler : DelegatingHandler
                 if (_authStateProvider is JwtAuthenticationStateProvider jwtProvider)
                     await jwtProvider.NotifyAuthenticationStateChanged();
 
-                var returnUrl = Uri.EscapeDataString(_navigation.Uri);
-                _navigation.NavigateTo($"/login?returnUrl={returnUrl}", forceLoad: true);
+                // Guard: don't redirect if already on login page
+                if (!_navigation.Uri.Contains("/login"))
+                {
+                    var returnUrl = Uri.EscapeDataString(_navigation.Uri);
+                    _navigation.NavigateTo($"/login?returnUrl={returnUrl}", forceLoad: true);
+                }
             }
         }
 
